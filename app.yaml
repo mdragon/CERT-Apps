@@ -1,0 +1,9 @@
+application: cert-apps
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /.*
+  script: handlers.home.app
