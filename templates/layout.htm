@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <link rel="stylesheet" href="/css/common.css" />
+    <title>{% block title %}C.E.R.T. Apps{% endblock %}</title>
+    {% endblock %}
+</head>
+<body>
+	<div id="wrapper">
+	<div id="header">
+		<div id="nav">
+		</div>
+		
+		<div id="welcome">
+			{% if not user %}
+				<a href="{{ loginURL }}">Login</a>
+			{% else %}
+				Welcome, {{ member.firstName }} | <a href="{{ logoutURL }}">Logout</a>
+			{% endif %}
+		</div>
+	</div>
+    <div id="content">
+		{% block content %}{% endblock %}
+	</div>
+    <div id="footer">
+        {% block footer %}
+        &copy; Copyright 2012.
+        {% endblock %}
+    </div>
+	</div>
+</body>
+</html>
+
+<script src="/js/jquery.js" type="text/javascript"></script>
+<script src="/js/common.js" type="text/javascript"></script>
+<script>
+$(document).ready(ui.init);
+</script>

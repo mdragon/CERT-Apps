@@ -1,0 +1,78 @@
+h1, h2, h3, h4, h5
+{
+	margin: 1px 0 2px 0;
+}
+
+#header
+{
+	background: lightgrey;
+	min-height: 1.5em;
+	width: 100%;
+}
+
+#nav
+{
+	clear: left;
+	float: left;
+}
+
+#welcome
+{
+	clear: right;
+	float: right;
+	padding-right: 5px;
+}
+
+body
+{
+	margin: 0;
+	font-family: verdana;
+	font-size: 12px;
+}
+
+#wrapper
+{
+}
+
+#footer, #content
+{
+	clear: both;
+	float: none;
+	margin: auto;	
+	max-width: 1000px;	
+	min-width: 600px;
+}
+
+#footer
+{
+	padding-top: 10px;
+}
+
+.clearall
+{
+	clear: both;
+	float: left;
+}
+
+.inline
+{
+	padding: 2px 3px;
+}
+
+.form-wrapper
+{
+	float: none;
+}
+
+.form-wrapper .form
+{
+	clear: left;
+	float: left;
+}
+
+.form-wrapper .help
+{
+	clear: right;
+	float: left;
+	padding-top: 20px;
+}
