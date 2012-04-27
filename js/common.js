@@ -86,15 +86,16 @@ app.editable.ui.trackChanges = function(target, static, e)
 	console.group('app.editable.ui.trackChanges');
 	console.log('target, static', target, static, 'e', e);
 	
-	var old = $.trim(static.data('value-prior'));
+	var prior = e.data.value.prior;// || static.data('value-prior');
+	var org = e.data.value.original;// || static.data('value-original');
 	var val = $.trim(target.val());
 	
-	console.log('check old vs. new', old, ' !== ',  val);
-	if( old !== val )
+	console.log('check prior vs. new', prior, ' !== ',  val);
+	if( prior !== val )
 	{
 		console.log('changed');
 		static.text(val);
-		var change = {prior: static.data('value-prior'), value: val, name: e.data.name, orginal: static.data('value-original'),};
+		var change = {prior: prior, value: val, name: e.data.name, orginal: org,};
 
 		app.editable.changes.push(change);
 		
@@ -121,6 +122,9 @@ app.editable.ui.click = function(e)
 	
 	var trimmed = $.trim(target.text());
 	input.val(trimmed);
+	e.data.value = {};
+	e.data.value.prior = trimmed;
+	e.data.value.original = $.trim(target.data('value-original'));
 	target.data('value-prior', trimmed);
 	
 	input.unbind();
