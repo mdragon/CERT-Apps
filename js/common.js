@@ -8,10 +8,21 @@ app.showHide = {};
 app.showHide.ui = {};
 app.showHide.ui.type = '';
 
+app.showHide.ui.show = function(el, callback)
+{
+	el.show(0, null, callback);
+};
+
+app.showHide.ui.hide = function(el, callback)
+{
+	el.hide(0, null, callback);
+};
+
 app.editable.ui.leave = function (e, keepChange)
 {
 	console.log('e', e, 'keepChange', keepChange);
 	e.stopPropagation();
+	e.preventDefault();
 	if( ! app.editable.ui.contentEditable )
 	{
 		var target = $(e.currentTarget);
@@ -20,7 +31,8 @@ app.editable.ui.leave = function (e, keepChange)
 
 		keepChange = e.acceptChange || keepChange;
 		
-		if( keepChange ) 
+		// if we jumpToNext it will track the change when that click fires
+		if( keepChange && e.jumpToNext === false ) 
 		{
 			app.editable.ui.trackChanges(target, static, e);
 		}
@@ -68,8 +80,12 @@ app.editable.ui.trackChanges = function(target, static, e)
 	{
 		console.log('changed');
 		static.text(val);
-		var change = {static: static, prior: static.data('value-prior'), value: val, name: e.data.name, orginal: static.data('value-original'),};
+		var change = {prior: static.data('value-prior'), value: val, name: e.data.name, orginal: static.data('value-original'),};
+
 		app.editable.changes.push(change);
+		
+		console.error('pushed', JSON.stringify(change));
+		
 	} else
 	{
 		console.log('unchanged');
@@ -94,10 +110,16 @@ app.editable.ui.click = function(e)
 	target.data('value-prior', trimmed);
 	
 	target.hide(app.showHide.ui.type);
-	
-	inputSpan.show(app.showHide.ui.type, function(){ input.focus(); 	console.log('after hide target.text()', target.text()); } );
+	app.showHide.ui.show(inputSpan, function(){ test(input, target); } );
 	
 	console.groupEnd();
+};
+
+test = function(input, target)
+{
+	input.focus(); 	
+	input.select();
+	console.log('after hide target.text()', target.text());
 };
 
 app.editable.ui.focus = function(e)
