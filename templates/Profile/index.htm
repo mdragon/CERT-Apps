@@ -5,23 +5,18 @@
 <div class="form-wrapper">
 	<div class="form">
 		<h2>Your Information</h2>
-		<span class="firstName-content inline" xcontenteditable >{{ member.firstName | default('First Name', true) }} </span> 
-		<span class="lastName-content inline" xcontenteditable >{{ member.lastName | default('Last Name', true) }} </span><br/>
-		<span class="address-content inline" xcontenteditable data-input-size="60">{{ member.address | default('Address', true) }}</span>
+		<span class="firstName-content inline" data-value-default="First Name" xcontenteditable >{{ member.firstName | default('', true) }} </span> 
+		<span class="lastName-content inline" data-value-default="Last Name" xcontenteditable >{{ member.lastName | default('', true) }} </span><br/>
+		<span class="address-content inline" data-value-default="Address" data-input-size="60" xcontenteditable >{{ member.address | default('', true) }}</span>
+
+		<h3>Contact Information</h3>
+		<span class="email-content inline" data-value-default="Email" xcontenteditable >{{ member.email | default('', true) }} </span>
+		<span class="email2-content inline" data-value-default="Additional Email" xcontenteditable >{{ member.email2 | default('', true) }} </span><br/>
+		<span class="phone-content inline" data-value-default="Phone" xcontenteditable >{{ member.phone | default('', true) }} </span>
+		<span class="phone2-content inline" data-value-default="Additional Phone" xcontenteditable >{{ member.phone2 | default('', true) }} </span><br/>
 	</div>
 	<div class="help">
 		Click a piece of data to edit
-	</div>
-</div>
-
-<div class="form-wrapper">
-	<div class="form">
-		<h3>Contact Information</h3>
-		<span class="email-content inline" xcontenteditable >{{ member.email | default('Email', true) }} </span><br/>
-		<span class="phone-content inline" xcontenteditable >{{ member.phone | default('Phone', true) }} </span>
-	</div>
-	<div class="help">
-	
 	</div>
 </div>
 
