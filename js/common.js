@@ -20,6 +20,7 @@ app.showHide.ui.hide = function(el, callback)
 
 app.editable.ui.leave = function (e, keepChange)
 {
+	console.group('app.editable.ui.leave');
 	console.log('e', e, 'keepChange', keepChange);
 	e.stopPropagation();
 	e.preventDefault();
@@ -29,28 +30,41 @@ app.editable.ui.leave = function (e, keepChange)
 		var parent = target.closest('span');
 		var static = parent.prev('span');
 
-		keepChange = e.acceptChange || keepChange;
+		keepChange = e.data.acceptChange || keepChange;
 		
+		if( ! keepChange ) 
+		{
+			console.log('throwing away change, calling stopImmediate');
+			e.stopImmediatePropagation();
+		}
+		
+		console.log('keepChange, e.data.jumpToNext', keepChange, e.data.jumpToNext);
+		
+		// not any more now we remove the blur bind so there is no blur that fires when you chose to leave && e.data.jumpToNext === false 
 		// if we jumpToNext it will track the change when that click fires
-		if( keepChange && e.jumpToNext === false ) 
+		if( keepChange ) 
 		{
 			app.editable.ui.trackChanges(target, static, e);
 		}
-	
+		
 		parent.hide(app.showHide.ui.type);
 		static.show(app.showHide.ui.type);
 		
-		if( e.jumpToNext )
+		if( e.data.jumpToNext )
 		{
 			var next = $(static.nextAll('.inline')[0]);
 			console.log('next', next);
 			// wait a little bit to let the UI catch up
-			window.setTimeout(function(){ next.click(); }, 200);
+			window.setTimeout(function(){ console.log('trigger click'); next.trigger('click', e); }, 200);
 		}
+		
+		target.unbind();
 	} else
 	{
 		document.designMode = 'off';	
 	}
+	
+	console.groupEnd();
 };
 
 app.editable.ui.blur = function (e)
@@ -58,8 +72,8 @@ app.editable.ui.blur = function (e)
 	console.group('app.editable.ui.blur');
 	// lame that we're hooking the blur event
 	
-	e.jumpToNext = false;
-	e.acceptChange = true;
+	e.data.jumpToNext = false;
+	e.data.acceptChange = true;
 	
 	console.log('blur e', e);
 	app.editable.ui.leave(e, true);
@@ -70,7 +84,7 @@ app.editable.ui.blur = function (e)
 app.editable.ui.trackChanges = function(target, static, e)
 {
 	console.group('app.editable.ui.trackChanges');
-	console.log('target, static', target, static);
+	console.log('target, static', target, static, 'e', e);
 	
 	var old = $.trim(static.data('value-prior'));
 	var val = $.trim(target.val());
@@ -109,6 +123,11 @@ app.editable.ui.click = function(e)
 	input.val(trimmed);
 	target.data('value-prior', trimmed);
 	
+	input.unbind();
+	input.bind('focusout', e.data, app.editable.ui.blur);
+	input.bind('keydown', e.data, app.editable.ui.keypress);
+
+	
 	target.hide(app.showHide.ui.type);
 	app.showHide.ui.show(inputSpan, function(){ test(input, target); } );
 	
@@ -136,21 +155,29 @@ app.editable.ui.focus = function(e)
 
 app.editable.ui.getName = function(i)
 {
+	console.group('app.editable.ui.getName');
+
 	var classes = i.attr('class').split(' ');
 
-	for( var y = classes.length -1; y >= 0; y-- )
+	console.log('classes', classes);
+	var name = null;
+	
+	for( var y = classes.length - 1; y >= 0; y-- )
 	{
 		var c = classes[y];
 		var idx = c.indexOf('-content');
 		
 		console.log('y', y, 'c', c, 'idx', idx);
 		
-		if( idx >= -1 )
+		if( idx > -1 )
 		{
 			name = c.substring(0, idx);
 			break;
 		}
 	}
+	
+	console.log('name', name);
+	console.groupEnd();
 	
 	return name;
 };
@@ -182,10 +209,10 @@ app.editable.ui.keypress = function(e)
 {
 	//console.log('app.editable.ui.keypress', e);
 	
-	e.jumpToNext = true;
-	e.acceptChange = true;
+	e.data.jumpToNext = true;
+	e.data.acceptChange = true;
 
-	console.log('switch', e.keyCode);
+	//console.log('switch', e.keyCode);
 	switch(e.keyCode)
 	{
 		case 9:
@@ -198,8 +225,8 @@ app.editable.ui.keypress = function(e)
 			break;
 		case 27:
 			// esc
-			e.jumpToNext = false;
-			e.acceptChange = false;
+			e.data.jumpToNext = false;
+			e.data.acceptChange = false;
 			app.editable.ui.leave(e);
 			break;
 	}
@@ -217,12 +244,10 @@ app.editable.ui.hook = function()
 		inlines.bind('blur', app.editable.ui.blur);
 	} else
 	{
-		inlines.bind('click', app.editable.ui.click);
 		for( var x = inlines.length - 1; x >= 0; x-- )
 		{
 			var i = $(inlines[x]);
 			
-			console.log('i', i, 'i.data', i.data());
 			if( $.trim(i.text()) === "" )
 			{
 				var val = i.data('value-default');
@@ -235,13 +260,13 @@ app.editable.ui.hook = function()
 			var name = app.editable.ui.getName(i);
 			var inputSpan = app.editable.ui.addInput(i, name);
 			var input = inputSpan.find('input');
-			input.bind('blur', {name: name}, app.editable.ui.blur);
-			input.bind('keydown', {name: name}, app.editable.ui.keypress);
+			
+			i.bind('click', {name: name}, app.editable.ui.click);
+			console.log('name', name, 'i', i, 'i.data', i.data());
 			
 			console.log('input', input);
 		}
 	}
-	//inlines.bind('keyup', app.editable.ui.keypress);
 	
 	console.log('inlines', inlines);
 	
