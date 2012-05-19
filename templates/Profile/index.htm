@@ -4,16 +4,23 @@
 {% block content %}
 <div class="form-wrapper">
 	<div class="form">
-		<h2>Your Information</h2>
-		<span class="firstName-content inline" data-value-default="First Name" xcontenteditable >{{ member.firstName | default('', true) }} </span> 
-		<span class="lastName-content inline" data-value-default="Last Name" xcontenteditable >{{ member.lastName | default('', true) }} </span><br/>
-		<span class="address-content inline" data-value-default="Address" data-input-size="60" xcontenteditable >{{ member.address | default('', true) }}</span>
+		<form name="profile">
+			<h2>Your Information</h2>
+			<input type="hidden" name="key" value="{{ member.key() }}"/>
+			
+			<span class="firstName-content inline" data-value-default="First Name" xcontenteditable >{{ member.firstName | default('', true) }} </span> 
+			<span class="lastName-content inline" data-value-default="Last Name" xcontenteditable >{{ member.lastName | default('', true) }} </span><br/>
+			<span class="address-content inline" data-value-default="Address" data-input-size="60" xcontenteditable >{{ member.address | default('', true) }}</span>
 
-		<h3>Contact Information</h3>
-		<span class="email-content inline" data-value-default="Email" xcontenteditable >{{ member.email | default('', true) }} </span>
-		<span class="email2-content inline" data-value-default="Additional Email" xcontenteditable >{{ member.email2 | default('', true) }} </span><br/>
-		<span class="phone-content inline" data-value-default="Phone" xcontenteditable >{{ member.phone | default('', true) }} </span>
-		<span class="phone2-content inline" data-value-default="Additional Phone" xcontenteditable >{{ member.phone2 | default('', true) }} </span><br/>
+			<h3>Contact Information</h3>
+			<span class="email-content inline" data-value-default="Email" xcontenteditable >{{ member.email | default('', true) }} </span>
+			<span class="email2-content inline" data-value-default="Additional Email" xcontenteditable >{{ member.email2 | default('', true) }} </span><br/>
+			<span class="cell-content inline" data-value-default="Cell Phone" xcontenteditable >{{ member.cell | default('', true) }} </span>
+			<span class="home-content inline" data-value-default="Home Phone" xcontenteditable >{{ member.home | default('', true) }} </span><br/>
+			
+			<button class="save" style="display: none;">Save</button>
+			
+		</form>
 	</div>
 	<div class="help">
 		Click a piece of data to edit

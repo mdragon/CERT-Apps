@@ -80,3 +80,6 @@ class Base(webapp2.RequestHandler):
 		
 	def redir(self, url):
 		return webapp2.redirect(url, False)
+		
+	def noCache(self):
+		self.response.headers['Cache-Control'] = 'no-cache'
