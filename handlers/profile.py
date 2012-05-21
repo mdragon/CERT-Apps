@@ -41,6 +41,7 @@ class Save(handlers.base.Base):
 		
 		m.put()
 		
+		self.response.headers['Content-Type'] = 'application/json'
 		self.response.write(post);
 			
 app = webapp2.WSGIApplication([

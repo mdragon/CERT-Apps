@@ -32,10 +32,35 @@ cert.showHide.ui.hide = function(el, callback)
 cert.editable.save.buildChanges = function(e)
 {
 	console.group('cert.editable.save.buildChanges');
+		
+	var inputs = $('form input');
 	
-	console.warn('loop the inputs to build a change list since we couldn\'t do that in real time');
+	console.log('inputs', inputs);
+	
+	for( var x = inputs.length - 1; x >= 0; x-- )
+	{
+		var i = $(inputs[x]);
+		
+		if( i.attr('type') !== 'hidden' )
+		{
+			var inputSpan = i.closest('.input');
+			var inline = inputSpan.prev('.inline');
+			var prior = inline.data('valuePrior');
+			var val = i.val();
+			
+			console.log('x', x, 'i', i, i.val(), 'prior', prior, 'inline', inline.data(), inline);
+			var e = { data: { name: i.attr('name'), value: { prior: prior, org: inline.data('valueOriginal'), } } };
+			cert.editable.ui.trackChanges(i, inline, e)
+		}
+		else
+		{
+			console.log('skip hidden field', i);
+		}
+	}
 	
 	console.groupEnd();
+	
+	return cert.editable.changes;
 };
 
 cert.editable.save.buildJSON = function(changes, e)
@@ -57,6 +82,74 @@ cert.editable.save.buildJSON = function(changes, e)
 	return JSON.stringify(obj);
 };
 
+cert.editable.save.success =  function(data, status, xhr, spinner)
+{
+	console.group('cert.editable.save.success');
+	
+	window.setTimeout(function(){ cert.showHide.ui.hide(spinner); }, 200);	
+	cert.notify.success.add(' ', 'Record saved');
+		
+	console.log('data', data, status, xhr);
+	
+	var keys = $('form input[name="key"]');
+	var form = null;
+	
+	for( var x = keys.length - 1; x >= 0; x-- )
+	{
+		var key = $(keys[x]);
+		console.log('x', x, 'key', key, key.val(), data.key);
+		
+		if( key.val() === data.key )
+		{
+			form = key.closest('form');
+			for( var y = cert.editable.changes.length - 1; y >= 0; y-- )
+			{
+				var c = cert.editable.changes[y];
+				console.log('y', y, 'c', c);
+				
+				for( var z = data.changes.length - 1; z >= 0; z-- )
+				{
+					var dc = data.changes[z];
+					console.log('checking if changes match', c.stamp, dc.stamp, c, dc);
+					if ( c.stamp === dc.stamp )
+					{
+						console.log('remove matching change', c);
+						cert.editable.changes.splice(y,1);
+					}
+				}
+			}
+		}
+	}
+
+	if( form )
+	{
+		for( var z = data.changes.length - 1; z >= 0; z-- )
+		{
+			var dc = data.changes[z];
+			console.log('updating field from change', dc.name, dc);
+			
+			var inline = form.find('.' + dc.name +'-content');
+			if ( inline.length > 0 )
+			{
+				console.log('updating prior value', inline.data('valuePrior'), c.value);
+				inline.data('valuePrior', c.value);
+			} else
+			{
+				console.warn('inline not found', inline.selector);
+			}
+		}
+	}
+
+	if( cert.editable.ui.clickToEdit ) cert.editable.ui.checkSave(cert.editable.changes);
+		
+	console.groupEnd();
+};
+
+cert.editable.save.error = function(error, status, xhr)
+{
+	cert.notify.error.add('Unexpected error', 'There has been an unexpected Error when handling your request.  Please refresh the page and try again.');
+}
+
 cert.editable.save.event = function(e)
 {
 	console.group('cert.editable.save.event');
@@ -73,16 +166,30 @@ cert.editable.save.event = function(e)
 	}
 	
 	console.log('changes', changes);
+
 	var json = cert.editable.save.buildJSON(changes, e);
 	console.log('json', json);
+
+	if( changes.length == 0 ) 
+	{
+		console.warn('No changes found', changes, 'json', json);
+		cert.notify.warn.add('No changes to the data were detected so nothing was saved', 'No changes found');
+		return;
+	}
 	
+	var target = $(e.currentTarget);
+	var spinner = target.next('.spinner');
+	cert.showHide.ui.show(spinner);
+	
+	console.log('target', target, 'spinner', spinner);
+		
 	var settings =
 	{
 		url: '/profile/save',
 		data: {json: json},
 		cache: false,
 		type: 'POST',
-		success: cert.editable.save.success,
+		success: function(data, status, xhr){ cert.editable.save.success(data, status, xhr, spinner); },
 		error: cert.editable.save.error,
 	}
 	
@@ -136,15 +243,20 @@ cert.editable.ui.checkSave = function(changes)
 	console.group('cert.editable.ui.checkSave');
 	
 	var saveBtn = $('form .save');
+	var explain = saveBtn.next('.explain');
 	
-	if( changes.length > 0 )
+	console.log('saveBtn', saveBtn, 'explain', explain);
+	
+	if( (changes && changes.length > 0) || cert.editable.ui.clickToEdit == false )
 	{
-		cert.showHide.ui.show(saveBtn);
-		console.log('show save');
+		saveBtn.attr('disabled', false);
+		cert.showHide.ui.hide(explain);
+		console.log('enable save');
 	} else
 	{
-		cert.showHide.ui.hid(saveBtn);
-		console.log('hide save');
+		saveBtn.attr('disabled', true);
+		cert.showHide.ui.show(explain);
+		console.log('disable save');
 	}
 	
 	console.groupEnd();
@@ -215,20 +327,20 @@ cert.editable.ui.blur = function (e)
 	console.groupEnd();
 };
 
-cert.editable.ui.trackChanges = function(target, static, e)
+cert.editable.ui.trackChanges = function(target, inline, e)
 {
 	console.group('cert.editable.ui.trackChanges');
-	console.log('target, static', target, static, 'e', e);
+	console.log('target, inline', target, inline, 'e', e);
 	
-	var prior = e.data.value.prior;// || static.data('value-prior');
-	var org = e.data.value.original;// || static.data('value-original');
+	var prior = e.data.value.prior;// || inline.data('value-prior');
+	var org = e.data.value.original;// || inline.data('value-original');
 	var val = $.trim(target.val());
 	
 	console.log('check prior vs. new', prior, ' !== ',  val);
 	if( prior !== val )
 	{
 		console.log('changed');
-		static.text(val);
+		if( inline ) inline.text(val);
 		var change = {prior: prior, value: val, name: e.data.name, orginal: org, stamp: new Date().getTime()};
 
 		cert.editable.changes.push(change);
@@ -250,9 +362,27 @@ cert.editable.ui.click = function(e)
 	
 	var target = $(e.currentTarget);
 	var inputSpan = target.next('span.input');
+	
+	var input = cert.editable.ui.populateInput(target, inputSpan, e);
+
+	input.unbind();
+	input.bind('focusout', e.data, cert.editable.ui.blur);
+	input.bind('keydown', e.data, cert.editable.ui.keypress);
+	
+	target.hide(cert.showHide.ui.type);
+	cert.showHide.ui.show(inputSpan, function(){ test(input, target); } );
+	
+	console.groupEnd();
+};
+
+cert.editable.ui.populateInput = function(target, inputSpan, e)
+{
 	var input = inputSpan.find('input');
 	
 	console.log('target', target, 'inputSpan', inputSpan, target.text(), input.val());
+	
+	if( ! e ) console.warn('faking e... will that matter?');
+	e = e || { data: {}};
 	
 	var trimmed = $.trim(target.text());
 	input.val(trimmed);
@@ -261,15 +391,7 @@ cert.editable.ui.click = function(e)
 	e.data.value.original = $.trim(target.data('value-original'));
 	target.data('value-prior', trimmed);
 	
-	input.unbind();
-	input.bind('focusout', e.data, cert.editable.ui.blur);
-	input.bind('keydown', e.data, cert.editable.ui.keypress);
-
-	
-	target.hide(cert.showHide.ui.type);
-	cert.showHide.ui.show(inputSpan, function(){ test(input, target); } );
-	
-	console.groupEnd();
+	return input;
 };
 
 test = function(input, target)
@@ -370,11 +492,14 @@ cert.editable.ui.keypress = function(e)
 	}
 }
 
-cert.editable.ui.hook = function()
+cert.editable.ui.hook = function(editAll)
 {
 	console.group('cert.editable.ui.focus');
-
+	
 	var inlines = $('.inline');
+	editAll = editAll || false;
+	
+	cert.editable.ui.clickToEdit = !editAll;
 	
 	if( cert.editable.ui.contentEditable )
 	{
@@ -396,22 +521,62 @@ cert.editable.ui.hook = function()
 			i.data('value-original', i.text());
 			
 			var name = cert.editable.ui.getName(i);
-			var inputSpan = cert.editable.ui.addInput(i, name);
+			var inputSpan = cert.editable.ui.addInput(i, name, editAll);
 			var input = inputSpan.find('input');
 			
-			i.bind('click', {name: name}, cert.editable.ui.click);
-			console.log('name', name, 'i', i, 'i.data', i.data());
-			
-			console.log('input', input);
+			if( editAll == false ) 
+			{
+				i.bind('click', {name: name}, cert.editable.ui.click);
+				cert.showHide.ui.show(i);
+				cert.showHide.ui.hide(inputSpan);
+			} else
+			{
+				//  edit all in effect
+				var inputSpan = i.next('span.input');
+	
+				var input = cert.editable.ui.populateInput(i, inputSpan);
+	
+				cert.showHide.ui.show(inputSpan);
+				cert.showHide.ui.hide(i);
+			}
+			console.log('name', name, 'i', i, 'i.data', i.data(), 'input', input);
 		}
 	}
 	
-	$('form .save').bind('click', cert.editable.save.event);
+	var saveBtn = $('form .save');
+	saveBtn.unbind().bind('click', cert.editable.save.event);
+	
+	//if( editAll === false ) 
+	//{
+		cert.editable.ui.checkSave(cert.editable.changes);
+	//} else
+	//{
+	//	saveBtn.attr('disabled', false);
+	//}
 	
 	console.log('inlines', inlines);
 	
+	var editAll = $('a.editAll');
+	var key = $('input[name="key"]');
+	var val = key.val();
+	
+	editAll.unbind().bind('click', {key: val}, cert.editable.ui.editAll.event);
+	
+	console.log('editAll', editAll);
+	
 	console.groupEnd();
 };
+
+cert.editable.ui.editAll = {};
+cert.editable.ui.editAll.event = function(e)
+{
+	console.group('cert.editable.ui.editAll.event');
+	e.preventDefault();
+	
+	console.log('e', e);
+	cert.routing.router.navigate('profile/edit/' + e.data.key, true);
+	console.groupEnd();
+}
 
 // cert.editable.ui.keypress = function (e)
 // {
@@ -432,11 +597,23 @@ cert.editable.ui.selection = function(el)
 };
 
 cert.routing = {};
-cert.routing.editAll = function(actions)
+cert.routing.profile = {};
+cert.routing.profile.editAll = function(key)
 {
-	console.group('cert.routing.editAll');
+	console.group('cert.routing.profile.editAll');
 	
-	console.log('actions', actions);
+	console.log('key', key);
+	cert.editable.ui.hook(true);
+	
+	console.groupEnd();
+};
+
+cert.routing.profile.edit = function(key)
+{
+	console.group('cert.routing.profile.edit');
+	
+	console.log('key', key);
+	cert.editable.ui.hook(false);
 	
 	console.groupEnd();
 };
@@ -446,9 +623,12 @@ cert.routing.init = function()
 	console.group('cert.routing.init');
 	var AppRouter = Backbone.Router.extend({
 		routes: {
-			"profile/edit/:param": "editAll",
+			'profile/edit/:key': 'editAll',
+			'profile/': 'edit',
+			'profile/:key': 'edit',
 		},
-		editAll: cert.routing.editAll,
+		editAll: cert.routing.profile.editAll,
+		edit: cert.routing.profile.edit,
 	});
 	// Initiate the router
 	cert.routing.router = new AppRouter;
@@ -462,8 +642,84 @@ cert.init = function()
 {
 	console.group('cert.init');
 
-	cert.editable.ui.hook();
+	$('button').button();
 	cert.routing.init();
 	
 	console.groupEnd();
 };
+
+cert.notify = {};
+cert.notify.add = function(msg, title, sticky, image, className, time)
+{
+	console.log('notify', title, msg);
+
+	var unique_id = $.gritter.add({
+		// (string | mandatory) the heading of the notification
+		title: title,
+		// (string | mandatory) the text inside the notification
+		text: msg,
+		// (string | optional) the image to display on the left
+		image: image,
+		// (bool | optional) if you want it to fade out on its own or just sit there
+		sticky: sticky,
+		// (int | optional) the time you want it to be alive for before fading out
+		time: time,
+		// (string | optional) the class name you want to apply to that specific message
+		class_name: className
+	});
+	
+	return unique_id;
+};
+
+cert.notify.defaults = {};
+cert.notify.defaults.all = {};
+cert.notify.defaults.all.time = 3000;
+cert.notify.defaults.info = {};
+cert.notify.defaults.info.image = '/images/icons/32x32/information.png';
+cert.notify.defaults.info.className='info';
+cert.notify.defaults.error = {};
+cert.notify.defaults.error.image = '/images/icons/32x32/exclamation.png';
+cert.notify.defaults.error.className='error';
+cert.notify.defaults.success = {};
+cert.notify.defaults.success.time = 3000;
+cert.notify.defaults.success.image = '/images/icons/32x32/accept.png';
+cert.notify.defaults.success.className='success';
+cert.notify.defaults.warn = {};
+cert.notify.defaults.warn.time = 8000;
+cert.notify.defaults.warn.image = '/images/icons/32x32/error.png';
+cert.notify.defaults.warn.className='warn';
+
+cert.notify.info = {};
+cert.notify.info.add = function(msg, title, sticky, time)
+{
+	title = title || "Information";
+	sticky = sticky || false;
+	return cert.notify.add(msg, title, sticky, cert.notify.defaults.info.image, cert.notify.defaults.info.className);
+}
+
+cert.notify.warn = {};
+cert.notify.warn.add = function(msg, title, sticky, time)
+{
+	sticky = sticky || false;
+	title = title || "Warning";
+	time = time || cert.notify.defaults.warn.time || cert.notify.defaults.all.time ;
+	return cert.notify.add(msg, title, sticky, cert.notify.defaults.warn.image, cert.notify.defaults.warn.className);
+}
+
+cert.notify.error = {};
+cert.notify.error.add = function(msg, title, sticky, time)
+{
+	sticky = sticky || true;
+	title = title || "Error";
+	time = time || cert.notify.defaults.error.time || cert.notify.defaults.all.time ;
+	return cert.notify.add(msg, title, sticky, cert.notify.defaults.error.image, cert.notify.defaults.error.className);
+}
+
+cert.notify.success = {};
+cert.notify.success.add = function(msg, title, sticky, time)
+{
+	sticky = sticky || false;
+	title = title || "Success";
+	time = time || cert.notify.defaults.success.time || cert.notify.defaults.all.time ;
+	return cert.notify.add(msg, title, sticky, cert.notify.defaults.success.image, cert.notify.defaults.success.className);
+}

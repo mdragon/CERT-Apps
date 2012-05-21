@@ -76,3 +76,18 @@ body
 	float: left;
 	padding-top: 20px;
 }
+
+.link:hover
+{
+	cursor: pointer;
+}
+
+.ui-button-text-only .ui-button-text
+{
+	padding: 0.10em 0.5em !important;
+}
+
+.explain
+{
+	font-size: 0.9em;
+}

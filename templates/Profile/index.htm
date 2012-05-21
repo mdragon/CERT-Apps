@@ -18,12 +18,14 @@
 			<span class="cell-content inline" data-value-default="Cell Phone" xcontenteditable >{{ member.cell | default('', true) }} </span>
 			<span class="home-content inline" data-value-default="Home Phone" xcontenteditable >{{ member.home | default('', true) }} </span><br/>
 			
-			<button class="save" style="display: none;">Save</button>
+			<button class="save">Save</button>
+			<span class="explain" style="display: none;">The Save button is disabled until you edit the fields</span>
+			<img src="/images/spinner.gif" class="spinner" style="display: none;"/>
 			
 		</form>
 	</div>
 	<div class="help">
-		Click a piece of data to edit
+		Click a piece of data to edit, or <a class="editAll" href="#">edit all of the fields at once</a>
 	</div>
 </div>
 
