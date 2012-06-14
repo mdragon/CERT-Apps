@@ -50,7 +50,7 @@ class Base(webapp2.RequestHandler):
 		if type(obj) == dict:
 			return obj
 
-		logging.debug ('type', type(obj))
+		print ('type', type(obj))
 		if type(obj) == users.User:
 			output = {}
 
@@ -72,9 +72,26 @@ class Base(webapp2.RequestHandler):
 					raise ValueError('cannot encode ' + repr(prop))
 
 			return output
-	
-		return dict([(p, unicode(getattr(obj, p))) for p in obj.properties()])
-
+		
+		if type(obj) == list:
+			outList = []
+			for o in obj:
+				outList.append(self.to_dict(o))
+			
+			return outList
+			
+		if obj is None:
+			return obj
+		
+		newObj = dict()
+		for p in obj.properties():
+			val = unicode(getattr(obj, p))
+			if getattr(obj, p) is None:
+				val = None
+			newObj[p] = val
+		
+		return newObj
+		
 	def toJSON(self, obj):
 		return json.dumps(self.to_dict(obj))
 		

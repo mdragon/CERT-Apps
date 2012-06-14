@@ -20,5 +20,7 @@ handlers:
   static_dir: js
 - url: /profile/.*
   script: handlers.profile.app
+- url: /roster/.*
+  script: handlers.roster.app
 - url: /.*
   script: handlers.landing.app
