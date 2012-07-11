@@ -27,11 +27,23 @@ class List(handlers.base.Base):
 		if data['user'] == None:
 			return self.redir(data['loginURL'])
 		else:
-			membersQ = models.common.Member.all()
-			members = []
+			teams = data['member'].membership_set
+			team = None
+			for t in teams:
+				team = t.team
+				break
 			
-			for m in membersQ:
-				members.append(m.filterForRoster(data['member']))
+			members = []
+			if not team is None:			
+				membersQ = models.common.Member.all()
+				membersQ.filter('team = ', team)
+				membersData = membersQ.fetch(999)
+			
+				logging.debug('team name ' + team.name)
+				logging.debug('membersData len ' + str(len(membersData)))
+			
+				for ms in membersData:
+					members.append(ms.member.filterForRoster(data['member']))
 							
 			data['members']	= members
 			data['json']	= self.toJSON(members)

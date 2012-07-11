@@ -82,6 +82,11 @@ class Member(Base):
 	
 	def filterForRoster(self, member):
 		if not(member.officer or member.oem):
+			self.rosterEmail = True if self.rosterEmail is None else self.rosterEmail
+			self.rosterEmail2 = True if self.rosterEmail2 is None else self.rosterEmail2
+			self.rosterCell = True if self.rosterCell is None else self.rosterCell
+			self.rosterHome = True if self.rosterHome is None else self.rosterHome
+		
 			self.email = self.email if self.rosterEmail else 'none@example.com'
 			self.email2 =  self.email2 if self.rosterEmail2 else 'none@example.com'
 			self.cell = self.cell if self.rosterCell else '555-555-5555'
