@@ -10,6 +10,15 @@ cert.showHide = {};
 cert.showHide.ui = {};
 cert.showHide.ui.type = '';
 
+cert.roster = {};
+cert.roster.load = {};
+
+cert.template = {};
+cert.template.ui = {};
+cert.template.cache = {};
+
+cert.loggedIn = {};
+
 var console = console || {};
 console.log = console.log || function(){};
 console.group = console.group || function(){};
@@ -18,6 +27,87 @@ console.warn = console.warn || function(){};
 console.error = console.error || function(){};
 
 //window.onerror = function(){ alert('error');};
+
+cert.template.ui.get = function(name)
+{
+	var cached = cert.template.cache[name];
+	if( ! cached )
+	{
+		if( ! cert.template.div ) cert.template.div = $('#templates');
+		
+		cached = cert.template.div.children('.' + name);
+		
+		if( ! cached || cached.length === 0 ) 
+		{
+			cached = cert.template.div.children('table').find('tr.' + name);
+		}
+		cert.template.cache[name] = cached;
+		console.log('cache miss on name', name, 'found element', cached);
+	}
+	
+	return cached.clone();
+};
+
+cert.template.ui.populate = function(template, data)
+{
+	for( var p in data )
+	{
+		if( data.hasOwnProperty(p) )
+		{
+			if( ! data[p] ) 
+			{
+				console.warn('bad data[p]', p, data[p]);
+			}
+		
+			if( data[p] && data[p].jquery )
+			{
+				console.log('it is a jquery object, not a js object');
+			}
+		
+			if( typeof(data[p]) !== "object" || data[p] && data[p].jquery ) 
+			{
+				var pattern = '\{\{' + p + '\}\}';
+				var regex = new RegExp(pattern, 'g');
+				
+				// debugging
+				// if( unescape(template.html()).match(regex) )
+				// {
+					// console.log('match', p);
+				// } else
+				// {
+					// console.log('miss', p, unescape(template.html()));
+				// }	
+				
+				if( data[p] && data[p].jquery )
+				{
+					// it's actually an jquery object with html or whatever elements inside it
+					// first give ourselves somewhere to latch on to
+					template.html(unescape(template.html()).replace(regex, '<span class="injected-' + p +'"/>'));
+					// then inject the jquery obj
+					var injected = template.find('.injected-' + p);
+					injected.append(data[p]);
+					
+					console.log('injected', injected, 'data[p]', data[p]);
+				} else
+				{
+					// normal non-js object it's a string or an int or something
+					template.html(unescape(template.html()).replace(regex, data[p]));
+				}
+			} else
+			{
+				//console.log("skip p", p);
+			}
+		}
+	}
+};
+
+cert.template.ui.getPopulated = function(name, data)
+{
+	var template = cert.template.ui.get(name);
+	cert.template.ui.populate(template, data);
+	
+	return template;
+};
 
 cert.showHide.ui.show = function(el, callback)
 {
@@ -639,6 +729,8 @@ cert.editable.ui.selection = function(el)
 
 cert.routing = {};
 cert.routing.profile = {};
+cert.routing.roster = {};
+
 cert.routing.profile.editAll = function(key)
 {
 	console.group('cert.routing.profile.editAll');
@@ -659,6 +751,14 @@ cert.routing.profile.edit = function(key)
 	console.groupEnd();
 };
 
+cert.routing.roster.list = function()
+{
+	var m = 'cert.routing.roster.list';
+	console.group(m);
+	cert.roster.load.event();
+	console.groupEnd();
+};
+
 cert.routing.init = function()
 {
 	console.group('cert.routing.init');
@@ -667,9 +767,11 @@ cert.routing.init = function()
 			'profile/edit/:key': 'editAll',
 			'profile/': 'edit',
 			'profile/:key': 'edit',
+			'roster/': 'roster',
 		},
 		editAll: cert.routing.profile.editAll,
 		edit: cert.routing.profile.edit,
+		roster: cert.routing.roster.list,
 	});
 	// Initiate the router
 	cert.routing.router = new AppRouter;
@@ -679,9 +781,13 @@ cert.routing.init = function()
 	console.groupEnd();
 };
 
-cert.init = function()
+cert.init = function(user, member)
 {
 	console.group('cert.init');
+	
+	console.log('user', user, 'member', member);
+	cert.loggedIn.user = user;
+	cert.loggedIn.member = member;
 
 	$('button').button();
 	cert.routing.init();
@@ -764,3 +870,83 @@ cert.notify.success.add = function(msg, title, sticky, time)
 	time = time || cert.notify.defaults.success.time || cert.notify.defaults.all.time ;
 	return cert.notify.add(msg, title, sticky, cert.notify.defaults.success.image, cert.notify.defaults.success.className);
 }
+
+cert.roster.load.failure = function(error, status, xhr)
+{
+	var m = 'cert.roster.load.event';
+	console.group(m);
+	
+	try
+	{
+		console.log('error, status, xhr',error, status, xhr);
+	} catch(e)
+	{
+		console.error(m, e);
+	}
+	console.groupEnd();	
+};
+
+cert.roster.load.success = function(data, status, xhr)
+{
+	var m = 'cert.roster.load.event';
+	console.group(m);
+	
+	console.log('data, status, xhr',data, status, xhr);
+	
+	var cnt = data.length;
+	
+	var tName = (cert.loggedIn.user.oem || cert.loggedIn.user.officer) ? 'private' : 'public';
+	tName += '-roster';
+	var headerT = cert.template.ui.get(tName + '-header');
+	
+	var table = $('table.roster');
+	table.append(headerT);
+	
+	console.log('cnt, headerT', cnt, headerT);
+	
+	for( var x = 0; x < cnt; x++ )
+	{
+		var m = data[x];
+		var rowT = cert.template.ui.getPopulated(tName,m);
+		
+		if( x % 2 === 0 ) rowT.addClass('even');
+		
+		console.log('x, m', x, m, 'rowT', rowT);
+		
+		table.append(rowT);		
+	}
+	
+	var parent = table.closest('div.roster-content');
+	var loading = parent.find('div.loading');
+	cert.showHide.ui.hide(loading);
+	console.log('parent, loading', parent, loading);
+	
+	console.groupEnd();	
+};
+
+cert.roster.load.event = function()
+{
+	var m = 'cert.roster.load.event';
+	console.group(m);
+	
+	try
+	{
+		var settings =
+		{
+			url: '/roster/list',
+			data: {},
+			cache: false,
+			type: 'GET',
+			success: cert.roster.load.success,
+			error: cert.roster.load.success,
+		}
+		
+		console.log('settings', settings);
+		
+		$.ajax(settings);
+	} catch(e)
+	{
+		console.error(m, e);
+	}
+	console.groupEnd();	
+};

@@ -8,12 +8,15 @@ from google.appengine.api import users
 SIMPLE_TYPES = (int, long, float, bool, dict, basestring, list)
 
 class Base(db.Model):
+	created = db.DateTimeProperty(auto_now_add=True)
+	modified = db.DateTimeProperty(auto_now=True)
+	createdBy = db.UserProperty(auto_current_user_add=True)
+	modifiedBy = db.UserProperty(auto_current_user=True)
 	
 	def to_dict(self, obj):
 		if type(obj) == dict:
 			return obj
 
-		print ('type', type(obj))
 		if type(obj) == users.User:
 			output = {}
 
@@ -77,11 +80,6 @@ class Member(Base):
 	rosterCell = db.BooleanProperty()
 	rosterHome = db.BooleanProperty()
 	
-	created = db.DateTimeProperty(auto_now_add=True)
-	modified = db.DateTimeProperty(auto_now=True)
-	createdBy = db.UserProperty(auto_current_user_add=True)
-	modifiedBY = db.UserProperty(auto_current_user=True)
-
 	def filterForRoster(self, member):
 		if not(member.officer or member.oem):
 			self.email = self.email if self.rosterEmail else 'none@example.com'
@@ -89,9 +87,14 @@ class Member(Base):
 			self.cell = self.cell if self.rosterCell else '555-555-5555'
 			self.home = self.home if self.rosterHome else '555-555-5555'
 		
-			print self.email
-			print self.email2
-			print self.cell
-			print self.home
-			
 		return self
+
+class Team(Base):
+	name = db.StringProperty()
+	location = db.PostalAddressProperty()
+	
+class Membership(Base):
+	team = db.ReferenceProperty(Team)
+	member = db.ReferenceProperty(Member)
+	
+	joined = db.DateTimeProperty()

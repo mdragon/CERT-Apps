@@ -1,1 +1,42 @@
-{{ membersJSON }}
+{% extends "layout.htm" %}
+{% block title %}Roster{% endblock %}
+
+{% block content %}
+<div class="roster-content">
+	<div class="loading">
+		Loading...
+	</div>
+	<table class="roster">
+	
+	</table>
+</div>
+{% endblock %}
+
+{% block templates %}
+	{% raw %}
+	<table>
+	<tr class="public-roster-header">
+		<th class="name">Name</th>
+		<th class="phone cell">Cell</th>
+		<th class="email ">Email</th>
+	</tr>
+	<tr class="private-roster-header">
+		<th class="name">Name</th>
+		<th class="phone cell">Cell</th>
+		<th class="email ">Email</th>
+		<th class="address">Address</th>
+	</tr>
+	<tr class="public-roster">
+		<td class="name">{{firstName}} {{lastName}}</td>
+		<td class="phone cell">{{cell}}</td>
+		<td class="email ">{{email}}</td>
+	</tr>
+	<tr class="private-roster">
+		<td class="name">{{firstName}} {{lastName}}</td>
+		<td class="phone cell">{{cell}}</td>
+		<td class="email "><a href="mailto:{{email}}">{{email}}</a></td>
+		<td class="address">{{address}}</td>
+	</tr>
+	</table>
+	{% endraw %}
+{% endblock %}

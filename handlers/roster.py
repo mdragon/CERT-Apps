@@ -12,6 +12,14 @@ import handlers.base
 class Index(handlers.base.Base):
 	def get(self):
 		logging.debug('running Index.get')
+		
+		data = self.commonData()
+		
+		self.render_template('roster/list.htm', **data)
+
+class List(handlers.base.Base):
+	def get(self):
+		logging.debug('running List.get')
 		data = self.commonData()
 		self.noCache()
 		
@@ -26,9 +34,9 @@ class Index(handlers.base.Base):
 				members.append(m.filterForRoster(data['member']))
 							
 			data['members']	= members
-			data['membersJSON']	= self.toJSON(members)
+			data['json']	= self.toJSON(members)
 		
-			self.render_template('roster/list.htm', **data)
+			self.renderJSON(data);
 
 class Save(handlers.base.Base):
 	def post(self):
@@ -55,5 +63,6 @@ class Save(handlers.base.Base):
 			
 app = webapp2.WSGIApplication([
 	('/profile/save', Save),
+	('/roster/list', List),
 	('/roster/.*', Index),
 ], debug=True)

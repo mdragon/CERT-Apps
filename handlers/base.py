@@ -24,6 +24,7 @@ class Base(webapp2.RequestHandler):
 	def commonData(self):
 		user = users.get_current_user()
 		data = {'user': user}
+		data['loggedInUserJSON'] = '{}'
 		if user != None:
 			q = models.common.Member.all()
 			q.filter('user =', user)
@@ -39,18 +40,24 @@ class Base(webapp2.RequestHandler):
 				member.user = user
 				member.save()
 			data['member'] = member
+			data['loggedInMemberJSON'] = member.toJSON()
+			
+			logging.debug('loggedInMemberJSON: ' + data['loggedInMemberJSON'])
 			
 			data['logoutURL'] = users.create_logout_url(self.request.path)
 		else:
 			data['loginURL'] = users.create_login_url(self.request.path)
 		
 		return data
+		
+	def renderJSON(self, data):
+		self.response.headers['Content-Type'] = 'application/json'
+		self.render_template('shared/json.htm', **data)
 	
 	def to_dict(self, obj):
 		if type(obj) == dict:
 			return obj
 
-		print ('type', type(obj))
 		if type(obj) == users.User:
 			output = {}
 
