@@ -51,15 +51,16 @@ cert.template.ui.get = function(name)
 	return cached.clone();
 };
 
-cert.template.ui.populate = function(template, data)
+cert.template.ui.populate = function(template, data, replaceNull)
 {
+	replaceNull = replaceNull || true;
 	for( var p in data )
 	{
 		if( data.hasOwnProperty(p) )
 		{
 			if( ! data[p] ) 
 			{
-				console.warn('bad data[p]', p, data[p]);
+				console.warn('bad/missing data[p]', p, data[p], 'replace with empty string?', replaceNull);
 			}
 		
 			if( data[p] && data[p].jquery )
@@ -67,7 +68,7 @@ cert.template.ui.populate = function(template, data)
 				console.log('it is a jquery object, not a js object');
 			}
 		
-			if( typeof(data[p]) !== "object" || data[p] && data[p].jquery ) 
+			if( replaceNull || typeof(data[p]) !== "object" || data[p] && data[p].jquery ) 
 			{
 				var pattern = '\{\{' + p + '\}\}';
 				var regex = new RegExp(pattern, 'g');
@@ -94,7 +95,13 @@ cert.template.ui.populate = function(template, data)
 				} else
 				{
 					// normal non-js object it's a string or an int or something
-					template.html(unescape(template.html()).replace(regex, data[p]));
+					var val = data[p];
+					if( ! data[p] && replaceNull ) 
+					{
+						val = '';
+					}
+					
+					template.html(unescape(template.html()).replace(regex, val));
 				}
 			} else
 			{
