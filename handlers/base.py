@@ -47,7 +47,8 @@ class Base(webapp2.RequestHandler):
 			data['logoutURL'] = users.create_logout_url(self.request.path)
 		else:
 			data['loginURL'] = users.create_login_url(self.request.path)
-		
+			data['loggedInMemberJSON'] = '{ notLoggedIn: true }'
+					
 		return data
 		
 	def renderJSON(self, data):

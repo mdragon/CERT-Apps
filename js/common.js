@@ -6,6 +6,9 @@ cert.editable.ui.contentEditable = false;
 cert.editable.ui.clickToEdit = true;
 cert.editable.changes = {};
 
+cert.member = {};
+cert.member.ui = {};
+
 cert.showHide = {};
 cert.showHide.ui = {};
 cert.showHide.ui.type = '';
@@ -755,7 +758,13 @@ cert.routing.roster.list = function()
 {
 	var m = 'cert.routing.roster.list';
 	console.group(m);
-	cert.roster.load.event();
+	if( cert.loggedIn.member.notLoggedIn )
+	{
+		cert.member.ui.notLoggedIn($('.roster-content'));
+	} else
+	{
+		cert.roster.load.event();
+	}
 	console.groupEnd();
 };
 
@@ -950,3 +959,10 @@ cert.roster.load.event = function()
 	}
 	console.groupEnd();	
 };
+
+cert.member.ui.notLoggedIn = function(holder)
+{
+	var t = cert.template.ui.get('not-logged-in');
+
+	holder.html(t.html());
+}

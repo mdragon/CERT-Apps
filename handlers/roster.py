@@ -35,7 +35,7 @@ class List(handlers.base.Base):
 			
 			members = []
 			if not team is None:			
-				membersQ = models.common.Member.all()
+				membersQ = models.common.Membership.all()
 				membersQ.filter('team = ', team)
 				membersData = membersQ.fetch(999)
 			
@@ -43,8 +43,11 @@ class List(handlers.base.Base):
 				logging.debug('membersData len ' + str(len(membersData)))
 			
 				for ms in membersData:
+					logging.debug('ms.member ' + ms.member.toJSON())
 					members.append(ms.member.filterForRoster(data['member']))
-							
+			else:
+				logging.debug('team is none for memeber ' + member.toJSON())
+			
 			data['members']	= members
 			data['json']	= self.toJSON(members)
 		
