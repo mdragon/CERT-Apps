@@ -28,7 +28,8 @@ class List(handlers.base.Base):
 		if data['user'] == None:
 			return self.redir(data['loginURL'])
 		else:
-			teams = member.membership_set
+			teams = models.common.Membership.query(models.common.Membership.member == member.key).fetch(999)
+#			teams = member.membership_set
 			team = None
 			for t in teams:
 				team = t.team
@@ -36,14 +37,14 @@ class List(handlers.base.Base):
 			
 			members = []
 			if not team is None:			
-				membersQ = models.common.Membership.all()
-				membersQ.filter('team = ', team)
+				membersQ = models.common.Membership.query()
+				membersQ.filter(models.common.Membership.team == team)
 				membersData = membersQ.fetch(999)
 			
-				logging.debug('team name ' + team.name)
+				#logging.debug('team name ' + team.name)
 				logging.debug('membersData len ' + str(len(membersData)))
 			
-				membersQ.filter('member = ', member)
+				membersQ.filter(models.common.Membership.member == member.key)
 				membershipData = membersQ.fetch(999)			
 				leaderCheck = None
 				
@@ -53,8 +54,9 @@ class List(handlers.base.Base):
 					break
 				
 				for ms in membersData:
-					logging.debug('ms.member ' + ms.member.toJSON())
-					members.append(ms.member.filterForRoster(leaderCheck))
+					msMember = ms.member.get()
+					logging.debug('msMember ' + msMember.toJSON())
+					members.append(msMember.filterForRoster(leaderCheck))
 			else:
 				logging.debug('team is none for memeber ' + member.toJSON())
 			

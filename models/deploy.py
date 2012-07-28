@@ -3,21 +3,21 @@ import json
 import time
 import models.common
 
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from google.appengine.api import users
 		
 class Deployment(models.common.Base):
-	name = db.StringProperty()
-	description = db.StringProperty()
-	location = db.PostalAddressProperty()
+	name = ndb.StringProperty()
+	description = ndb.StringProperty()
+	location = ndb.StringProperty()
 
-	start = db.DateTimeProperty()
-	end = db.DateTimeProperty()
+	start = ndb.DateTimeProperty()
+	end = ndb.DateTimeProperty()
 
 class Response(models.common.Base):
-	deployment = db.ReferenceProperty(Deployment)
-	member = db.ReferenceProperty(models.common.Member)
+	deployment = ndb.KeyProperty(kind=Deployment)
+	member = ndb.KeyProperty(kind=models.common.Member)
 
-	attending = db.StringProperty()
-	start = db.DateTimeProperty()
-	end = db.DateTimeProperty()
+	attending = ndb.StringProperty()
+	start = ndb.DateTimeProperty()
+	end = ndb.DateTimeProperty()

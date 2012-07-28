@@ -6,7 +6,7 @@
 	<div class="form">
 		<form name="profile">
 			<h2>Your Information</h2>
-			<input type="hidden" name="key" value="{{ member.key() }}"/>
+			<input type="hidden" name="key" value="{{ member.key.urlsafe() }}"/>
 			
 			<span class="firstName-content inline" data-value-default="First Name" xcontenteditable >{{ member.firstName | default('', true) }} </span> 
 			<span class="lastName-content inline" data-value-default="Last Name" xcontenteditable >{{ member.lastName | default('', true) }} </span><br/>

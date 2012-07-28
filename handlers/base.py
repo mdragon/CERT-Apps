@@ -29,8 +29,8 @@ class Base(webapp2.RequestHandler):
 		data['loggedInMembershipsJSON'] = '{}'
 		
 		if user != None:
-			q = models.common.Member.all()
-			q.filter('user =', user)
+			q = models.common.Member.query()
+			q.filter(models.common.Member.user == user)
 			r = q.fetch(1)
 			
 			member = None
@@ -38,16 +38,16 @@ class Base(webapp2.RequestHandler):
 			
 			if len(r) > 0:
 				member = r[0]
-				msQ = models.common.Membership.all()
-				msQ.filter('member =', member)
+				msQ = models.common.Membership.query()
+				msQ.filter(models.common.Membership.member == member.key)
 				memberships = msQ.fetch(999)
 				
 				msjson = '{'
 				for ms in memberships:
-					msjson += '"' + str(ms.team.key()) + '": ' + ms.toJSON() + ', '
-					msjson += '}'
-					data['loggedInMembershipsJSON'] = msjson;
+					msjson += '"' + ms.team.urlsafe() + '": ' + ms.toJSON() + ', '
 			
+				msjson += '}'
+				data['loggedInMembershipsJSON'] = msjson;
 			
 			if member == None:
 				member = models.common.Member()
@@ -78,7 +78,7 @@ class Base(webapp2.RequestHandler):
 		if type(obj) == users.User:
 			output = {}
 
-			for key, prop in obj.properties().iteritems():
+			for key, prop in obj.properties.iteritems():
 				value = getattr(obj, key)
 
 				if value is None or isinstance(value, SIMPLE_TYPES):
@@ -120,7 +120,7 @@ class Base(webapp2.RequestHandler):
 			newObj[p] = val
 
 		if 'key' in dir(obj):
-			newObj['key'] = str(obj.key())
+			newObj['key'] = obj.key().urlsafe()
 			logging.debug('adding object key ' + str(newObj['key']))
 		else:
 			logging.debug('not adding object key as it does not exist')
