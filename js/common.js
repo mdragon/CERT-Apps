@@ -911,7 +911,15 @@ cert.roster.load.success = function(data, status, xhr)
 	
 	var cnt = data.length;
 	
-	var tName = (cert.loggedIn.user.oem || cert.loggedIn.user.officer) ? 'private' : 'public';
+	var membership = null;
+	for( var m in cert.loggedIn.memberships )
+	{
+		membership = cert.loggedIn.memberships[m];
+	}
+	
+	console.log('membership', membership);
+	
+	var tName = (membership.oem || membership.officer) && ! cert.forcePublic ? 'private' : 'public';
 	tName += '-roster';
 	var headerT = cert.template.ui.get(tName + '-header');
 	

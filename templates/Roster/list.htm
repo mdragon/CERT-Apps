@@ -24,7 +24,10 @@
 		<th class="name">Name</th>
 		<th class="phone cell">Cell</th>
 		<th class="email ">Email</th>
+		<th class="email">2nd Email</th>
 		<th class="address">Address</th>
+		<th class="phone home">Home</th>
+		<th></th>
 	</tr>
 	<tr class="public-roster">
 		<td class="name">{{firstName}} {{lastName}}</td>
@@ -34,8 +37,11 @@
 	<tr class="private-roster">
 		<td class="name">{{firstName}} {{lastName}}</td>
 		<td class="phone cell">{{cell}}</td>
-		<td class="email "><a href="mailto:{{email}}">{{email}}</a></td>
+		<td class="email"><a href="mailto:{{email}}">{{email}}</a></td>
+		<td class="email"><a href="mailto:{{email2}}">{{email2}}</a></td>
 		<td class="address">{{address}}</td>
+		<td class="phone home">{{home}}</td>
+		<td class="edit"><a href="/profile/edit/{{key}}">[Edit]</a></td>
 	</tr>
 	</table>
 	{% endraw %}

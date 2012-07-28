@@ -22,12 +22,13 @@ class List(handlers.base.Base):
 		logging.debug('running List.get')
 		data = self.commonData()
 		self.noCache()
+		member = data['member']
 		
 		#logging.debug('json ' + self.toJSON(data));
 		if data['user'] == None:
 			return self.redir(data['loginURL'])
 		else:
-			teams = data['member'].membership_set
+			teams = member.membership_set
 			team = None
 			for t in teams:
 				team = t.team
@@ -42,9 +43,18 @@ class List(handlers.base.Base):
 				logging.debug('team name ' + team.name)
 				logging.debug('membersData len ' + str(len(membersData)))
 			
+				membersQ.filter('member = ', member)
+				membershipData = membersQ.fetch(999)			
+				leaderCheck = None
+				
+				for ms in membershipData:
+					logging.debug('ms' + ms.toJSON())
+					leaderCheck = ms
+					break
+				
 				for ms in membersData:
 					logging.debug('ms.member ' + ms.member.toJSON())
-					members.append(ms.member.filterForRoster(data['member']))
+					members.append(ms.member.filterForRoster(leaderCheck))
 			else:
 				logging.debug('team is none for memeber ' + member.toJSON())
 			

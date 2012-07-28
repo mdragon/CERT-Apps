@@ -25,13 +25,29 @@ class Base(webapp2.RequestHandler):
 		user = users.get_current_user()
 		data = {'user': user}
 		data['loggedInUserJSON'] = '{}'
+		data['loggedInMemberJSON'] = '{ notLoggedIn: true }'
+		data['loggedInMembershipsJSON'] = '{}'
+		
 		if user != None:
 			q = models.common.Member.all()
 			q.filter('user =', user)
 			r = q.fetch(1)
+			
 			member = None
+			mslist = dict()
+			
 			if len(r) > 0:
 				member = r[0]
+				msQ = models.common.Membership.all()
+				msQ.filter('member =', member)
+				memberships = msQ.fetch(999)
+				
+				msjson = '{'
+				for ms in memberships:
+					msjson += '"' + str(ms.team.key()) + '": ' + ms.toJSON() + ', '
+					msjson += '}'
+					data['loggedInMembershipsJSON'] = msjson;
+			
 			
 			if member == None:
 				member = models.common.Member()
@@ -39,6 +55,7 @@ class Base(webapp2.RequestHandler):
 				member.email = user.email()
 				member.user = user
 				member.save()
+				
 			data['member'] = member
 			data['loggedInMemberJSON'] = member.toJSON()
 			
@@ -47,7 +64,6 @@ class Base(webapp2.RequestHandler):
 			data['logoutURL'] = users.create_logout_url(self.request.path)
 		else:
 			data['loginURL'] = users.create_login_url(self.request.path)
-			data['loggedInMemberJSON'] = '{ notLoggedIn: true }'
 					
 		return data
 		
@@ -90,18 +106,31 @@ class Base(webapp2.RequestHandler):
 			
 		if obj is None:
 			return obj
+			
+		if 'to_dict' in dir(obj):
+			logging.debug('has to_dict')
+			return obj.to_dict(obj)
 		
 		newObj = dict()
 		for p in obj.properties():
 			val = unicode(getattr(obj, p))
 			if getattr(obj, p) is None:
 				val = None
+			logging.debug('about to call to_dict for p ' + p + ' on type ' + str(type(val)))
 			newObj[p] = val
+
+		if 'key' in dir(obj):
+			newObj['key'] = str(obj.key())
+			logging.debug('adding object key ' + str(newObj['key']))
+		else:
+			logging.debug('not adding object key as it does not exist')
 		
 		return newObj
 		
 	def toJSON(self, obj):
-		return json.dumps(self.to_dict(obj))
+		d = self.to_dict(obj)
+		
+		return json.dumps(d)
 		
 	def redir(self, url):
 		return webapp2.redirect(url, False)

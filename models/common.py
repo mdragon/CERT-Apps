@@ -1,4 +1,5 @@
 import datetime
+import logging
 import json
 import time
 
@@ -45,6 +46,10 @@ class Base(db.Model):
 				outList.append(self.to_dict(o))
 			
 			return outList
+		
+		#if 'to_dict' in dir(obj):
+		#	logging.debug('has to_dict')
+		#	return obj.to_dict(obj)
 			
 		if obj is None:
 			return obj
@@ -55,12 +60,20 @@ class Base(db.Model):
 			if getattr(obj, p) is None:
 				val = None
 			newObj[p] = val
+
+		if 'key' in dir(obj):
+			newObj['key'] = str(obj.key())
+			logging.debug('adding model object key ' + str(newObj['key']))
+		else:
+			logging.debug('not adding model object key as it does not exist')
 		
 		return newObj
 		
 	def toJSON(self):
 		obj = self
-		return json.dumps(self.to_dict(obj))
+		d = self.to_dict(obj)
+
+		return json.dumps(self.to_dict(d))
 		
 class Member(Base):
 	firstName = db.StringProperty()
@@ -72,16 +85,13 @@ class Member(Base):
 	home = db.PhoneNumberProperty()
 	user = db.UserProperty()
 	
-	officer = db.BooleanProperty()
-	oem = db.BooleanProperty()
-	
 	rosterEmail = db.BooleanProperty()
 	rosterEmail2 = db.BooleanProperty()
 	rosterCell = db.BooleanProperty()
 	rosterHome = db.BooleanProperty()
 	
-	def filterForRoster(self, member):
-		if not(member.officer or member.oem):
+	def filterForRoster(self, membership):
+		if not(membership.officer or membership.oem):
 			self.rosterEmail = True if self.rosterEmail is None else self.rosterEmail
 			self.rosterEmail2 = True if self.rosterEmail2 is None else self.rosterEmail2
 			self.rosterCell = True if self.rosterCell is None else self.rosterCell
@@ -103,3 +113,6 @@ class Membership(Base):
 	member = db.ReferenceProperty(Member)
 	
 	joined = db.DateTimeProperty()
+	
+	officer = db.BooleanProperty()
+	oem = db.BooleanProperty()

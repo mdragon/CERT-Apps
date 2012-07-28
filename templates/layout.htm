@@ -71,6 +71,7 @@
 {% autoescape false %}
 var user = {{loggedInUserJSON}};
 var member = {{loggedInMemberJSON}};
+cert.loggedIn.memberships = {{loggedInMembershipsJSON}};
 {% endautoescape %}
 console.log('user', user, 'member', member);
 $(document).ready(cert.init(user, member));
