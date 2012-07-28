@@ -20,10 +20,10 @@
 		<div id="nav">
 			<a href="/profile/">My Information</a>
 			 | <a href="/roster/">Team Roster</a> 
-			{% if member and ( member.officer or member.oem ) %}
+			<span class="oem-officer">
 				 | <a href="/deploy/">Deployments</a>
 				 | <a href="/notify/">Notifications</a>
-			{% endif %}
+			</span>
 		</div>
 		
 		<div id="welcome">

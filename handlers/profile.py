@@ -3,13 +3,14 @@ import logging
 import os
 import webapp2
 
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from webapp2_extras import jinja2
 
 import models.common
 import handlers.base
 
 class Index(handlers.base.Base):
+	@ndb.toplevel
 	def get(self):
 		logging.debug('running Index.get')
 		data = self.commonData()
@@ -22,6 +23,7 @@ class Index(handlers.base.Base):
 			self.render_template('profile/index.htm', **data)
 
 class Save(handlers.base.Base):
+	@ndb.toplevel
 	def post(self):
 		post = self.request.get('json')
 		logging.debug('profile save json ' + post)

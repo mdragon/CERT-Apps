@@ -8,6 +8,7 @@ import time
 
 SIMPLE_TYPES = (int, long, float, bool, dict, basestring, list)
 
+from google.appengine.ext import ndb
 from google.appengine.api import users
 from webapp2_extras import jinja2
 
@@ -20,7 +21,8 @@ class Base(webapp2.RequestHandler):
 
 	def render_template(self, filename, **template_args):
 		self.response.write(self.jinja2.render_template(filename, **template_args))
-		
+	
+	@ndb.toplevel
 	def commonData(self):
 		user = users.get_current_user()
 		data = {'user': user}
@@ -38,23 +40,17 @@ class Base(webapp2.RequestHandler):
 			
 			if len(r) > 0:
 				member = r[0]
-				msQ = models.common.Membership.query()
-				msQ.filter(models.common.Membership.member == member.key)
-				memberships = msQ.fetch(999)
 				
-				msjson = '{'
-				for ms in memberships:
-					msjson += '"' + ms.team.urlsafe() + '": ' + ms.toJSON() + ', '
-			
-				msjson += '}'
-				data['loggedInMembershipsJSON'] = msjson;
-			
+			memberships = self.memberships(member)	
+				
 			if member == None:
 				member = models.common.Member()
 				member.firstName = user.nickname()
 				member.email = user.email()
 				member.user = user
 				member.save()
+			else:
+				data.update((yield memberships))
 				
 			data['member'] = member
 			data['loggedInMemberJSON'] = member.toJSON()
@@ -65,7 +61,25 @@ class Base(webapp2.RequestHandler):
 		else:
 			data['loginURL'] = users.create_login_url(self.request.path)
 					
-		return data
+		raise ndb.Return(data)
+		
+	@ndb.tasklet
+	def memberships(self, member):
+		data = {}
+		msQ = models.common.Membership.query()
+		msQ.filter(models.common.Membership.member == member.key)
+		membershipsFuture = msQ.fetch_async(999)
+		
+		msjson = '{'
+		
+		memberships = membershipsFuture.get_result()
+		for ms in memberships:
+			msjson += '"' + ms.team.urlsafe() + '": ' + ms.toJSON() + ', '
+	
+		msjson += '}'
+		data['loggedInMembershipsJSON'] = msjson;
+		
+		raise ndb.Return(data)
 		
 	def renderJSON(self, data):
 		self.response.headers['Content-Type'] = 'application/json'

@@ -738,9 +738,9 @@ cert.editable.ui.selection = function(el)
 };
 
 cert.routing = {};
+cert.routing.common = {};
 cert.routing.profile = {};
 cert.routing.roster = {};
-
 cert.routing.profile.editAll = function(key)
 {
 	console.group('cert.routing.profile.editAll');
@@ -797,7 +797,7 @@ cert.routing.init = function()
 	console.groupEnd();
 };
 
-cert.init = function(user, member)
+cert.init = function(user, member, memberships)
 {
 	console.group('cert.init');
 	
@@ -808,6 +808,31 @@ cert.init = function(user, member)
 	$('button').button();
 	cert.routing.init();
 	
+	cert.permissions.check(cert.loggedIn.memberships);
+	
+	console.groupEnd();
+};
+
+cert.permissions = {};
+cert.permissions.check = function(memberships, team)
+{
+	console.group('cert.permissions.check');
+	
+	var ms = null
+	for( m in memberships )
+	{
+		ms = memberships[m];
+	}
+	
+	var elements = $('.oem-officer');
+	console.log('ms', ms, 'elements', elements);
+	if( ms.oem || ms.officer )
+	{
+		cert.showHide.ui.show(elements);
+	} else
+	{
+		cert.showHide.ui.hide(elements);
+	}
 	console.groupEnd();
 };
 

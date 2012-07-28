@@ -3,13 +3,14 @@ import logging
 import os
 import webapp2
 
-from google.appengine.ext import db
+from google.appengine.ext import ndb
 from webapp2_extras import jinja2
 
 import models.common
 import handlers.base
 
 class Index(handlers.base.Base):
+	@ndb.toplevel
 	def get(self):
 		logging.debug('running Index.get')
 		
@@ -18,6 +19,7 @@ class Index(handlers.base.Base):
 		self.render_template('roster/list.htm', **data)
 
 class List(handlers.base.Base):
+	@ndb.toplevel
 	def get(self):
 		logging.debug('running List.get')
 		data = self.commonData()
