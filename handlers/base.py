@@ -40,18 +40,17 @@ class Base(webapp2.RequestHandler):
 			
 			if len(r) > 0:
 				member = r[0]
-				
-			memberships = self.memberships(member)	
-				
+								
 			if member == None:
 				member = models.common.Member()
 				member.firstName = user.nickname()
 				member.email = user.email()
 				member.user = user
-				member.save()
-			else:
-				data.update((yield memberships))
+				member.put()
 				
+			memberships = self.memberships(member)
+			data.update((yield memberships))
+
 			data['member'] = member
 			data['loggedInMemberJSON'] = member.toJSON()
 			

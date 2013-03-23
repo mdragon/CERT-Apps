@@ -30,7 +30,8 @@ class Save(handlers.base.Base):
 		
 		obj = json.loads(post)
 		
-		m = db.get(obj['key'])
+		mKey = ndb.Key(urlsafe=obj['key'])
+		m = mKey.get()
 		
 		for c in obj['changes']:
 			logging.debug('c ' + c['name'] +', ' + c['value'] +', ' + str(c['stamp']))
