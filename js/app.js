@@ -1,12 +1,114 @@
-var CERT = Em.Application.create(
+var CERT = Ember.Application.create(
 	{
-		rootElement: '#content'
+		rootElement: 'body',
+		LOG_TRANSITIONS: true,
+		enableLogging: true,
+		LOG_BINDINGS: true
 	}
 );
 
-CERT.ApplicationController = Ember.Controller.extend();
+CERT.loggedIn = {};
+
+CERT.Router.map(function() {
+  //this.route('team');
+  //this.resource('test',{ path: '/abc'});
+  //this.route("favorites");
+	this.resource("team", { path: "/teams" }, function() {
+		this.resource("members", { path: "/members" });
+	});
+});
+
+CERT.Store = DS.Store.extend({
+	revision: 12
+});
+
+CERT.Member = DS.Model.extend({
+	key: DS.attr('string'),
+	firstName: DS.attr('string'),
+	lastName: DS.attr('string'),
+
+	team: DS.belongsTo('CERT.Team')
+});
+
+CERT.Team = DS.Model.extend({
+	key: DS.attr('string'),
+	name: DS.attr('string'),
+	members: DS.hasMany(CERT.Member)
+});
+
+DS.RESTAdapter.map('CERT.Member', {
+	id: { key: 'key' },
+	firstName: { key: 'firstName' },
+	lastName: { key: 'lastName' }
+});
+
+DS.RESTAdapter.map('CERT.Team', {
+	id: { key: 'key' },
+	name: { key: 'name' }
+});
+
+CERT.IndexRoute = Ember.Route.extend({
+  setupController: function(controller, model) {
+    console.log('IndexRoute', 'controller', controller, 'model', model);
+  }
+});
+
+CERT.TeamRoute = Ember.Route.extend({
+	setupController: function(controller, model)
+	{
+		console.log("RosterRoute", 'controller', controller, 'model', model);
+	},
+	model: function(params)
+	{
+		return CERT.Team.find();
+	}
+});
+
+CERT.TeamController = Em.ArrayController.extend({
+  ready: function()
+  {
+		console.log("Created App namespace in RosterController ready");
+  }
+});
+
+CERT.TeamView = Em.View.extend({
+	didInsertElement: function()
+	{
+		console.group('TeamView didInsertElement');
+
+		console.log('this, this.$()', this, this.$());
+		console.log('controller', this.get('controller'));
+
+		//$("body").timeago();
+
+		console.groupEnd();
+	}
+});
+
+CERT.MembersRoute = Ember.Route.extend({
+	needs: 'team',
+	setupController: function(controller, model)
+	{
+		console.log("MembersRoute", 'controller', controller, 'model', model);
+	},
+/*	model: function(params)
+	{
+		console.log('params', params, 'this', this);
+		//{team: controller.team}
+		return CERT.Member.find();
+	}*/
+});
+
+CERT.MembersController = Em.ArrayController.extend({
+  ready: function()
+  {
+		console.log("Created App namespace in RosterController ready");
+  }
+});
+
+/*CERT.ApplicationController = Ember.Controller.extend();
 CERT.ApplicationView = Ember.View.extend({
-	templateName: 'layout',
+	templateName: 'application',
 	didInsertElement: function()
 	{
 		console.group('ApplicationView didInsertElement');
@@ -18,8 +120,8 @@ CERT.ApplicationView = Ember.View.extend({
 		console.groupEnd();
 	}
 });
-
-CERT.RosterView = Em.View.extend({
+*/
+/*CERT.RosterView = Em.View.extend({
 	templateName: 'roster',
 	didInsertElement: function()
 	{
@@ -32,14 +134,7 @@ CERT.RosterView = Em.View.extend({
 
 		console.groupEnd();
 	}
-});
-CERT.RosterController = Em.ArrayController.extend({
-  ready: function()
-  {
-	console.log("Created App namespace in RosterController ready");
-
-  }
-});
+});*/
 
 CERT.LoadingView = Em.View.extend({
 	templateName: 'loading',
@@ -55,7 +150,7 @@ CERT.LoadingView = Em.View.extend({
 		console.groupEnd();
 	}
 });
-CERT.LoadingController = Em.ArrayController.extend({
+CERT.LoadingController = Em.Controller.extend({
   ready: function()
   {
 	console.log("Created App namespace in Loading ready");
@@ -63,7 +158,7 @@ CERT.LoadingController = Em.ArrayController.extend({
   }
 });
 
-CERT.Router = Ember.Router.extend({
+/*CERT.Router = Ember.Router.extend({
 	enableLogging: true,
 	root: Ember.Route.extend({
 		index: Ember.Route.extend({
@@ -108,32 +203,6 @@ CERT.Router = Ember.Router.extend({
 	})
 });
 
-CERT.Member = Ember.Object.extend();
-CERT.Member.reopenClass({
-  _listOfMembers:  Em.A(),
-  all:  function(){
-	console.log('CERT.Member.all');
-	var allShoes = this._listOfMembers;
-	// Mock an ajax call; like a jQuery.ajax might have done...
-	setTimeout( function(){
-		console.log('CERT.Member.success');
-	allShoes.clear();
-	allShoes.pushObjects(
-		[
-		{ id: 'rainbow',   name: "Rainbow Sandals",
-			price: '$60.00', description: 'San Clemente style' },
-		{ id: 'strappy',   name: "Strappy shoes",
-			price: '$300.00', description: 'I heard Pénèlope Cruz say this word once.' },
-		{ id: 'bluesuede', name: "Blue Suede",
-			price: '$125.00', description: 'The King would never lie:  TKOB⚡!' }
-		]
-	);
-	}, 2000);
-	return this._listOfMembers;
-  }
-});
-
-Ember.enableLogging = true;
-Ember.debug = true;
+*/
 
 CERT.initialize();

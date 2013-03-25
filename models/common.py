@@ -14,7 +14,10 @@ class Base(ndb.Model):
 	createdBy = ndb.UserProperty(auto_current_user_add=True)
 	modifiedBy = ndb.UserProperty(auto_current_user=True)
 	
-	def to_dict(self, obj):
+	def to_dict(self):
+		return to_dict2(self);
+
+	def to_dict2(self, obj):
 		if type(obj) == dict:
 			return obj
 
@@ -34,7 +37,7 @@ class Base(ndb.Model):
 				elif isinstance(value, ndb.GeoPt):
 					output[key] = {'lat': value.lat, 'lon': value.lon}
 				elif isinstance(value, ndb.Model):
-					output[key] = to_dict(value)
+					output[key] = self.to_dict2(value)
 				else:
 					raise ValueError('cannot encode ' + repr(prop))
 
@@ -43,7 +46,7 @@ class Base(ndb.Model):
 		if type(obj) == list:
 			outList = []
 			for o in obj:
-				outList.append(self.to_dict(o))
+				outList.append(self.to_dict2(o))
 			
 			return outList
 		
@@ -55,6 +58,7 @@ class Base(ndb.Model):
 			return obj
 		
 		newObj = dict()
+		logging.debug('moving to newObj ' + str(dir(obj)))
 		for p in type(obj)._properties:
 			val = unicode(getattr(obj, p))
 			if getattr(obj, p) is None:
@@ -62,18 +66,29 @@ class Base(ndb.Model):
 			newObj[p] = val
 
 		if 'key' in dir(obj):
-			newObj['key'] = str(obj.key.urlsafe())
-			logging.debug('adding model object key ' + str(newObj['key']))
+			if not obj.key is None:
+				newObj['key'] = str(obj.key.urlsafe())
+				logging.debug('adding model object key ' + str(newObj['key']))
+			else:
+				logging.debug('not adding model object key because it is None')
 		else:
 			logging.debug('not adding model object key as it does not exist')
 		
+		if 'key' in dir(obj):
+			if not obj.key is None:
+				newObj['id'] = str(obj.key.id())
+				logging.debug('adding model object id ' + str(newObj['id']))
+			else:
+				logging.debug('not adding model object key because it is None')
+		else:
+			logging.debug('not adding model object key as it does not exist')
 		return newObj
 		
 	def toJSON(self):
 		obj = self
-		d = self.to_dict(obj)
+		d = self.to_dict2(obj)
 
-		return json.dumps(self.to_dict(d))
+		return json.dumps(self.to_dict2(d))
 		
 class Member(Base):
 	firstName = ndb.StringProperty()
@@ -90,6 +105,7 @@ class Member(Base):
 	rosterCell = ndb.BooleanProperty()
 	rosterHome = ndb.BooleanProperty()
 	
+	id = 0
 	def filterForRoster(self, membership):
 		if not(membership.officer or membership.oem):
 			self.rosterEmail = True if self.rosterEmail is None else self.rosterEmail
@@ -107,6 +123,7 @@ class Member(Base):
 class Team(Base):
 	name = ndb.StringProperty()
 	location = ndb.StringProperty()
+	member_ids = []
 	
 class Membership(Base):
 	team = ndb.KeyProperty(kind=Team)

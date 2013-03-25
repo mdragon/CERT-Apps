@@ -826,7 +826,7 @@ cert.permissions.check = function(memberships, team)
 	
 	var elements = $('.oem-officer');
 	console.log('ms', ms, 'elements', elements);
-	if( ms.oem || ms.officer )
+	if( ms && (ms.oem || ms.officer) )
 	{
 		cert.showHide.ui.show(elements);
 	} else

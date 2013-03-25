@@ -18,9 +18,13 @@ handlers:
   static_dir: images
 - url: /js
   static_dir: js
+- url: /static
+  static_dir: static
 - url: /profile/.*
   script: handlers.profile.app
 - url: /roster/.*
   script: handlers.roster.app
+- url: /teams
+  script: handlers.teamStore.app
 - url: /.*
   script: handlers.landing.app

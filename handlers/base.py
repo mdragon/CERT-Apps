@@ -104,7 +104,7 @@ class Base(webapp2.RequestHandler):
 				elif isinstance(value, db.GeoPt):
 					output[key] = {'lat': value.lat, 'lon': value.lon}
 				elif isinstance(value, db.Model):
-					output[key] = to_dict(value)
+					output[key] = value.to_dict()
 				else:
 					raise ValueError('cannot encode ' + repr(prop))
 
@@ -143,7 +143,7 @@ class Base(webapp2.RequestHandler):
 	def toJSON(self, obj):
 		d = self.to_dict(obj)
 		
-		return json.dumps(d)
+		return json.dumps(self.to_dict(d))
 		
 	def redir(self, url):
 		return webapp2.redirect(url, False)

@@ -3,54 +3,12 @@
 
 {% block content %}
 
-<script type="text/x-handlebars" data-template-name="application">
-	<div class="roster-content">
-		<table class="roster">
-			{% raw %}
-			{{outlet rosterMembers}}
-			{% endraw %}
-		</table>
-	</div>
-</script>
 {% endblock %}
 
 {% block templates %}
 	{% raw %}
 
-	<script type="text/x-handlebars" data-template-name="loading">
-		<div class="loading">
-			Loading...
-		</div>
-	</script>
 
-	<script type="text/x-handlebars" data-template-name="roster">
-		<h1> Boom ROSTER!</h1>
-		{{log controller}}
-
-		{{#if controller.length}}
-
-		    {{#each member in controller}}
-				{{log this}}
-				{{#with member}}
-					{{log this}}
-		        	<li style="color: #000">{{id}} | {{name}} | {{price}} : {{description}}</li>
-	        	{{/with}}
-        	{{log 'each'}}
-		    {{/each}}
-	    {{else}}
-	    	{{log this}}
-	    	{{template 'loading'}}
-	    {{/if}}
-    	{{log 'poop'}}
-    </script>
-
-	<script type="text/x-handlebars" data-template-name="public-roster-header">
-	<tr class="public-roster-header">
-		<th class="name">Name</th>
-		<th class="phone cell">Cell</th>
-		<th class="email ">Email</th>
-	</tr>
-	</script>
 	<tr class="private-roster-header">
 		<th class="name">Name</th>
 		<th class="phone cell">Cell</th>
