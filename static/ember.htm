@@ -11,35 +11,64 @@
     <title>C.E.R.T. Apps</title>
 </head>
 <body>
+	<script type="text/x-handlebars" data-template-name="application">
+		<div id="wrapper">
+			<div id="header">
+				<div id="nav">
+					<a href="/profile/">My Information</a>
+					 | <a href="/roster/">Team Roster</a> 
+					<span class="oem-officer">
+						 | <a href="/deploy/">Deployments</a>
+						 | <a href="/notify/">Notifications</a>
+					</span>
+				</div>
+				
+				<div id="welcome">
+				</div>
+			</div>
+		    <div id="content">
+				{{#if controller.member }}
+			    	{{outlet}}
+				{{else}}
+					{{template "login"}}
+			    {{/if}}
+			</div>
 
-	<script type="text/x-handlebars" data-template-name="team">		
-		Teams: 
-		{{#if controller.length}}
-			<select name="team-picker">
-		    {{#each t in controller}}
-		    	{{log t}}
-	        	<option {{bindAttr value="t.key"}}>{{t.name}}</option>
-	        	{{log Em}}
-	        	{{log t.members}}
-	        	{{#each m in t.members}}
-	        		{{log m}}
-					{{#with m}}
-						{{template 'member'}}
-	    			{{/with}}
-	        	{{/each}}
-	        	{{log Em}}
+		    <div id="footer">
+		        &copy; Copyright 2012-{{copyrightYear}}.
+		    </div>
+	    </div>
+    </script>
+
+
+	<script type="text/x-handlebars" data-template-name="team">
+			Teams: 
+			{{#if controller.length}}
+				<select name="team-picker">
+			    {{#each t in controller}}
+			    	{{log t}}
+		        	<option {{bindAttr value="t.key"}}>{{t.name}}</option>
+		        	{{log Em}}
+		        	{{log t.members}}
+		        	{{#each m in t.members}}
+		        		{{log m}}
+						{{#with m}}
+							{{template 'member'}}
+		    			{{/with}}
+		        	{{/each}}
+		        	{{log Em}}
+			    {{/each}}
+			    </select>
+		    {{else}}
+		    	{{template 'loading'}}
+		    {{/if}}
+			<h3>Roster</h3>
+		    {{#each member in controller.members}}	
+			    {{log member}}
+				{{#with member}}
+					{{template 'member'}}
+		    	{{/with}}
 		    {{/each}}
-		    </select>
-	    {{else}}
-	    	{{template 'loading'}}
-	    {{/if}}
-		<h3>Roster</h3>
-	    {{#each member in controller.members}}	
-		    {{log member}}
-			{{#with member}}
-				{{template 'member'}}
-	    	{{/with}}
-	    {{/each}}
 	</script>
 
 	<script type="text/x-handlebars" data-template-name="member">	
@@ -50,31 +79,17 @@
 	</script>
 
 	<script type="text/x-handlebars" data-template-name="index">
-		<div id="wrapper">
-		<div id="header">
-			<div id="nav">
-				<a href="/profile/">My Information</a>
-				 | <a href="/roster/">Team Roster</a> 
-				<span class="oem-officer">
-					 | <a href="/deploy/">Deployments</a>
-					 | <a href="/notify/">Notifications</a>
-				</span>
-			</div>
-			
-			<div id="welcome">
-			</div>
-		</div>
-	    <div id="content">
-		</div>
-	    <div id="footer">
-	        &copy; Copyright 2012.
-	    </div>
-		</div>
+		Welcome to CERT Apps
+	</script>
 		
-		<div id="templates">
-			<div class="not-logged-in">
-				Please <a href="{{ loginURL }}">log in</a> to use this system.
-			</div>
+	<script type="text/x-handlebars" data-template-name="login">
+		{{log Ember}}
+		{{log view}}
+		{{log model}}
+		{{log controller}}
+		{{log Ember}}
+		<div class="not-logged-in">
+			Please <a {{bindAttr href="loginURL"}}>log in</a> to use this system.
 		</div>
 	</script>
 

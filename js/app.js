@@ -53,6 +53,50 @@ CERT.IndexRoute = Ember.Route.extend({
   }
 });
 
+CERT.ApplicationRoute = Ember.Route.extend(
+{
+	member: null,
+	loginURL: null,
+
+	setupController: function(controller, model)
+	{
+		console.log("ApplicationRoute", 'controller', controller, 'model', model);
+		controller.set('copyrightYear', new Date().getFullYear());
+		controller.set('loginURL', '/log-me-in');
+		if( CERT.loggedIn ) controller.set('member', CERT.loggedIn.member);
+	},
+
+	fetchGlobals: function()
+	{
+		$.ajax
+		(
+			{
+				context: this,
+				dataType: 'json',
+				success: loadGlobals,
+				url: '/global-state'
+			}
+		);
+	},
+
+	loadGlobals: function(data, status, xhr)
+	{
+		console.group("loadGlobals");
+		
+		console.log('lading global data from data to controller', data, this);
+		for( var p in data )
+		{
+			console.log('copy data', p)
+			if( data.hasOwnProperty(p) )
+			{
+
+			}
+		}
+
+		console.groupEnd();
+	}
+});
+
 CERT.TeamRoute = Ember.Route.extend({
 	setupController: function(controller, model)
 	{
@@ -60,7 +104,12 @@ CERT.TeamRoute = Ember.Route.extend({
 	},
 	model: function(params)
 	{
-		return CERT.Team.find();
+		if( CERT.loggedIn && CERT.loggedIn.member )
+		{
+			return CERT.Team.find();
+		}
+
+		return null;
 	}
 });
 
@@ -71,7 +120,13 @@ CERT.TeamController = Em.ArrayController.extend({
   }
 });
 
-CERT.TeamView = Em.View.extend({
+CERT.TeamView = Em.View.extend(
+{
+	willInsertElement: function()
+	{
+		console.log("teamview will insert");
+	}, 
+
 	didInsertElement: function()
 	{
 		console.group('TeamView didInsertElement');
@@ -104,6 +159,19 @@ CERT.MembersController = Em.ArrayController.extend({
   {
 		console.log("Created App namespace in RosterController ready");
   }
+});
+
+CERT.LoginView = Em.View.extend({
+	willInsertElement: function()
+	{
+		console.log('loginView willInsert', this.get('loginURL'));
+	},
+
+	didInsertElement: function() 
+	{
+		console.log('loginView didInsert', this.get('loginURL'));
+	}
+
 });
 
 /*CERT.ApplicationController = Ember.Controller.extend();
