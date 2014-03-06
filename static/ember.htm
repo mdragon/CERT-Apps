@@ -8,18 +8,18 @@
     <link rel="stylesheet" href="/css/jquery.gritter.css" />
     <link rel="stylesheet" href="/css/common.css" />
 
-    <title>C.E.R.T. Apps</title>
+    <title>CERT Apps</title>
 </head>
 <body>
 	<script type="text/x-handlebars" data-template-name="application">
 		<div id="wrapper">
 			<div id="header">
 				<div id="nav">
-					<a href="/profile/">My Information</a>
-					 | <a href="/roster/">Team Roster</a> 
-					<span class="oem-officer">
-						 | <a href="/deploy/">Deployments</a>
-						 | <a href="/notify/">Notifications</a>
+					<a href="#/profile">My Information</a>
+					 | <a href="#/teams/members">Team Roster</a> 
+					<span class="oem-officer" style="display: none;">
+						 | <a href="#/deploy">Deployments</a>
+						 | <a href="#/notify">Notifications</a>
 					</span>
 				</div>
 				
@@ -30,7 +30,7 @@
 				{{#if controller.member }}
 			    	{{outlet}}
 				{{else}}
-					{{template "login"}}
+					{{partial "login"}}
 			    {{/if}}
 			</div>
 
@@ -46,55 +46,45 @@
 			{{#if controller.length}}
 				<select name="team-picker">
 			    {{#each t in controller}}
-			    	{{log t}}
-		        	<option {{bindAttr value="t.key"}}>{{t.name}}</option>
-		        	{{log Em}}
-		        	{{log t.members}}
+		        	<option {{bind-attr value="t.key"}}>{{t.name}}</option>
 		        	{{#each m in t.members}}
-		        		{{log m}}
 						{{#with m}}
-							{{template 'member'}}
+							{{partial 'member'}}
 		    			{{/with}}
 		        	{{/each}}
-		        	{{log Em}}
 			    {{/each}}
 			    </select>
 		    {{else}}
-		    	{{template 'loading'}}
+		    	{{partial 'loading'}}
 		    {{/if}}
 			<h3>Roster</h3>
 		    {{#each member in controller.members}}	
-			    {{log member}}
 				{{#with member}}
-					{{template 'member'}}
+					{{partial 'member'}}
 		    	{{/with}}
 		    {{/each}}
 	</script>
 
 	<script type="text/x-handlebars" data-template-name="member">	
-		{{log Em}}
-		{{log content}}
-		{{log controller}}
 		<li style="color: #000">{{key}} {{firstName}} {{ lastName }}</li>
 	</script>
 
 	<script type="text/x-handlebars" data-template-name="index">
 		Welcome to CERT Apps
 	</script>
+
+	<script type="text/x-handlebars" data-template-name="profile/index">
+		Verify your information below:
+
+	</script>
 		
 	<script type="text/x-handlebars" data-template-name="login">
-		{{log Ember}}
-		{{log view}}
-		{{log model}}
-		{{log controller}}
-		{{log Ember}}
 		<div class="not-logged-in">
-			Please <a {{bindAttr href="loginURL"}}>log in</a> to use this system.
+			Please <a {{bind-attr href="loginURL"}}>log in</a> to use this system.
 		</div>
 	</script>
 
 	<script type="text/x-handlebars" data-template-name="loading">
-		{{log _view.path}}
 		<span class="loading">
 			Loading...
 		</span>
@@ -121,6 +111,5 @@
 <script src="/js/underscore.js" type="text/javascript"></script>
 <script src="/js/handlebars.js" type="text/javascript"></script>
 <script src="/js/ember.js" type="text/javascript"></script>
-<script src="/js/ember-data.js" type="text/javascript"></script>
 <script src="/js/app.js" type="text/javascript"></script>
 

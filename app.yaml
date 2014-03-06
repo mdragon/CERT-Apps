@@ -20,6 +20,8 @@ handlers:
   static_dir: js
 - url: /static
   static_dir: static
+- url: /log-me-in
+  script: handlers.login.app
 - url: /profile/.*
   script: handlers.profile.app
 - url: /roster/.*
