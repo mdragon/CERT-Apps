@@ -42,12 +42,12 @@ type Member struct {
 	ShowCell  bool
 	ShowEmail bool
 
-	HomeAddress Location
+	HomeAddress *datastore.Key
 
 	Created    time.Time
-	CreatedBy  user.User
+	CreatedBy  *datastore.Key
 	Modified   time.Time
-	ModifiedBy user.User
+	ModifiedBy *datastore.Key
 }
 
 func init() {
@@ -92,6 +92,8 @@ func guest(w http.ResponseWriter, r *http.Request) {
 
 		context.LogInOutLink = url
 		context.LogInOutText = "Log In"
+
+		c.Infof("not logged in: %v", url)
 	} else {
 		url, err := user.LogoutURL(c, r.URL.String())
 		if err != nil {
@@ -99,28 +101,64 @@ func guest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		c.Infof("logged in: %v", url)
+
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		l := Location{
+		l := &Location{
 			Line1: "123 Main St",
 			City:  "Anytown",
 			State: "NJ",
 			Zip:   "55555",
 		}
-		m := Member{
-			FirstName:   "Matt",
-			LastName:    "Dragon",
-			Email:       "foo@example.com",
-			Cell:        "555-555-5555",
-			HomeAddress: l,
+		m := &Member{
+			FirstName: "Matt",
+			LastName:  "Dragon",
+			Email:     "foo@example.com",
+			Cell:      "555-555-5555",
 
-			Created:    time.Now,
-			CreatedBy:  u,
-			Modified:   time.Now,
-			ModifiedBy: u,
+			Created:    time.Now(),
+			CreatedBy:  *u,
+			Modified:   time.Now(),
+			ModifiedBy: *u,
 		}
 
+		membersQ := datastore.NewQuery("Member").Limit(1)
+		var members []Member
+
+		c.Infof("Got membersQ and members, calling GetAll")
+		_, err = membersQ.GetAll(c, &members)
+
+		c.Infof("after GetAll")
+		if noErr(err, w, c) {
+			c.Infof("checking len(members)")
+			if len(members) == 0 {
+				c.Infof("existing Member not found: %d", len(members))
+
+				lKey := datastore.NewKey(c, "Location", "", 0, nil)
+				mKey := datastore.NewKey(c, "Member", "", 0, nil)
+
+				c.Infof("Putting Location: %v", lKey)
+				outLKey, lErr := datastore.Put(c, lKey, l)
+
+				if noErrMsg(lErr, w, c, "Trying to put Location") {
+					c.Infof("Putting Member: %v", mKey)
+					m.HomeAddress = outLKey
+
+					_, err = datastore.Put(c, mKey, m)
+					if noErrMsg(err, w, c, "Trying to put Member") {
+						c.Infof("no error on member put")
+					}
+				}
+
+				c.Infof("Member: %v", m)
+			} else {
+				c.Infof("existing Member found: %d", len(members))
+			}
+		} else {
+
+		}
 	}
 
 	if _, err := q.GetAll(c, &context.Greetings); err != nil {
@@ -132,11 +170,28 @@ func guest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func checkErr(e error) bool {
+func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
+	retval := false
 	if err != nil {
+		c.Errorf("While attempting: %v Error: %v", msg, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		retval = true
+	} else {
+		c.Debugf("no error")
 	}
+	return retval
+}
+
+func noErr(err error, w http.ResponseWriter, c appengine.Context) bool {
+	retval := checkErr(err, w, c, "")
+
+	return !retval
+}
+
+func noErrMsg(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
+	retval := checkErr(err, w, c, msg)
+
+	return !retval
 }
 
 var guestbookTemplate = template.Must(template.New("book").Parse(guestbookTemplateHTML))
