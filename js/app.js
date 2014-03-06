@@ -9,13 +9,22 @@ var CERT = Ember.Application.create(
 
 CERT.loggedIn = {};
 
-CERT.Router.map(function() {
+CERT.Router.map(function(match) {
   //this.route('team');
   //this.resource('test',{ path: '/abc'});
   //this.route("favorites");
-	this.resource("team", { path: "/teams" }, function() {
-		this.resource("members", { path: "/members" });
+  console.log('Router.map match', match);
+	this.resource("team", { path: "teams" }, function() {
+		this.resource("members", { path: "members" });
 	});
+	this.resource("profile", { path: "profile" }, function() {
+		//this.resource("myProfile", { path: '/' }),
+		//this.resource('profileEdit', { path: 'whee' });
+		this.resource("profileEdit", { path: ":profile_id" }, function() {
+//			this.resource("profileEditSpecific", { path: "/id/:profileEditSpecific_id"});
+		});
+	});
+	//this.resource("profile", {path: 'member/:member_id' });
 });
 
 CERT.Store = DS.Store.extend({
@@ -83,7 +92,7 @@ CERT.ApplicationRoute = Ember.Route.extend(
 	{
 		console.group("loadGlobals");
 		
-		console.log('lading global data from data to controller', data, this);
+		console.log('loading global data from data to controller', data, this);
 		for( var p in data )
 		{
 			console.log('copy data', p)
@@ -125,7 +134,7 @@ CERT.TeamView = Em.View.extend(
 	willInsertElement: function()
 	{
 		console.log("teamview will insert");
-	}, 
+	},
 
 	didInsertElement: function()
 	{
@@ -145,7 +154,7 @@ CERT.MembersRoute = Ember.Route.extend({
 	setupController: function(controller, model)
 	{
 		console.log("MembersRoute", 'controller', controller, 'model', model);
-	},
+	}
 /*	model: function(params)
 	{
 		console.log('params', params, 'this', this);
@@ -167,11 +176,76 @@ CERT.LoginView = Em.View.extend({
 		console.log('loginView willInsert', this.get('loginURL'));
 	},
 
-	didInsertElement: function() 
+	didInsertElement: function()
 	{
 		console.log('loginView didInsert', this.get('loginURL'));
 	}
 
+});
+
+CERT.ProfileRoute = Ember.Route.extend({
+	setupController: function(controller, model)
+	{
+		console.log("ProfileRoute", 'controller', controller, 'model', model);
+	},
+	model: function(params)
+	{
+		console.log("ProfileRoute params", params)
+
+		if( CERT.loggedIn && CERT.loggedIn.member )
+		{
+			var id = CERT.loggedIn.member.id;
+
+			if( CERT.loggedIn.member.isAdmin() )
+			{
+				console.log('loading other member to edit because admin has requested', params.member_id, cert.loggedIn.member);
+				if( params.member_id ) id = params.member_id;
+			}
+			console.log('calling find for id', id);
+			return CERT.Member.find(id);
+		}
+
+		return null;
+	}
+});
+
+CERT.ProfileEditRoute = Ember.Route.extend({
+	setupController: function(controller, model)
+	{
+		console.log("ProfileEditRoute", 'controller', controller, 'model', model);
+	},
+	model: function(params)
+	{
+		console.log('ProfileEditRoute params', params)
+		return null;
+	}
+});
+
+CERT.ProfileController = Em.ArrayController.extend({
+  ready: function()
+  {
+		console.log("Created App namespace in ProfileController ready");
+  }
+});
+
+CERT.ProfileView = Em.View.extend(
+{
+	willInsertElement: function()
+	{
+		console.log("ProfileView will insert");
+	},
+
+	didInsertElement: function()
+	{
+		console.group('ProfileView didInsertElement');
+
+		console.log('this, this.$()', this, this.$());
+		console.log('controller', this.get('controller'));
+
+		//$("body").timeago();
+
+		console.groupEnd();
+	}
 });
 
 /*CERT.ApplicationController = Ember.Controller.extend();
