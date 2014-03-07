@@ -28,6 +28,11 @@ type Location struct {
 	City  string
 	State string
 	Zip   string
+
+	Created    time.Time
+	CreatedBy  *datastore.Key
+	Modified   time.Time
+	ModifiedBy *datastore.Key
 }
 
 type Member struct {
@@ -43,6 +48,7 @@ type Member struct {
 	ShowEmail bool
 
 	HomeAddress *datastore.Key
+	UserID      string
 
 	Created    time.Time
 	CreatedBy  *datastore.Key
@@ -106,55 +112,84 @@ func guest(w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		l := &Location{
-			Line1: "123 Main St",
-			City:  "Anytown",
-			State: "NJ",
-			Zip:   "55555",
-		}
-		m := &Member{
-			FirstName: "Matt",
-			LastName:  "Dragon",
-			Email:     "foo@example.com",
-			Cell:      "555-555-5555",
-
-			Created:    time.Now(),
-			CreatedBy:  *u,
-			Modified:   time.Now(),
-			ModifiedBy: *u,
-		}
-
-		membersQ := datastore.NewQuery("Member").Limit(1)
-		var members []Member
+		memberQ := datastore.NewQuery("Member").Filter("UserID =", u.ID)
+		var member []Member
 
 		c.Infof("Got membersQ and members, calling GetAll")
-		_, err = membersQ.GetAll(c, &members)
+		_, err = memberQ.GetAll(c, &member)
 
 		c.Infof("after GetAll")
+
+		var mem Member
+
 		if noErr(err, w, c) {
 			c.Infof("checking len(members)")
-			if len(members) == 0 {
-				c.Infof("existing Member not found: %d", len(members))
+			if len(member) == 0 {
+				c.Infof("existing Member not found for user.ID: %v, count:%d", u.ID, len(member))
+
+				l := &Location{
+					Line1: "123 Main St",
+					City:  "Anytown",
+					State: "NJ",
+					Zip:   "55555",
+
+					Created:  time.Now(),
+					Modified: time.Now(),
+					// need to be nil because we don't have the member key to use yet
+					CreatedBy:  nil,
+					ModifiedBy: nil,
+				}
+
+				m := &Member{
+					FirstName: "Matt",
+					LastName:  "Dragon",
+					Email:     "foo@example.com",
+					Cell:      "555-555-5555",
+
+					UserID: u.ID,
+
+					Created:  time.Now(),
+					Modified: time.Now(),
+					// need to be nil because we don't have the member key to use yet
+					CreatedBy:  nil,
+					ModifiedBy: nil,
+				}
 
 				lKey := datastore.NewKey(c, "Location", "", 0, nil)
 				mKey := datastore.NewKey(c, "Member", "", 0, nil)
 
-				c.Infof("Putting Location: %v", lKey)
-				outLKey, lErr := datastore.Put(c, lKey, l)
+				c.Infof("Putting Member: %v", mKey)
+				outMKey, mErr := datastore.Put(c, mKey, m)
 
-				if noErrMsg(lErr, w, c, "Trying to put Location") {
-					c.Infof("Putting Member: %v", mKey)
-					m.HomeAddress = outLKey
+				if noErrMsg(mErr, w, c, "Trying to put Member") {
+					l.CreatedBy = outMKey
+					l.ModifiedBy = outMKey
 
-					_, err = datastore.Put(c, mKey, m)
-					if noErrMsg(err, w, c, "Trying to put Member") {
-						c.Infof("no error on member put")
+					c.Infof("Putting Location: %v", lKey)
+					outLKey, lErr := datastore.Put(c, lKey, l)
+
+					if noErrMsg(lErr, w, c, "Trying to put Location") {
+						c.Infof("no error on 1st member put")
+
+						m.HomeAddress = outLKey
+						m.CreatedBy = outMKey
+						m.ModifiedBy = outMKey
+
+						_, mErr2 := datastore.Put(c, outMKey, m)
+						if noErrMsg(mErr2, w, c, "Trying to put Member again") {
+							c.Infof("no error on 2nd member put")
+						}
 					}
 				}
 
 				c.Infof("Member: %v", m)
 			} else {
-				c.Infof("existing Member found: %d", len(members))
+				mem = member[0]
+				c.Infof("existing Member found: %d", len(member))
+				c.Infof("existing: %+v", mem)
+				c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
+				c.Infof("existing.HomeAddress: %+v", mem.HomeAddress)
+				c.Infof("user: %+v", *u)
 			}
 		} else {
 
@@ -173,7 +208,7 @@ func guest(w http.ResponseWriter, r *http.Request) {
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
 	retval := false
 	if err != nil {
-		c.Errorf("While attempting: %v Error: %v", msg, err)
+		c.Errorf("While attempting: %v Error: %+v", msg, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		retval = true
 	} else {

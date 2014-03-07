@@ -1,5 +1,5 @@
-application: helloworld
-version: 1
+application: cert-apps
+version: 2
 runtime: go
 api_version: go1
 
