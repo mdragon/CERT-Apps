@@ -1,6 +1,7 @@
 package certapps
 
 import (
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -76,12 +77,6 @@ func guest(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 
-	// Ancestor queries, as shown here, are strongly consistent with the High
-	// Replication Datastore. Queries that span entity groups are eventually
-	// consistent. If we omitted the .Ancestor from this query there would be
-	// a slight chance that Greeting that had just been written would not
-	// show up in a query.
-	q := datastore.NewQuery("Greeting").Ancestor(guestbookKey(c)).Order("-Date").Limit(10)
 	greetings := make([]Greeting, 0, 10)
 	context := TContext{
 		Greetings:    greetings,
@@ -101,77 +96,98 @@ func guest(w http.ResponseWriter, r *http.Request) {
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		url, err := user.LogoutURL(c, r.URL.String())
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		getMember(c, u, context, r, w)
+	}
+}
 
-		c.Infof("logged in: %v", url)
+func getMember(c appengine.Context, u *user.User, context TContext, r *http.Request, w http.ResponseWriter) {
+	var key *datastore.Key
 
-		context.LogInOutLink = url
-		context.LogInOutText = "Log Out"
+	url, err := user.LogoutURL(c, r.URL.String())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-		memberQ := datastore.NewQuery("Member").Filter("UserID =", u.ID)
-		var member []Member
+	c.Infof("logged in: %v", url)
 
-		c.Infof("Got membersQ and members, calling GetAll")
-		_, err = memberQ.GetAll(c, &member)
+	context.LogInOutLink = url
+	context.LogInOutText = "Log Out"
 
-		c.Infof("after GetAll")
+	var memberQ *datastore.Query
+	memberQ = datastore.NewQuery("Member").Filter("UserID =", u.ID)
+	var member []Member
 
-		var mem Member
+	var keys []*datastore.Key
 
-		if noErr(err, w, c) {
-			c.Infof("checking len(members)")
-			if len(member) == 0 {
-				c.Infof("existing Member not found for user.ID: %v, count:%d", u.ID, len(member))
+	c.Infof("Got membersQ and members for ID: %v, calling GetAll", u.ID)
+	keys, err = memberQ.GetAll(c, &member)
 
-				l := &Location{
-					Line1: "123 Main St",
-					City:  "Anytown",
-					State: "NJ",
-					Zip:   "55555",
+	c.Infof("after GetAll")
 
-					Created:  time.Now(),
-					Modified: time.Now(),
-					// need to be nil because we don't have the member key to use yet
-					CreatedBy:  nil,
-					ModifiedBy: nil,
-				}
+	var mem *Member
 
-				m := &Member{
-					FirstName: "Matt",
-					LastName:  "Dragon",
-					Email:     "foo@example.com",
-					Cell:      "555-555-5555",
+	found := false
 
-					UserID: u.ID,
+	if noErrMsg(err, w, c, "members for id") {
+		c.Infof("checking len(members)")
+		if len(member) == 0 {
+			c.Infof("existing Member not found for user.ID: %v, count:%d", u.ID, len(member))
 
-					Created:  time.Now(),
-					Modified: time.Now(),
-					// need to be nil because we don't have the member key to use yet
-					CreatedBy:  nil,
-					ModifiedBy: nil,
-				}
+			memberQ = datastore.NewQuery("Member").Filter("Email =", u.Email)
 
-				lKey := datastore.NewKey(c, "Location", "", 0, nil)
-				mKey := datastore.NewKey(c, "Member", "", 0, nil)
+			c.Infof("Got membersQ and members for Email: %v, calling GetAll", u.Email)
+			keys, err = memberQ.GetAll(c, &member)
 
-				c.Infof("Putting Member: %v", mKey)
-				outMKey, mErr := datastore.Put(c, mKey, m)
+			if noErrMsg(err, w, c, "members for email") {
+				if len(member) == 0 {
+					c.Infof("existing Member not found for user.Email: %v, count:%d", u.Email, len(member))
+					/*
+						l := &Location{
+							Line1: "123 Main St",
+							City:  "Anytown",
+							State: "NJ",
+							Zip:   "55555",
 
-				if noErrMsg(mErr, w, c, "Trying to put Member") {
-					l.CreatedBy = outMKey
-					l.ModifiedBy = outMKey
+							Created:  time.Now(),
+							Modified: time.Now(),
+							// need to be nil because we don't have the member key to use yet
+							CreatedBy:  nil,
+							ModifiedBy: nil,
+						}
+					*/
+					m := &Member{
+						FirstName: "",
+						LastName:  "",
+						Email:     u.Email,
+						Cell:      "",
 
-					c.Infof("Putting Location: %v", lKey)
-					outLKey, lErr := datastore.Put(c, lKey, l)
+						UserID: u.ID,
 
-					if noErrMsg(lErr, w, c, "Trying to put Location") {
+						Created:  time.Now(),
+						Modified: time.Now(),
+						// need to be nil because we don't have the member key to use yet
+						CreatedBy:  nil,
+						ModifiedBy: nil,
+					}
+
+					//lKey := datastore.NewKey(c, "Location", "", 0, nil)
+					mKey := datastore.NewKey(c, "Member", "", 0, nil)
+
+					c.Infof("Putting Member: %v", mKey)
+					outMKey, mErr := datastore.Put(c, mKey, m)
+
+					if noErrMsg(mErr, w, c, "Trying to put Member") {
+						//l.CreatedBy = outMKey
+						//l.ModifiedBy = outMKey
+
+						// c.Infof("Putting Location: %v", lKey)
+						// outLKey, lErr := datastore.Put(c, lKey, l)
+
+						// if noErrMsg(lErr, w, c, "Trying to put Location") {
 						c.Infof("no error on 1st member put")
 
-						m.HomeAddress = outLKey
+						//					m.HomeAddress = outLKey
 						m.CreatedBy = outMKey
 						m.ModifiedBy = outMKey
 
@@ -179,29 +195,48 @@ func guest(w http.ResponseWriter, r *http.Request) {
 						if noErrMsg(mErr2, w, c, "Trying to put Member again") {
 							c.Infof("no error on 2nd member put")
 						}
+						//}
 					}
-				}
 
-				c.Infof("Member: %v", m)
-			} else {
-				mem = member[0]
-				c.Infof("existing Member found: %d", len(member))
-				c.Infof("existing: %+v", mem)
-				c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
-				c.Infof("existing.HomeAddress: %+v", mem.HomeAddress)
-				c.Infof("user: %+v", *u)
+					c.Infof("Member: %v", m)
+					mem = m
+					found = true
+				} else {
+					// found by email
+					mem = &member[0]
+					key = keys[0]
+					found = true
+					mem.UserID = u.ID
+
+					c.Infof("Adding User.ID: %v, to Member with Key: %v", mem.UserID, key)
+					datastore.Put(c, key, mem)
+				}
 			}
 		} else {
+			// found by id
+			mem = &member[0]
+			key = keys[0]
+			found = true
 
+			if mem.Email == "" {
+				mem.Email = u.Email
+
+				_, err = datastore.Put(c, key, mem)
+				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", key, u.Email, mem))
+			} else {
+				c.Debugf("email was already set: %v, not updating to: %v", mem.Email, u.Email)
+			}
 		}
-	}
 
-	if _, err := q.GetAll(c, &context.Greetings); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if err := guestbookTemplate.Execute(w, context); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if found {
+			c.Infof("existing Member found: %d", len(member))
+			c.Infof("existing: %+v", mem)
+			c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
+			c.Infof("existing.HomeAddress: %+v", mem.HomeAddress)
+			c.Infof("user: %+v", *u)
+		} else {
+			c.Infof("no mem")
+		}
 	}
 }
 
@@ -212,7 +247,7 @@ func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		retval = true
 	} else {
-		c.Debugf("no error")
+		c.Debugf("no error from %v", msg)
 	}
 	return retval
 }
