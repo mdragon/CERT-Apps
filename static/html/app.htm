@@ -1,0 +1,61 @@
+<html>
+<head>
+<title>CERT Apps</title>
+<style type="text/css">
+	.nav
+	{
+		background-color: #efefef;
+		width: 100%;
+		margin: auto;
+		text-align: right;
+		padding: 3px;
+	}
+
+	.app
+	{
+	}
+</style>
+</head>
+<body>
+
+</body>
+</html>
+
+<script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
+<script type="text/javascript" src="../js/handlebars-v1.3.x.js"></script>
+<script type="text/javascript" src="../js/ember-1.5.x.js"></script>
+<script type="text/javascript" src="../js/cert-apps.js"></script>
+
+<script type="text/x-handlebars">
+	<div class="nav">
+		<a {{bind-attr href="data.LogInOutLink"}}>{{data.LogInOutText}}</a>
+		{{#if data.LoggedIn }}
+			{{#if data.Member.FirstName }}
+				Welcome, {{data.Member.FirstName}}
+			{{/if}}
+		{{/if}}
+	</div>
+	<div class="app">
+		{{outlet}}
+	</div>
+	<div class="foot">
+		Copyright Matt Dragon 2013-{{year}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="index">
+Test
+</script>
+
+
+<script type="text/x-handlebars" data-template-name="landing">
+Landing
+</script>
+
+<script type="text/x-handlebars" data-template-name="landing.index">
+Landing index
+</script>
+
+<script type="text/x-handlebars" data-template-name="loading">
+Loading...
+</script>

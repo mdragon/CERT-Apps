@@ -1,9 +1,12 @@
 package certapps
 
 import (
+	//	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
+	textT "text/template"
 	"time"
 
 	"appengine"
@@ -17,10 +20,15 @@ type Greeting struct {
 	Date    time.Time
 }
 
-type TContext struct {
-	Greetings    []Greeting
+type MainAppContext struct {
 	LogInOutLink string
 	LogInOutText string
+	Member       *Member
+	LoggedIn     bool
+}
+
+type JSONContext struct {
+	Data string
 }
 
 type Location struct {
@@ -57,8 +65,11 @@ type Member struct {
 	ModifiedBy *datastore.Key
 }
 
+var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
+var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
+
 func init() {
-	http.HandleFunc("/guest", guest)
+	http.HandleFunc("/memberData", memberData)
 	http.HandleFunc("/sign", sign)
 	http.HandleFunc("/", root)
 }
@@ -73,19 +84,24 @@ func root(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/html/app.htm", http.StatusFound)
 }
 
-func guest(w http.ResponseWriter, r *http.Request) {
+func memberData(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 
-	greetings := make([]Greeting, 0, 10)
-	context := TContext{
-		Greetings:    greetings,
+	context := MainAppContext{
 		LogInOutLink: "boo",
 		LogInOutText: "foo",
+		LoggedIn:     false,
+	}
+
+	jsonC := JSONContext{}
+	returnUrl := r.Referer()
+	if returnUrl == "" {
+		returnUrl = r.URL.String()
 	}
 
 	if u == nil {
-		url, err := user.LoginURL(c, r.URL.String())
+		url, err := user.LoginURL(c, returnUrl)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -96,18 +112,66 @@ func guest(w http.ResponseWriter, r *http.Request) {
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		getMember(c, u, context, r, w)
+		//context.Member = getMember(c, u, context, r, w)
+		context.LoggedIn = true
+
+		url, err := user.LogoutURL(c, returnUrl)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		context.LogInOutLink = url
+		context.LogInOutText = "Log Out"
+
+		context.Member = getMember(c, u, context, r, w)
+	}
+
+	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
+	bArr, memberJSONerr := json.Marshal(context)
+
+	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
+		c.Debugf("getting length")
+		//n := bytes.Index(bArr, []byte{0})
+		n := len(bArr)
+
+		if n > 0 {
+			c.Debugf("getting string for: %d bytes", n)
+			jsonC.Data = string(bArr[:n])
+
+			c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
+			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
+		} else {
+			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
+
+			errData := struct{ message string }{"No bytes after Marshalling context"}
+
+			bArr, memberJSONerr = json.Marshal(errData)
+			if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
+				c.Debugf("getting length for json of %+v", errData)
+				//n := bytes.Index(bArr, []byte{0})
+				n := len(bArr)
+
+				c.Debugf("length for member JSON bytes %d", n)
+				if n > 0 {
+					c.Debugf("getting string for: %d bytes", n)
+					jsonC.Data = string(bArr[:n])
+				} else {
+					jsonC.Data = "\"message\": \"could not form error JSON using template\""
+				}
+
+				c.Debugf("jsonErrTemplate.ExecuteTemplate: %+v", jsonC)
+				jsonErrTemplate.ExecuteTemplate(w, "jsonErr", jsonC)
+			}
+		}
 	}
 }
 
-func getMember(c appengine.Context, u *user.User, context TContext, r *http.Request, w http.ResponseWriter) {
+func getMember(c appengine.Context, u *user.User, context MainAppContext, r *http.Request, w http.ResponseWriter) *Member {
 	var key *datastore.Key
 
 	url, err := user.LogoutURL(c, r.URL.String())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	checkErr(err, w, c, "Trying to get LogOut URL")
 
 	c.Infof("logged in: %v", url)
 
@@ -238,6 +302,8 @@ func getMember(c appengine.Context, u *user.User, context TContext, r *http.Requ
 			c.Infof("no mem")
 		}
 	}
+
+	return mem
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
