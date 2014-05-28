@@ -1,3 +1,1 @@
-echo 1 > out.txt
-start out.txt
-dev_appserver.py .\ --log_level debug --dev_appserver_log_level debug 1> out.txt 2>&1
+"c:\program files (x86)\google\go_appengine\goapp" serve

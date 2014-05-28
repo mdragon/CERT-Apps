@@ -28,10 +28,10 @@
 
 <script type="text/x-handlebars">
 	<div class="nav">
-		<a {{bind-attr href="data.LogInOutLink"}}>{{data.LogInOutText}}</a>
-		{{#if data.LoggedIn }}
-			{{#if data.Member.FirstName }}
-				Welcome, {{data.Member.FirstName}}
+		<a {{bind-attr href="content.data.LogInOutLink"}}>{{content.data.LogInOutText}}</a>
+		{{#if content.data.LoggedIn }}
+			{{#if content.data.Member.FirstName }}
+				Welcome, {{content.data.Member.FirstName}}
 			{{/if}}
 		{{/if}}
 	</div>
@@ -39,14 +39,28 @@
 		{{outlet}}
 	</div>
 	<div class="foot">
-		Copyright Matt Dragon 2013-{{year}}
+		Copyright Matt Dragon 2013-{{content.data.year}}
 	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="index">
-Test
+	Test
+	{{outlet}}
 </script>
 
+<script type="text/x-handlebars" data-template-name="member">
+	<h3>Member</h3>
+	{{outlet}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="member/update">
+	Update your contact information:
+	<form>
+		{{input name="FirstName" placeholder="First Name" value=FirstName}}
+		{{input name="LastName" placeholder="Last Name" value=LastName}}<br/>
+		{{input name="Email" placeholder="Email Address" value=content.Email}}
+	</form>
+</script>
 
 <script type="text/x-handlebars" data-template-name="landing">
 Landing

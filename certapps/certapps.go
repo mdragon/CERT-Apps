@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"net/url"
 	textT "text/template"
 	"time"
 
@@ -63,6 +64,16 @@ type Member struct {
 	CreatedBy  *datastore.Key
 	Modified   time.Time
 	ModifiedBy *datastore.Key
+
+	LastLogin time.Time
+
+	Key *datastore.Key `datastore:"-"`
+}
+
+type MemberLogin struct {
+	MemberKey *datastore.Key
+	Login     time.Time
+	IP        string
 }
 
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
@@ -70,6 +81,7 @@ var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {
 
 func init() {
 	http.HandleFunc("/memberData", memberData)
+	http.HandleFunc("/audit", audit)
 	http.HandleFunc("/sign", sign)
 	http.HandleFunc("/", root)
 }
@@ -81,7 +93,54 @@ func guestbookKey(c appengine.Context) *datastore.Key {
 }
 
 func root(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/html/app.htm", http.StatusFound)
+	http.Redirect(w, r, "/static/html/app.htm", http.StatusFound)
+}
+
+func audit(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+
+	rawurl := r.FormValue("finalURL")
+	c.Debugf("rawurl %v", rawurl)
+	url, err := url.QueryUnescape(rawurl)
+
+	if u != nil {
+		mem := getMember(c, u, r, w)
+
+		audit := &MemberLogin{
+			MemberKey: mem.Key,
+			Login:     time.Now(),
+			IP:        r.RemoteAddr,
+		}
+
+		aKey := datastore.NewKey(c, "Audit", "", 0, nil)
+
+		c.Infof("Putting MemberLogin: %v", aKey)
+		_, aErr := datastore.Put(c, aKey, audit)
+
+		if noErrMsg(aErr, w, c, "Trying to put MemberLogin") {
+			//l.CreatedBy = outMKey
+			//l.ModifiedBy = outMKey
+
+			// c.Infof("Putting Location: %v", lKey)
+			// outLKey, lErr := datastore.Put(c, lKey, l)
+
+			// if noErrMsg(lErr, w, c, "Trying to put Location") {
+			c.Infof("no error on MemberLogin")
+
+			mem.LastLogin = audit.Login
+
+			_, mErr := datastore.Put(c, mem.Key, mem)
+
+			checkErr(mErr, w, c, "Failed to update Last Login for member: "+mem.Key.StringID())
+
+			http.Redirect(w, r, url, http.StatusFound)
+		}
+	}
+
+	if noErrMsg(err, w, c, "could not unescape url") {
+		c.Debugf("url %v", rawurl)
+	}
 }
 
 func memberData(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +158,8 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 	if returnUrl == "" {
 		returnUrl = r.URL.String()
 	}
+
+	returnUrl = "/audit?finalURL=" + url.QueryEscape(returnUrl)
 
 	if u == nil {
 		url, err := user.LoginURL(c, returnUrl)
@@ -124,7 +185,7 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		context.Member = getMember(c, u, context, r, w)
+		context.Member = getMember(c, u, r, w)
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
@@ -167,22 +228,13 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func getMember(c appengine.Context, u *user.User, context MainAppContext, r *http.Request, w http.ResponseWriter) *Member {
-	var key *datastore.Key
-
-	url, err := user.LogoutURL(c, r.URL.String())
-	checkErr(err, w, c, "Trying to get LogOut URL")
-
-	c.Infof("logged in: %v", url)
-
-	context.LogInOutLink = url
-	context.LogInOutText = "Log Out"
-
+func getMember(c appengine.Context, u *user.User, r *http.Request, w http.ResponseWriter) *Member {
 	var memberQ *datastore.Query
 	memberQ = datastore.NewQuery("Member").Filter("UserID =", u.ID)
 	var member []Member
 
 	var keys []*datastore.Key
+	var err error
 
 	c.Infof("Got membersQ and members for ID: %v, calling GetAll", u.ID)
 	keys, err = memberQ.GetAll(c, &member)
@@ -268,25 +320,25 @@ func getMember(c appengine.Context, u *user.User, context MainAppContext, r *htt
 				} else {
 					// found by email
 					mem = &member[0]
-					key = keys[0]
+					mem.Key = keys[0]
 					found = true
 					mem.UserID = u.ID
 
-					c.Infof("Adding User.ID: %v, to Member with Key: %v", mem.UserID, key)
-					datastore.Put(c, key, mem)
+					c.Infof("Adding User.ID: %v, to Member with Key: %v", mem.UserID, mem.Key)
+					datastore.Put(c, mem.Key, mem)
 				}
 			}
 		} else {
 			// found by id
 			mem = &member[0]
-			key = keys[0]
+			mem.Key = keys[0]
 			found = true
 
 			if mem.Email == "" {
 				mem.Email = u.Email
 
-				_, err = datastore.Put(c, key, mem)
-				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", key, u.Email, mem))
+				_, err = datastore.Put(c, mem.Key, mem)
+				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", mem.Key, u.Email, mem))
 			} else {
 				c.Debugf("email was already set: %v, not updating to: %v", mem.Email, u.Email)
 			}
@@ -294,6 +346,7 @@ func getMember(c appengine.Context, u *user.User, context MainAppContext, r *htt
 
 		if found {
 			c.Infof("existing Member found: %d", len(member))
+			c.Debugf("with key: %v", mem.Key)
 			c.Infof("existing: %+v", mem)
 			c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
 			c.Infof("existing.HomeAddress: %+v", mem.HomeAddress)

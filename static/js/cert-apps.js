@@ -15,6 +15,10 @@ window.CERTApps = Ember.Application.create(
 
 CERTApps.Router.map(function() {
   this.resource('landing', { path: '/landing' });
+  this.resource('member', function()
+  	{	
+  		this.route('update');
+  	});
 });
 
 CERTApps.ApplicationRoute = Ember.Route.extend(
@@ -52,8 +56,8 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 		console.log('requesting data', settings)
 
 		var a = $.ajax(settings);
-		a.then(function(data){ data.year = 2014; });
-		a.then(function(data){ return this.moveUpData(data); }.bind(this));
+		a.then(function(data){ data.data.year = 2014; });
+		a.then(function(data){ var move = this.moveUpData(data); console.log('App model returning', move); return move; }.bind(this));
 
 		return a;
 
@@ -70,6 +74,11 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 
 		console.groupEnd();
 	}	
+});
+
+CERTApps.ApplicationController = Ember.Controller.extend(
+{
+
 });
 
 CERTApps.LandingRoute = Ember.Route.extend(
@@ -94,18 +103,6 @@ CERTApps.LandingRoute = Ember.Route.extend(
 
 });
 
-// CERTApps.ApplicationController = Ember.Controller.create(
-// {
-// 	model: function(params)
-// 	{
-// 		console.group("CERTApps.ApplicationController model");
-
-// 		console.log('params, args', params, arguments);
-
-// 		console.groupEnd();
-// 	}	
-// });
-
 CERTApps.LandingController = Ember.Controller.extend(
 {
 	model: function(params)
@@ -117,6 +114,50 @@ CERTApps.LandingController = Ember.Controller.extend(
 		console.groupEnd();
 	}	
 });
+
+CERTApps.MemberRoute = Ember.Route.extend(
+{
+	model: function(params)
+	{
+		console.group("CERTApps.MemberRoute model");
+
+		console.log('params, args', params, arguments);
+
+		var appModel = this.modelFor('application');
+		//var model = null;
+		var model = appModel.data.Member;
+
+		console.log('appModel, model', appModel, model);
+
+		console.groupEnd();
+
+		return model;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group("CERTApps.MemberRoute setupController");
+
+		console.log('model, controller, args', model, controller, arguments);
+
+		console.groupEnd();
+	}	
+
+});
+
+
+
+// CERTApps.ApplicationController = Ember.Controller.create(
+// {
+// 	model: function(params)
+// 	{
+// 		console.group("CERTApps.ApplicationController model");
+
+// 		console.log('params, args', params, arguments);
+
+// 		console.groupEnd();
+// 	}	
+// });
 
 Ember.RSVP.configure('onerror', function(error) {
   Ember.Logger.assert(false, error);
