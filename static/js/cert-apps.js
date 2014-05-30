@@ -56,12 +56,12 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 		console.log('requesting data', settings)
 
 		var a = $.ajax(settings);
-		a.then(function(data){ data.data.year = 2014; });
-		a.then(function(data){ var move = this.moveUpData(data); console.log('App model returning', move); return move; }.bind(this));
-
-		return a;
+		a.then(function(obj){ obj.data.year = 2014; });
+		a.then(function(obj){ var move = this.moveUpData(obj); move.Member = CERTApps.Member.create(move.Member); console.log('App model returning', move); obj = move; return move; }.bind(this));
 
 		console.groupEnd();
+
+		return a;
 	},
 
 	setupController: function(controller, model)
@@ -117,6 +117,20 @@ CERTApps.LandingController = Ember.Controller.extend(
 
 CERTApps.MemberRoute = Ember.Route.extend(
 {
+	actions:
+	{
+		saveContact: function(member)
+		{
+
+			console.group('CERTApps.MemberRoute actions.saveContact');
+			console.log('member, args', member, arguments);
+
+			member.save()
+
+			console.groupEnd();
+		}
+	},
+
 	model: function(params)
 	{
 		console.group("CERTApps.MemberRoute model");
@@ -159,6 +173,42 @@ CERTApps.MemberRoute = Ember.Route.extend(
 // 	}	
 // });
 
+CERTApps.Member = Ember.Object.extend(
+{
+	save: function()
+	{
+		console.group("CERTApps.Member save")
+		
+		console.log('saving', this);
+
+		var settings = 
+		{
+			url: '/memberSave',
+			type: 'json',
+			dataType: 'json',
+			method: 'post',
+			data: JSON.stringify(this) + "\r\n"
+		};
+
+		console.log('save member request', settings)
+
+		var a = $.ajax(settings);
+		a.then(function(obj){ this.sync(obj) }.bind(this));
+
+		console.groupEnd();
+	},
+
+	sync: function(obj)
+	{
+		console.group("CERTApps.Member sync");
+
+		console.log('this', JSON.stringify(this));
+		console.log('obj', JSON.stringify(obj));
+
+		console.groupEnd();
+	}
+
+});
 Ember.RSVP.configure('onerror', function(error) {
   Ember.Logger.assert(false, error);
 });

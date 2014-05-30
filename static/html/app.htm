@@ -1,20 +1,60 @@
 <html>
 <head>
-<title>CERT Apps</title>
-<style type="text/css">
-	.nav
-	{
-		background-color: #efefef;
-		width: 100%;
-		margin: auto;
-		text-align: right;
-		padding: 3px;
-	}
+	<title>CERT Apps</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	.app
-	{
-	}
-</style>
+	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+
+	<style type="text/css">
+		.nav
+		{
+			background-color: #efefef;
+			width: 100%;
+			margin: auto;
+			text-align: right;
+			padding: 3px;
+		}
+
+		.app
+		{
+		}
+
+		.odd
+		{
+			background: #efefef;
+		}
+
+		form div
+		{
+			padding: 3px;
+			width: auto;
+			margin: 0 auto;
+			display: inline;
+			
+		}
+
+		body
+		{
+			margin-left: 5px;
+		}
+
+		.center-content
+		{
+			margin: 0 auto;
+		}
+
+		.member-contact-form
+		{
+		}
+
+	    @media (min-width: 575px) 
+	    {
+      		.center-content
+      		{
+        		width: 550px;
+      		}
+    	}	
+	</style>
 </head>
 <body>
 
@@ -49,16 +89,43 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="member">
-	<h3>Member</h3>
-	{{outlet}}
+	<div class="center-content">
+		<h3>Member</h3>
+		{{outlet}}
+	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="member/update">
+
 	Update your contact information:
 	<form>
-		{{input name="FirstName" placeholder="First Name" value=FirstName}}
-		{{input name="LastName" placeholder="Last Name" value=LastName}}<br/>
-		{{input name="Email" placeholder="Email Address" value=content.Email}}
+
+		<div class="">
+			{{input name="FirstName" placeholder="First Name" value=content.FirstName}}
+			{{input name="LastName" placeholder="Last Name" value=content.LastName}}
+		</div>
+		<br/>
+
+		<div class="odd">
+			{{input name="Email" placeholder="Email Address" value=content.Email size='30'}} 
+			<label>{{input type='checkbox' checked=content.ShowEmail placeholder='Show'}} Show to other Members</label>
+		</div>
+		</br>
+		
+		<div class="">
+			{{input name="Cell" placeholder="Cell Phone" value=content.Cell}} 
+			<label>{{input type='checkbox' checked=content.ShowCell placeholder='Show'}} Show to other Members</label>
+		</div>
+		<br/>
+
+		<div class="odd">
+			{{input name="Address" placeholder="Address" value=content.HomeAddress size='50'}}
+			<br/>
+			{{input name="HomePhone" placeholder="Home Phone" value=content.HomePhone}} 
+		</div>
+
+		<br/>
+		<button {{action saveContact content}}>Save</button>
 	</form>
 </script>
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	//	"io/ioutil"
 	"net/http"
 	"net/url"
 	textT "text/template"
@@ -81,6 +82,7 @@ var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {
 
 func init() {
 	http.HandleFunc("/memberData", memberData)
+	http.HandleFunc("/memberSave", memberSave)
 	http.HandleFunc("/audit", audit)
 	http.HandleFunc("/sign", sign)
 	http.HandleFunc("/", root)
@@ -357,6 +359,81 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 	}
 
 	return mem
+}
+
+type MemberSaveContext struct {
+	Whee string
+}
+
+func memberSave(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	//u := user.Current(c)
+	var member Member
+
+	// hah, err := ioutil.ReadAll(r.Body)
+
+	// if noErrMsg(err, w, c, "Failed to get request body") {
+	// 	n := len(hah)
+	// 	c.Infof("body: %+v", string(hah[:n]))
+	// }
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&member)
+	if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+		c.Infof("%+v", member)
+	} else {
+	}
+
+	// err = json.Unmarshal(hah, &member)
+	// if noErrMsg(err, w, c, "Failed to Unmarshall") {
+	// 	c.Infof("body: %+v", hah)
+	// }
+
+	context := struct {
+		member Member
+	}{
+		member,
+	}
+	jsonC := JSONContext{}
+
+	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
+	bArr, memberJSONerr := json.Marshal(context)
+
+	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
+		c.Debugf("getting length")
+		//n := bytes.Index(bArr, []byte{0})
+		n := len(bArr)
+
+		if n > 0 {
+			c.Debugf("getting string for: %d bytes, when marshalling context: %+v", n, context)
+			jsonC.Data = string(bArr[:n])
+
+			c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
+			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
+		} else {
+			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
+
+			errData := struct{ message string }{"No bytes after Marshalling context"}
+
+			bArr, memberJSONerr = json.Marshal(errData)
+			if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
+				c.Debugf("getting length for json of %+v", errData)
+				//n := bytes.Index(bArr, []byte{0})
+				n := len(bArr)
+
+				c.Debugf("length for member JSON bytes %d", n)
+				if n > 0 {
+					c.Debugf("getting string for: %d bytes", n)
+					jsonC.Data = string(bArr[:n])
+				} else {
+					jsonC.Data = "\"message\": \"could not form error JSON using template\""
+				}
+
+				c.Debugf("jsonErrTemplate.ExecuteTemplate: %+v", jsonC)
+				jsonErrTemplate.ExecuteTemplate(w, "jsonErr", jsonC)
+			}
+		}
+	}
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
