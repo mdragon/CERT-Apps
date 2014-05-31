@@ -110,7 +110,7 @@
 
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h4><i class="fa fa-user"></i> My Info</h4>
+				<h4><i class="fa fa-user"></i> Member</h4>
 			</div>
 			<div class="panel-body">
 				{{input name="FirstName" placeholder="First Name" value=content.FirstName}}
@@ -124,7 +124,7 @@
 			</div>
 			<div class="panel-body">
 				{{input name="Email" placeholder="Email Address" value=content.Email size='30'}} <br/>
-				<label>{{input type='checkbox' checked=content.ShowEmail placeholder='Show'}} Show to other Members</label><br/>
+				<label>{{input type='checkbox' name="ShowEmail" checked=content.ShowEmail placeholder='Show'}} Show to other Members</label><br/>
 				{{input name="Email2" placeholder="Secondary Email Address" value=content.Email2 size='30'}} 
 			</div>
 		</div>
@@ -135,8 +135,8 @@
 			</div>
 			<div class="panel-body">
 				{{input name="Cell" placeholder="Cell Phone" value=content.Cell}} <br/>
-				<label>{{input type='checkbox' checked=content.ShowCell placeholder='Show'}} Show Cell Phone to other Members</label><br/>
-				<label>{{input type='checkbox' checked=content.OKtoTex}} OK to text?</label><br/>
+				<label>{{input type='checkbox' name="ShowCell" checked=content.ShowCell placeholder='Show'}} Show Cell Phone to other Members</label><br/>
+				<label>{{input type='checkbox' name="OkToText" checked=content.OKToText}} OK to text?</label><br/>
 
 				{{input name="HomePhone" placeholder="Home Phone" value=content.HomePhone}} 
 			</div>
@@ -151,11 +151,10 @@
 				{{input name="Line2" placeholder="Address Line 2" value=content.Line2 size='50'}}<br/>
 				{{input name="City" placeholder="City" value=content.City size='30'}}, 
 				{{input name="State" placeholder="State" value=content.State size='2'}}
-				{{input name="Zip" placeholder="Zip" value=content.ZipCode size='5'}}
+				{{input name="Zip" placeholder="Zip" value=content.Zip size='5'}}
 			</div>
 		</div>
 
-		<br/>
 		<button {{action saveContact content}}><i class="fa fa-save"></i> Save</button>
 	</form>
 </script>

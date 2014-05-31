@@ -9,6 +9,7 @@ import (
 	//	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	textT "text/template"
 	"time"
 
@@ -58,10 +59,15 @@ type Member struct {
 
 	ShowCell  bool
 	ShowEmail bool
+	OKToText  bool
 
 	HomeAddress *datastore.Key
 	Location
 	UserID string
+
+	Town    bool
+	OEM     bool
+	Officer bool
 
 	Created    time.Time
 	CreatedBy  *datastore.Key
@@ -70,8 +76,7 @@ type Member struct {
 
 	LastLogin time.Time
 
-	Key             *datastore.Key `datastore:"-"`
-	UserHomeAddress string         `datastore:"-"`
+	Key *datastore.Key `datastore:"-"`
 }
 
 type MemberLogin struct {
@@ -111,6 +116,8 @@ func audit(w http.ResponseWriter, r *http.Request) {
 
 	if u != nil {
 		mem := getMember(c, u, r, w)
+
+		c.Debugf("Got member: %s", mem.Key.StringID())
 
 		audit := &MemberLogin{
 			MemberKey: mem.Key,
@@ -189,7 +196,16 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		context.Member = getMember(c, u, r, w)
+		member := getMember(c, u, r, w)
+
+		memKey := r.FormValue("member")
+		if memKey != "" {
+			intKey, _ := strconv.ParseInt(memKey, 0, 0)
+			context.Member = getMemberByIntKey2(intKey, member, c, r, w)
+		} else {
+			context.Member = member
+		}
+
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
@@ -367,44 +383,113 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 	return mem
 }
 
+func getMemberByKey2(key string, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
+	c.Debugf("Lookup Member by key: %s", key)
+
+	k := datastore.NewKey(c, "Member", key, 0, nil)
+	m := new(Member)
+	if err := datastore.Get(c, k, m); err != nil {
+		c.Errorf("datastore.Get member error: %v", err)
+		return nil
+	}
+	return m
+}
+
+func lookupOthers(member *Member) bool {
+	return member.OEM || member.Town || member.Officer
+}
+
+func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
+	allow := lookupOthers(currentMem)
+	c.Debugf("Lookup Member by key: %d, allowed to lookup? %s", key, allow)
+
+	var m Member
+	var retval *Member
+	retval = nil
+	if allow {
+		k := datastore.NewKey(c, "Member", "", key, nil)
+		if err := datastore.Get(c, k, &m); err != nil {
+			c.Errorf("datastore.Get member error: %v", err)
+
+		} else {
+			retval = &m
+		}
+	}
+	return retval
+}
+
+func getMemberByKey(key string, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
+	k := datastore.NewKey(c, "Member", key, 0, nil)
+	q := datastore.NewQuery("Member").Filter("__key__ =", k)
+
+	var members []Member
+	var member *Member
+	member = nil
+	//keys, err
+	_, err := q.GetAll(c, &members)
+	if err != nil {
+		c.Errorf("fetching members: %v", err)
+		return nil
+	} else {
+	}
+
+	if len(members) == 1 {
+		member = &members[0]
+	} else {
+		c.Errorf("Expected only 1 Member, found: %d, when querying by key: %s", len(members), key)
+	}
+
+	return member
+}
+
 type MemberSaveContext struct {
 	Whee string
 }
 
 func memberSave(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	//u := user.Current(c)
-	var member Member
-
-	// hah, err := ioutil.ReadAll(r.Body)
-
-	// if noErrMsg(err, w, c, "Failed to get request body") {
-	// 	n := len(hah)
-	// 	c.Infof("body: %+v", string(hah[:n]))
-	// }
+	u := user.Current(c)
+	var saveMember Member
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&member)
+	jsonDecodeErr := decoder.Decode(&saveMember)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
-		c.Infof("JSON mem: %+v", member)
+		c.Infof("JSON mem: %+v", saveMember)
 	} else {
 
 	}
-	// err = json.Unmarshal(hah, &member)
-	// if noErrMsg(err, w, c, "Failed to Unmarshall") {
-	// 	c.Infof("body: %+v", hah)
-	// }
 
-	context := struct {
-		Member Member
-	}{
-		member,
+	curMember := getMember(c, u, r, w)
+	allow := lookupOthers(curMember)
+
+	if curMember.Key.StringID() == saveMember.Key.StringID() || allow {
+		saveMember.ModifiedBy = curMember.Key
+		saveMember.Modified = time.Now()
+
+		_, mErr := datastore.Put(c, saveMember.Key, &saveMember)
+
+		checkErr(mErr, w, c, "Failed to update Member for memberSave: "+saveMember.Key.StringID())
+
+		context := struct {
+			Member Member
+		}{
+			saveMember,
+		}
+		returnJSONorErrorToResponse(context, c, r, w)
+	} else {
+		c.Errorf("Only OEM, Town, Officer can update a different Member's record: %+v, tried to save: %+v", curMember, saveMember)
+		context := struct {
+			error   bool
+			message string
+		}{
+			true,
+			"Only OEM, Town, Officer can update a different Member's record",
+		}
+		returnJSONorErrorToResponse(context, c, r, w)
 	}
-
-	returnJSONorErrorToResponse(context, c, r, w)
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
