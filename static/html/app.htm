@@ -4,6 +4,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
 
 	<style type="text/css">
 		.nav
@@ -119,13 +120,13 @@
 		<br/>
 
 		<div class="odd">
-			{{input name="Address" placeholder="Address" value=content.HomeAddress size='50'}}
+			{{input name="Address" placeholder="Address" value=content.UserHomeAddress size='50'}}
 			<br/>
 			{{input name="HomePhone" placeholder="Home Phone" value=content.HomePhone}} 
 		</div>
 
 		<br/>
-		<button {{action saveContact content}}>Save</button>
+		<button {{action saveContact content}}><i class="fa fa-save"></i> Save</button>
 	</form>
 </script>
 

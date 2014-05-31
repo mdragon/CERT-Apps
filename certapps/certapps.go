@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	//	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -68,7 +69,8 @@ type Member struct {
 
 	LastLogin time.Time
 
-	Key *datastore.Key `datastore:"-"`
+	Key             *datastore.Key `datastore:"-"`
+	UserHomeAddress string         `datastore:"-"`
 }
 
 type MemberLogin struct {
@@ -155,7 +157,6 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 		LoggedIn:     false,
 	}
 
-	jsonC := JSONContext{}
 	returnUrl := r.Referer()
 	if returnUrl == "" {
 		returnUrl = r.URL.String()
@@ -191,8 +192,12 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
-	bArr, memberJSONerr := json.Marshal(context)
+	returnJSONorErrorToResponse(context, c, r, w)
+}
 
+func returnJSONorErrorToResponse(context interface{}, c appengine.Context, r *http.Request, w http.ResponseWriter) {
+	jsonC := JSONContext{}
+	bArr, memberJSONerr := json.Marshal(context)
 	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
 		c.Debugf("getting length")
 		//n := bytes.Index(bArr, []byte{0})
@@ -379,61 +384,26 @@ func memberSave(w http.ResponseWriter, r *http.Request) {
 
 	decoder := json.NewDecoder(r.Body)
 	jsonDecodeErr := decoder.Decode(&member)
-	if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
-		c.Infof("%+v", member)
-	} else {
-	}
 
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+		c.Infof("JSON mem: %+v", member)
+	} else {
+
+	}
 	// err = json.Unmarshal(hah, &member)
 	// if noErrMsg(err, w, c, "Failed to Unmarshall") {
 	// 	c.Infof("body: %+v", hah)
 	// }
 
 	context := struct {
-		member Member
+		Member Member
 	}{
 		member,
 	}
-	jsonC := JSONContext{}
 
-	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
-	bArr, memberJSONerr := json.Marshal(context)
-
-	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-		c.Debugf("getting length")
-		//n := bytes.Index(bArr, []byte{0})
-		n := len(bArr)
-
-		if n > 0 {
-			c.Debugf("getting string for: %d bytes, when marshalling context: %+v", n, context)
-			jsonC.Data = string(bArr[:n])
-
-			c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
-			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
-		} else {
-			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
-
-			errData := struct{ message string }{"No bytes after Marshalling context"}
-
-			bArr, memberJSONerr = json.Marshal(errData)
-			if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-				c.Debugf("getting length for json of %+v", errData)
-				//n := bytes.Index(bArr, []byte{0})
-				n := len(bArr)
-
-				c.Debugf("length for member JSON bytes %d", n)
-				if n > 0 {
-					c.Debugf("getting string for: %d bytes", n)
-					jsonC.Data = string(bArr[:n])
-				} else {
-					jsonC.Data = "\"message\": \"could not form error JSON using template\""
-				}
-
-				c.Debugf("jsonErrTemplate.ExecuteTemplate: %+v", jsonC)
-				jsonErrTemplate.ExecuteTemplate(w, "jsonErr", jsonC)
-			}
-		}
-	}
+	returnJSONorErrorToResponse(context, c, r, w)
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
