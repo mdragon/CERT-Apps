@@ -41,10 +41,10 @@ type Location struct {
 	State string
 	Zip   string
 
-	Created    time.Time
-	CreatedBy  *datastore.Key
-	Modified   time.Time
-	ModifiedBy *datastore.Key
+	// Created    time.Time
+	// CreatedBy  *datastore.Key
+	// Modified   time.Time
+	// ModifiedBy *datastore.Key
 }
 
 type Member struct {
@@ -60,7 +60,8 @@ type Member struct {
 	ShowEmail bool
 
 	HomeAddress *datastore.Key
-	UserID      string
+	Location
+	UserID string
 
 	Created    time.Time
 	CreatedBy  *datastore.Key

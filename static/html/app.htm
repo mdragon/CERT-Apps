@@ -25,18 +25,25 @@
 			background: #efefef;
 		}
 
-		form div
+		.panel-heading
 		{
-			padding: 3px;
-			width: auto;
-			margin: 0 auto;
-			display: inline;
-			
+			padding: 3px 15px  !important;
+		}
+
+		.panel-heading h4
+		{
+			margin-top: 5px !important;
+			margin-bottom: 5px !important;
 		}
 
 		body
 		{
 			margin-left: 5px;
+		}
+
+		label
+		{
+			font-weight: 300 !important;
 		}
 
 		.center-content
@@ -101,28 +108,51 @@
 	Update your contact information:
 	<form>
 
-		<div class="">
-			{{input name="FirstName" placeholder="First Name" value=content.FirstName}}
-			{{input name="LastName" placeholder="Last Name" value=content.LastName}}
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-user"></i> My Info</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="FirstName" placeholder="First Name" value=content.FirstName}}
+				{{input name="LastName" placeholder="Last Name" value=content.LastName}}
+			</div>
 		</div>
-		<br/>
 
-		<div class="odd">
-			{{input name="Email" placeholder="Email Address" value=content.Email size='30'}} 
-			<label>{{input type='checkbox' checked=content.ShowEmail placeholder='Show'}} Show to other Members</label>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-envelope"></i> Email</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Email" placeholder="Email Address" value=content.Email size='30'}} <br/>
+				<label>{{input type='checkbox' checked=content.ShowEmail placeholder='Show'}} Show to other Members</label><br/>
+				{{input name="Email2" placeholder="Secondary Email Address" value=content.Email2 size='30'}} 
+			</div>
 		</div>
-		</br>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-phone"></i> Phone Numbers</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Cell" placeholder="Cell Phone" value=content.Cell}} <br/>
+				<label>{{input type='checkbox' checked=content.ShowCell placeholder='Show'}} Show Cell Phone to other Members</label><br/>
+				<label>{{input type='checkbox' checked=content.OKtoTex}} OK to text?</label><br/>
+
+				{{input name="HomePhone" placeholder="Home Phone" value=content.HomePhone}} 
+			</div>
+		</div>
 		
-		<div class="">
-			{{input name="Cell" placeholder="Cell Phone" value=content.Cell}} 
-			<label>{{input type='checkbox' checked=content.ShowCell placeholder='Show'}} Show to other Members</label>
-		</div>
-		<br/>
-
-		<div class="odd">
-			{{input name="Address" placeholder="Address" value=content.UserHomeAddress size='50'}}
-			<br/>
-			{{input name="HomePhone" placeholder="Home Phone" value=content.HomePhone}} 
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-home"></i> Home Address</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Line1" placeholder="Address" value=content.Line1 size='50'}}<br/>
+				{{input name="Line2" placeholder="Address Line 2" value=content.Line2 size='50'}}<br/>
+				{{input name="City" placeholder="City" value=content.City size='30'}}, 
+				{{input name="State" placeholder="State" value=content.State size='2'}}
+				{{input name="Zip" placeholder="Zip" value=content.ZipCode size='5'}}
+			</div>
 		</div>
 
 		<br/>
