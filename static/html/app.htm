@@ -96,6 +96,30 @@
 	{{outlet}}
 </script>
 
+<script type="text/x-handlebars" data-template-name="team">
+	<div class="center-content">
+		<h3>{{content.data.Team.Name}} Roster</h3>
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="roster/index">
+{{log content}}
+{{log content.data}}
+{{log content.data.Members}}
+	<table>
+		<thead>
+		</thead>
+		<tbody>
+			{{#each member in content.data.Members }}
+				<tr>
+					<td>{{member.FirstName}} {{member.LastName}}</td>
+				</tr>
+			{{/each}}
+		</tbody>
+	</table>
+</script>
+
 <script type="text/x-handlebars" data-template-name="member">
 	<div class="center-content">
 		<h3>Member</h3>
@@ -104,7 +128,6 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="member/update">
-
 	Update your contact information:
 	<form>
 

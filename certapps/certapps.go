@@ -4,7 +4,7 @@ import (
 	//	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
+	//	"html/template"
 	"io"
 	//	"io/ioutil"
 	"net/http"
@@ -24,11 +24,16 @@ type Greeting struct {
 	Date    time.Time
 }
 
-type MainAppContext struct {
+type AuthContext struct {
 	LogInOutLink string
 	LogInOutText string
-	Member       *Member
 	LoggedIn     bool
+}
+
+type MainAppContext struct {
+	Member *Member
+	Team   *Team
+	AuthContext
 }
 
 type JSONContext struct {
@@ -48,7 +53,33 @@ type Location struct {
 	// ModifiedBy *datastore.Key
 }
 
-type Member struct {
+type Audit struct {
+	Created    time.Time
+	CreatedBy  *datastore.Key
+	Modified   time.Time
+	ModifiedBy *datastore.Key
+
+	Key *datastore.Key `datastore:"-"`
+}
+
+type Team struct {
+	Name string
+	Location
+
+	MembersEmail  string
+	OfficersEmail string
+
+	Audit
+}
+
+type TeamMember struct {
+	TeamKey   *datastore.Key
+	MemberKey *datastore.Key
+
+	Audit
+}
+
+type Person struct {
 	FirstName string
 	LastName  string
 	Cell      string
@@ -57,26 +88,30 @@ type Member struct {
 	Email  string
 	Email2 string
 
+	Location
+	UserID string
+
+	LastLogin time.Time
+
+	Audit
+}
+
+type Member struct {
 	ShowCell  bool
 	ShowEmail bool
 	OKToText  bool
 
-	HomeAddress *datastore.Key
-	Location
-	UserID string
+	RadioID string
 
+	HomeAddress *datastore.Key
+
+	//TODO: this would need to move to TeamMember when multiple teams was supported
 	Town    bool
 	OEM     bool
 	Officer bool
+	Active  bool
 
-	Created    time.Time
-	CreatedBy  *datastore.Key
-	Modified   time.Time
-	ModifiedBy *datastore.Key
-
-	LastLogin time.Time
-
-	Key *datastore.Key `datastore:"-"`
+	Person
 }
 
 type MemberLogin struct {
@@ -89,10 +124,11 @@ var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 
 func init() {
-	http.HandleFunc("/memberData", memberData)
-	http.HandleFunc("/memberSave", memberSave)
+	http.HandleFunc("/team", teamData)
+	http.HandleFunc("/team/roster", teamRoster)
+	http.HandleFunc("/member", memberData)
+	http.HandleFunc("/member/save", memberSave)
 	http.HandleFunc("/audit", audit)
-	http.HandleFunc("/sign", sign)
 	http.HandleFunc("/", root)
 }
 
@@ -155,15 +191,200 @@ func audit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func auth(w http.ResponseWriter, r *http.Request) (appengine.Context, *user.User, MainAppContext) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+
+	var context MainAppContext
+
+	returnUrl := r.Referer()
+	if returnUrl == "" {
+		returnUrl = r.URL.String()
+	}
+
+	returnUrl = "/audit?finalURL=" + url.QueryEscape(returnUrl)
+
+	if u == nil {
+		url, err := user.LoginURL(c, returnUrl)
+		if checkErr(err, w, c, "Error getting LoginURL") {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		context.LogInOutLink = url
+		context.LogInOutText = "Log In"
+
+		c.Infof("not logged in: %v", url)
+	} else {
+		//context.Member = getMember(c, u, context, r, w)
+		context.LoggedIn = true
+
+		url, err := user.LogoutURL(c, returnUrl)
+		if checkErr(err, w, c, "Error getting LogoutURL") {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		context.LogInOutLink = url
+		context.LogInOutText = "Log Out"
+	}
+
+	return c, u, context
+}
+
+func updateAudit(audit *Audit, person Person) {
+	updateAuditWithKey(audit, person.Key)
+}
+
+func updateAuditWithKey(audit *Audit, key *datastore.Key) {
+	if audit == nil {
+		audit = &Audit{}
+	}
+
+	audit.Modified = time.Now()
+	audit.ModifiedBy = key
+
+	if audit.CreatedBy == nil || audit.Created.IsZero() {
+		audit.Created = audit.Modified
+		audit.CreatedBy = audit.ModifiedBy
+	}
+}
+
+func teamRoster(w http.ResponseWriter, r *http.Request) {
+	c, u, mainContext := auth(w, r)
+
+	context := struct {
+		Team    *Team
+		Members []Member
+	}{}
+
+	if mainContext.LoggedIn {
+
+		var member *Member
+		if mainContext.Member != nil {
+			member = mainContext.Member
+			c.Debugf("using mainContext.Member")
+		} else {
+			member = getMember(c, u, r, w)
+		}
+
+		teamKey := r.FormValue("team")
+		if teamKey == "" {
+			teamKey = "0"
+		}
+
+		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
+		var getTeamErr error
+		var team *Team
+		getTeamErr, team = getTeam(intKey, member, c, r, w)
+
+		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
+			context.Members = getMembersByTeam(team.Key.IntID(), c, r, w)
+			context.Team = team
+		}
+	}
+
+	// 			context.Team = &Team{
+	// 				Name:     "Default CERT Team",
+	// 				Location: member.Location,
+	// 				Audit:    audit,
+	// 			}
+
+	// 			teamKey := datastore.NewKey(c, "Team", "", 0, nil)
+	// 			teamOutKey, teamPutError := datastore.Put(c, teamKey, context.Team)
+
+	// 			if noErrMsg(teamPutError, w, c, "Failed putting Default team") {
+	// 				context.Team.Key = teamOutKey
+
+	// 				updateAudit(&audit, member.Person)
+
+	// 				teamMember := TeamMember{
+	// 					MemberKey: member.Key,
+	// 					TeamKey:   context.Team.Key,
+	// 					Audit:     audit,
+	// 				}
+
+	// 				teamMemberKey := datastore.NewKey(c, "TeamMember", "", 0, nil)
+	// 				teamMemberOutKey, teamMemberPutError := datastore.Put(c, teamMemberKey, &teamMember)
+
+	// 				if noErrMsg(teamMemberPutError, w, c, "Failed putting TeamMember for Member to Team") {
+	// 					teamMember.Key = teamMemberOutKey
+	// 				}
+
+	// 				c.Infof("Created Default Team: %+v, %+v", context.Team.Key, context.Team)
+	// 			}
+	// 		}
+	// 	}
+	// }
+
+	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
+	returnJSONorErrorToResponse(context, c, r, w)
+
+	return
+}
+
+func teamData(w http.ResponseWriter, r *http.Request) {
+	c, u, context := auth(w, r)
+
+	if context.LoggedIn {
+		member := getMember(c, u, r, w)
+
+		teamKey := r.FormValue("team")
+		if teamKey == "" {
+			teamKey = "0"
+		}
+
+		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
+		var getTeamErr error
+		getTeamErr, context.Team = getTeam(intKey, member, c, r, w)
+
+		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
+			if (context.Team == nil || context.Team.Key == nil) && intKey == 0 {
+				var audit Audit
+				updateAudit(&audit, member.Person)
+
+				context.Team = &Team{
+					Name:     "Default CERT Team",
+					Location: member.Location,
+					Audit:    audit,
+				}
+
+				teamKey := datastore.NewKey(c, "Team", "", 0, nil)
+				teamOutKey, teamPutError := datastore.Put(c, teamKey, context.Team)
+
+				if noErrMsg(teamPutError, w, c, "Failed putting Default team") {
+					context.Team.Key = teamOutKey
+
+					updateAudit(&audit, member.Person)
+
+					teamMember := TeamMember{
+						MemberKey: member.Key,
+						TeamKey:   context.Team.Key,
+						Audit:     audit,
+					}
+
+					teamMemberKey := datastore.NewKey(c, "TeamMember", "", 0, nil)
+					teamMemberOutKey, teamMemberPutError := datastore.Put(c, teamMemberKey, &teamMember)
+
+					if noErrMsg(teamMemberPutError, w, c, "Failed putting TeamMember for Member to Team") {
+						teamMember.Key = teamMemberOutKey
+					}
+
+					c.Infof("Created Default Team: %+v, %+v", context.Team.Key, context.Team)
+				}
+			}
+		}
+	}
+
+	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
+	returnJSONorErrorToResponse(context, c, r, w)
+
+	return
+}
+
 func memberData(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 
-	context := MainAppContext{
-		LogInOutLink: "boo",
-		LogInOutText: "foo",
-		LoggedIn:     false,
-	}
+	var context MainAppContext
 
 	returnUrl := r.Referer()
 	if returnUrl == "" {
@@ -297,18 +518,22 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 						}
 					*/
 					m := &Member{
-						FirstName: "",
-						LastName:  "",
-						Email:     u.Email,
-						Cell:      "",
+						Person: Person{
+							FirstName: "",
+							LastName:  "",
+							Email:     u.Email,
+							Cell:      "",
 
-						UserID: u.ID,
+							UserID: u.ID,
 
-						Created:  time.Now(),
-						Modified: time.Now(),
-						// need to be nil because we don't have the member key to use yet
-						CreatedBy:  nil,
-						ModifiedBy: nil,
+							Audit: Audit{
+								Created:  time.Now(),
+								Modified: time.Now(),
+								// need to be nil because we don't have the member key to use yet
+								CreatedBy:  nil,
+								ModifiedBy: nil,
+							},
+						},
 					}
 
 					//lKey := datastore.NewKey(c, "Location", "", 0, nil)
@@ -370,11 +595,11 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 
 		if found {
 			c.Infof("existing Member found: %d", len(member))
-			c.Debugf("with key: %v", mem.Key)
+			c.Debugf("with key: %s, %d, %v", mem.Key.StringID(), mem.Key.IntID(), mem.Key)
 			c.Infof("existing: %+v", mem)
 			c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
-			c.Infof("existing.HomeAddress: %+v", mem.HomeAddress)
 			c.Infof("user: %+v", *u)
+
 		} else {
 			c.Infof("no mem")
 		}
@@ -418,28 +643,79 @@ func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, r *h
 	return retval
 }
 
-func getMemberByKey(key string, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
-	k := datastore.NewKey(c, "Member", key, 0, nil)
-	q := datastore.NewQuery("Member").Filter("__key__ =", k)
+func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) (error, *Team) {
+	var team Team
+	if teamID != 0 {
+		teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
+		c.Debugf("Calling Get Team with Key: %+v", teamKey)
+		getTeamErr := datastore.Get(c, teamKey, &team)
+		if noErrMsg(getTeamErr, w, c, "Error Get Team with Key") {
+			team.Key = teamKey
+		} else {
+			return fmt.Errorf("No team found for ID passed: %d", teamID), nil
+		}
 
-	var members []Member
-	var member *Member
-	member = nil
+	} else {
+		c.Debugf("Calling GetAll team because no teamID supplied")
+
+		var teams []Team = nil
+		teamQ := datastore.NewQuery("Team").
+			Limit(2)
+
+		keys, getTeamErr := teamQ.GetAll(c, &teams)
+
+		if noErrMsg(getTeamErr, w, c, "Failed while calling GetAll") {
+			lenTeams := len(teams)
+			if lenTeams == 1 {
+				team = teams[0]
+				team.Key = keys[0]
+			} else if lenTeams > 1 {
+				return fmt.Errorf("Too many Teams found to not specify an ID, only works if there is a single Team"), nil
+			}
+		}
+	}
+
+	if team.Key != nil {
+		c.Debugf("Team found with Key: %+v", team.Key)
+	} else {
+		c.Warningf("No team found search key: %d", teamID)
+	}
+
+	return nil, &team
+}
+
+func getMembersByTeam(teamID int64, c appengine.Context, r *http.Request, w http.ResponseWriter) []Member {
+	teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
+	teamQ := datastore.NewQuery("TeamMember").
+		Filter("TeamKey =", teamKey) //.Project("MemberKey")
+
+	var teamMembers []TeamMember
+
+	c.Debugf("TeamMember TeamKey query: %d, %+v, %+v", teamID, teamKey, teamQ)
+
 	//keys, err
-	_, err := q.GetAll(c, &members)
+	_, err := teamQ.GetAll(c, &teamMembers)
 	if err != nil {
 		c.Errorf("fetching members: %v", err)
 		return nil
 	} else {
 	}
 
-	if len(members) == 1 {
-		member = &members[0]
-	} else {
-		c.Errorf("Expected only 1 Member, found: %d, when querying by key: %s", len(members), key)
+	var memberKeys []*datastore.Key
+	c.Debugf("looping teamMembers which has: %d", len(teamMembers))
+	for _, tm := range teamMembers {
+		c.Debugf("teamMember: %+v", tm)
+		memberKeys = append(memberKeys, tm.MemberKey)
 	}
+	members := make([]Member, len(teamMembers))
 
-	return member
+	c.Debugf("Calling GetMulti with Keys: %+v", memberKeys)
+
+	memberErr := datastore.GetMulti(c, memberKeys, members)
+
+	checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+
+	return members
 }
 
 type MemberSaveContext struct {
@@ -514,48 +790,4 @@ func noErrMsg(err error, w http.ResponseWriter, c appengine.Context, msg string)
 	retval := checkErr(err, w, c, msg)
 
 	return !retval
-}
-
-var guestbookTemplate = template.Must(template.New("book").Parse(guestbookTemplateHTML))
-
-const guestbookTemplateHTML = `
-<html>
-  <body>
-  	<a href="{{.LogInOutLink}}">{{.LogInOutText}}</a>
-  	  {{range .Greetings}}
-      {{with .Author}}
-        <p><b>{{.}}</b> wrote:</p>
-      {{else}}
-        <p>An anonymous person wrote:</p>
-      {{end}}
-      <pre>{{.Content}}</pre>
-    {{end}}
-    <form action="/sign" method="post">
-      <div><textarea name="content" rows="3" cols="60"></textarea></div>
-      <div><input type="submit" value="Sign Guestbook"></div>
-    </form>
-  </body>
-</html>
-`
-
-func sign(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
-	g := Greeting{
-		Content: r.FormValue("content"),
-		Date:    time.Now(),
-	}
-	if u := user.Current(c); u != nil {
-		g.Author = u.String()
-	}
-	// We set the same parent key on every Greeting entity to ensure each Greeting
-	// is in the same entity group. Queries across the single entity group
-	// will be consistent. However, the write rate to a single entity group
-	// should be limited to ~1/second.
-	key := datastore.NewIncompleteKey(c, "Greeting", guestbookKey(c))
-	_, err := datastore.Put(c, key, &g)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/", http.StatusFound)
 }

@@ -15,3 +15,8 @@ indexes:
   properties:
   - name: Date
     direction: desc
+
+- kind: TeamMember
+  properties:
+  - name: TeamKey
+  - name: MemberKey

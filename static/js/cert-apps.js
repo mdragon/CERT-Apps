@@ -13,13 +13,22 @@ window.CERTApps = Ember.Application.create(
 		LOG_ACTIVE_GENERATION: true
 	});
 
-CERTApps.Router.map(function() {
-  this.resource('landing', { path: '/landing' });
-  this.resource('member', function()
-  	{	
-  		this.route('update');
-  	});
-});
+CERTApps.Router.map(function() 
+{
+	this.resource('landing', { path: '/landing' });
+	this.resource('member', function()
+		{	
+			this.route('update');
+		});
+	this.resource('team', function()
+		{
+			this.resource("roster", function()
+				{
+					this.route("index", { path: '/' });
+					this.route("teamID", { path: '/:teamID' });
+				});
+		});
+	});
 
 CERTApps.ApplicationRoute = Ember.Route.extend(
 {
@@ -48,7 +57,7 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 
 		var settings = 
 		{
-			url: '/memberData',
+			url: '/member',
 			type: 'json',
 			dataType: 'json'
 		};
@@ -160,6 +169,82 @@ CERTApps.MemberRoute = Ember.Route.extend(
 });
 
 
+CERTApps.TeamRoute = Ember.Route.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group("CERTApps.TeamRoute model");
+
+		console.log('params, args', params, arguments);
+
+		var appModel = this.modelFor('application');
+		//var model = null;
+		var team = appModel.data.Team;
+
+		var settings = 
+		{
+			url: '/team/roster',
+			//type: 'json',
+			dataType: 'json',
+			method: 'get',
+			data: 
+			{
+				team: params.teamID || 0
+			}
+		};
+
+		console.log('getRoster', settings)
+
+		var model = $.ajax(settings);
+
+		model.then(function(obj) { 
+			//obj.data.Team = team;  
+			return obj; 
+		}.bind(this));		
+
+		console.groupEnd();
+
+		return model;
+	},
+
+});
+
+
+CERTApps.RosterIndexRoute = Ember.Route.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps TeamRosterRoute model')
+		var teamModel = this.modelFor('team');
+
+		console.log('teamModel', teamModel);
+		console.groupEnd();
+
+		return teamModel;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps TeamRosterRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
+});
+
 
 // CERTApps.ApplicationController = Ember.Controller.create(
 // {
@@ -183,7 +268,7 @@ CERTApps.Member = Ember.Object.extend(
 
 		var settings = 
 		{
-			url: '/memberSave',
+			url: '/member/save',
 			type: 'json',
 			dataType: 'json',
 			method: 'post',
