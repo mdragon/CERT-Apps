@@ -679,7 +679,6 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, r *http
 		memberKeys = append(memberKeys, tm.MemberKey)
 	}
 	members := make([]Member, len(teamMembers))
-	var members2 []Member
 
 	c.Debugf("Calling GetMulti with Keys: %+v", memberKeys)
 
@@ -687,16 +686,15 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, r *http
 
 	checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
 
-	var reset Member
 	lookup := lookupOthers(member)
-	for _, m := range members {
+	for idx := range members {
+		m := &members[idx]
 		if !lookup {
 			c.Infof("Doesn't have lookup rights, potentially resetting hidden email/cell")
 			if !m.ShowCell {
 				c.Debugf("Resetting Cell")
 				m.Cell = "555-555-5555"
 
-				reset = m
 				c.Debugf("Cell Reset: %+v", m)
 			}
 			if !m.ShowEmail {
@@ -711,14 +709,9 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, r *http
 		} else {
 			c.Debugf("Has lookup rights, not resetting hidden email/cell")
 		}
-
-		// the original member object in the original slice is not altered? so without this the changes made above don't get returned as JSON
-		members2 = append(members2, m)
 	}
 
-	c.Debugf("reset: %+v", reset)
-
-	return members2
+	return members
 }
 
 type MemberSaveContext struct {
