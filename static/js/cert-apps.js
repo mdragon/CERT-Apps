@@ -201,8 +201,24 @@ CERTApps.TeamRoute = Ember.Route.extend(
 
 		var model = $.ajax(settings);
 
+		var appModel = this.modelFor('application');
+
 		model.then(function(obj) { 
 			//obj.data.Team = team;  
+
+			var parsed = Ember.A([]);
+			for( var x = obj.data.Members.length - 1; x >= 0; x-- )
+			{
+				var o = obj.data.Members[x];
+				var m = CERTApps.Member.create(o);
+
+				m.loggedInMember = appModel.data.Member;
+
+				parsed.unshiftObject(m);
+			}
+
+			obj.data.Members = parsed;
+
 			return obj; 
 		}.bind(this));		
 
@@ -224,6 +240,9 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps TeamRosterRoute model')
 		var teamModel = this.modelFor('team');
+		var appModel = this.modelFor('application');
+
+		teamModel.data.loggedInMember = appModel.data.Member;
 
 		console.log('teamModel', teamModel);
 		console.groupEnd();
@@ -291,7 +310,31 @@ CERTApps.Member = Ember.Object.extend(
 		console.log('obj', JSON.stringify(obj));
 
 		console.groupEnd();
-	}
+	},
+
+	EmailDisplay: function()
+	{
+		return this.get('ShowEmail') || this.get('loggedInMember.CanLookup');
+	}.property('ShowEmail', 'loggedInMember'),
+
+	CellDisplay: function()
+	{
+		return this.get('ShowCell') || this.get('loggedInMember.CanLookup');
+	}.property('ShowCell', 'loggedInMember'),
+
+	Line2Display: function()
+	{
+		var val = ""
+		
+		var line2 = this.get('Line2')
+		if( $.trim(line2).length > 0 )
+		{
+			val = ", " + line2;
+		}
+
+		return val;
+	}.property('Line2')
+
 
 });
 Ember.RSVP.configure('onerror', function(error) {

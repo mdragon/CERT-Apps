@@ -1,4 +1,5 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
 	<title>CERT Apps</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -76,12 +77,12 @@
 
 <script type="text/x-handlebars">
 	<div class="nav">
-		<a {{bind-attr href="content.data.LogInOutLink"}}>{{content.data.LogInOutText}}</a>
 		{{#if content.data.LoggedIn }}
 			{{#if content.data.Member.FirstName }}
 				Welcome, {{content.data.Member.FirstName}}
 			{{/if}}
 		{{/if}}
+		<a {{bind-attr href="content.data.LogInOutLink"}}>{{content.data.LogInOutText}}</a>
 	</div>
 	<div class="app">
 		{{outlet}}
@@ -97,23 +98,49 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team">
-	<div class="center-content">
-		<h3>{{content.data.Team.Name}} Roster</h3>
+	<div style="width: 80%; margin: 0 auto;">
 		{{outlet}}
 	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="roster/index">
-{{log content}}
 {{log content.data}}
-{{log content.data.Members}}
-	<table>
+
+	<h3>{{content.data.Team.Name}} Roster</h3>
+	<table class="table table-responsive table-striped">
 		<thead>
+			{{#if content.data.loggedInMember.CanLookup }}
+				<th>Radio</th>
+			{{/if}}
+			<th>Name</th>
+			<th>Cell</th>
+			<th>Email</th>
+			{{#if content.data.loggedInMember.CanLookup }}
+				<th>Address</th>
+			{{/if}}
+
 		</thead>
 		<tbody>
-			{{#each member in content.data.Members }}
-				<tr>
-					<td>{{member.FirstName}} {{member.LastName}}</td>
+			{{#each mem in content.data.Members }}
+				<tr class="">
+					{{#if content.data.loggedInMember.CanLookup}}
+						<td>{{mem.RadioID}}</td>
+					{{/if}}
+					
+					<td>{{mem.FirstName}} {{mem.LastName}}</td>
+					<td>
+						{{#if mem.CellDisplay}}
+							{{mem.Cell}}
+						{{/if}}
+					</td>
+					<td>
+						{{#if mem.EmailDisplay}}
+							{{mem.Email}}
+						{{/if}}
+					</td>
+					{{#if content.data.loggedInMember.CanLookup}}
+						<td>{{mem.Line1}}{{mem.Line2Display}}</td>
+					{{/if}}
 				</tr>
 			{{/each}}
 		</tbody>

@@ -106,10 +106,11 @@ type Member struct {
 	HomeAddress *datastore.Key
 
 	//TODO: this would need to move to TeamMember when multiple teams was supported
-	Town    bool
-	OEM     bool
-	Officer bool
-	Active  bool
+	CanLookup bool `datastore:"-"`
+	Town      bool
+	OEM       bool
+	Officer   bool
+	Active    bool
 
 	Person
 }
@@ -277,45 +278,12 @@ func teamRoster(w http.ResponseWriter, r *http.Request) {
 		getTeamErr, team = getTeam(intKey, member, c, r, w)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
-			context.Members = getMembersByTeam(team.Key.IntID(), c, r, w)
+			context.Members = getMembersByTeam(team.Key.IntID(), member, c, r, w)
+
 			context.Team = team
 		}
 	}
 
-	// 			context.Team = &Team{
-	// 				Name:     "Default CERT Team",
-	// 				Location: member.Location,
-	// 				Audit:    audit,
-	// 			}
-
-	// 			teamKey := datastore.NewKey(c, "Team", "", 0, nil)
-	// 			teamOutKey, teamPutError := datastore.Put(c, teamKey, context.Team)
-
-	// 			if noErrMsg(teamPutError, w, c, "Failed putting Default team") {
-	// 				context.Team.Key = teamOutKey
-
-	// 				updateAudit(&audit, member.Person)
-
-	// 				teamMember := TeamMember{
-	// 					MemberKey: member.Key,
-	// 					TeamKey:   context.Team.Key,
-	// 					Audit:     audit,
-	// 				}
-
-	// 				teamMemberKey := datastore.NewKey(c, "TeamMember", "", 0, nil)
-	// 				teamMemberOutKey, teamMemberPutError := datastore.Put(c, teamMemberKey, &teamMember)
-
-	// 				if noErrMsg(teamMemberPutError, w, c, "Failed putting TeamMember for Member to Team") {
-	// 					teamMember.Key = teamMemberOutKey
-	// 				}
-
-	// 				c.Infof("Created Default Team: %+v, %+v", context.Team.Key, context.Team)
-	// 			}
-	// 		}
-	// 	}
-	// }
-
-	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
 	returnJSONorErrorToResponse(context, c, r, w)
 
 	return
@@ -427,6 +395,7 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 			context.Member = member
 		}
 
+		lookupOthers(context.Member)
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
@@ -621,7 +590,9 @@ func getMemberByKey2(key string, c appengine.Context, r *http.Request, w http.Re
 }
 
 func lookupOthers(member *Member) bool {
-	return member.OEM || member.Town || member.Officer
+	member.CanLookup = member.OEM || member.Town || member.Officer
+
+	return member.CanLookup
 }
 
 func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
@@ -684,7 +655,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request,
 	return nil, &team
 }
 
-func getMembersByTeam(teamID int64, c appengine.Context, r *http.Request, w http.ResponseWriter) []Member {
+func getMembersByTeam(teamID int64, member *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) []Member {
 	teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
 	teamQ := datastore.NewQuery("TeamMember").
 		Filter("TeamKey =", teamKey) //.Project("MemberKey")
@@ -708,6 +679,7 @@ func getMembersByTeam(teamID int64, c appengine.Context, r *http.Request, w http
 		memberKeys = append(memberKeys, tm.MemberKey)
 	}
 	members := make([]Member, len(teamMembers))
+	var members2 []Member
 
 	c.Debugf("Calling GetMulti with Keys: %+v", memberKeys)
 
@@ -715,7 +687,38 @@ func getMembersByTeam(teamID int64, c appengine.Context, r *http.Request, w http
 
 	checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
 
-	return members
+	var reset Member
+	lookup := lookupOthers(member)
+	for _, m := range members {
+		if !lookup {
+			c.Infof("Doesn't have lookup rights, potentially resetting hidden email/cell")
+			if !m.ShowCell {
+				c.Debugf("Resetting Cell")
+				m.Cell = "555-555-5555"
+
+				reset = m
+				c.Debugf("Cell Reset: %+v", m)
+			}
+			if !m.ShowEmail {
+				c.Debugf("Resetting Email")
+				m.Email = "good-try@example.com"
+			}
+
+			m.Line1 = "123 My Street"
+			m.Line2 = "Apt 1"
+			m.City = "Anytown"
+			m.Zip = "11111"
+		} else {
+			c.Debugf("Has lookup rights, not resetting hidden email/cell")
+		}
+
+		// the original member object in the original slice is not altered? so without this the changes made above don't get returned as JSON
+		members2 = append(members2, m)
+	}
+
+	c.Debugf("reset: %+v", reset)
+
+	return members2
 }
 
 type MemberSaveContext struct {
