@@ -107,7 +107,7 @@
 {{log content.data}}
 
 	<h3>{{content.data.Team.Name}} Roster</h3>
-	<table class="table table-responsive table-striped">
+	<table class="table table-responsive table-striped table-condensed table-bordered">
 		<thead>
 			{{#if content.data.loggedInMember.CanLookup }}
 				<th>Radio</th>
@@ -141,6 +141,31 @@
 					{{#if content.data.loggedInMember.CanLookup}}
 						<td>{{mem.Line1}}{{mem.Line2Display}}</td>
 					{{/if}}
+				</tr>
+			{{/each}}
+		</tbody>
+	</table>
+</script>
+
+<script type="text/x-handlebars" data-template-name="roster/import">
+	<h3>Import Member Data for {{content.data.Team.Name}}</h3>
+
+	{{textarea cols=180 rows=15 value=content.data.RawPasteDataForImport}}
+	<br/>
+	<button {{action parseInput content}}><i class="fa fa-save"></i> Parse</button>
+
+
+	<table class="table table-striped table-condensed table-bordered">
+		<thead>
+
+		</thead>
+		<tbody>
+			{{#each row in content.data.ParsedColumnsForImport}}
+				<tr>
+					<td>{{input type="checkbox" checked=row.selected}}</td>
+					{{#each col in row.cols}}
+						<td>{{col}}</td>
+					{{/each}}
 				</tr>
 			{{/each}}
 		</tbody>

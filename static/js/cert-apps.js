@@ -26,6 +26,7 @@ CERTApps.Router.map(function()
 				{
 					this.route("index", { path: '/' });
 					this.route("teamID", { path: '/:teamID' });
+					this.route('import');
 				});
 		});
 	});
@@ -207,16 +208,19 @@ CERTApps.TeamRoute = Ember.Route.extend(
 			//obj.data.Team = team;  
 
 			var parsed = Ember.A([]);
-			for( var x = obj.data.Members.length - 1; x >= 0; x-- )
+			if( obj.data.Members )
 			{
-				var o = obj.data.Members[x];
-				var m = CERTApps.Member.create(o);
+				for( var x = obj.data.Members.length - 1; x >= 0; x-- )
+				{
+					var o = obj.data.Members[x];
+					var m = CERTApps.Member.create(o);
 
-				m.loggedInMember = appModel.data.Member;
+					m.loggedInMember = appModel.data.Member;
 
-				parsed.unshiftObject(m);
+					parsed.unshiftObject(m);
+				}
 			}
-
+			
 			obj.data.Members = parsed;
 
 			return obj; 
@@ -229,6 +233,105 @@ CERTApps.TeamRoute = Ember.Route.extend(
 
 });
 
+CERTApps.Roster = Ember.Object.extend();
+
+CERTApps.Roster.reopenClass(
+{
+	parseInput: function(rawData)
+	{
+		console.group('CERTApps.Roster.parseInput');
+
+		var lines = rawData.split('\n');
+		var lineLen = lines.length;
+
+		var delimiter = '\t';
+
+		if( lines[0].indexOf(delimiter) == -1 )
+		{
+			delimiter = ','
+		}
+
+		console.log('parsing', lineLen, 'lines using delimiter *', delimiter,'*');
+
+		var toImport = Ember.A([]);
+
+		for( var x = 0; x < lineLen; x++ )
+		{
+			var line = lines[x];
+			console.log('line', x, '\t\t', line);
+
+			var cols = line.split(delimiter);
+			var colsLen = cols.length;
+
+			var obj = {
+				selected: true,
+				cols: Ember.A([])
+			};
+
+			for( var y = 0; y < colsLen; y++ )
+			{
+				obj.cols.pushObject(cols[y]);
+			}
+
+			//console.debug('obj', JSON.stringify(obj));
+
+			toImport.pushObject(obj);
+		}
+
+		console.log('toImport', toImport);
+
+		console.groupEnd();
+
+		return toImport;
+	}
+});
+
+CERTApps.RosterImportRoute = Ember.Route.extend(
+{
+	actions:
+	{
+		parseInput: function(content)
+		{
+			console.group('CERTApps RosterImportRoute parseInput');
+
+			content = Ember.Object.create(content);
+			console.log('content', content);
+
+			var parsed = CERTApps.Roster.parseInput(content.data.RawPasteDataForImport);
+
+			content.set('data.ParsedColumnsForImport', parsed);
+			
+			console.groupEnd();
+		}
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps TeamRosterRoute model')
+		var teamModel = this.modelFor('team');
+		var appModel = this.modelFor('application');
+
+		teamModel.data.loggedInMember = appModel.data.Member;
+
+		console.log('teamModel', teamModel);
+		console.groupEnd();
+
+		return teamModel;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps TeamRosterRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
+});
 
 CERTApps.RosterIndexRoute = Ember.Route.extend(
 {
