@@ -62,7 +62,18 @@
       		{
         		width: 550px;
       		}
-    	}	
+    	}
+
+    	td.mapped
+    	{
+    		/* border: 1px solid green !important; */
+    		background-color: lightyellow !important;
+    	}
+
+    	table.importMap td
+    	{
+    		border: 1px solid #efefef;
+    	}
 	</style>
 </head>
 <body>
@@ -107,7 +118,7 @@
 {{log content.data}}
 
 	<h3>{{content.data.Team.Name}} Roster</h3>
-	<table class="table table-responsive table-striped table-condensed table-bordered">
+	<table class="table table-responsive table-striped table-condensed table-bordered",>
 		<thead>
 			{{#if content.data.loggedInMember.CanLookup }}
 				<th>Radio</th>
@@ -154,22 +165,34 @@
 	<br/>
 	<button {{action parseInput content}}><i class="fa fa-save"></i> Parse</button>
 
-
-	<table class="table table-striped table-condensed table-bordered">
+	{{#if content.data.importCols}}
+	<table class="table table-striped table-condensed table-bordered importMapping">
 		<thead>
-
+			<tr>
+			<th></th>
+			{{#each col in content.data.importCols }}
+				<th {{bind-attr class=":import-column col.name" }}>
+					{{view CERTApps.ImportColumnSelect
+						content=content.data.memberFields
+						prompt="Map to..."
+						class="import-column"
+						}}
+				</th>
+			{{/each}}
+			</tr>
 		</thead>
 		<tbody>
 			{{#each row in content.data.ParsedColumnsForImport}}
 				<tr>
 					<td>{{input type="checkbox" checked=row.selected}}</td>
 					{{#each col in row.cols}}
-						<td>{{col}}</td>
+						<td {{bind-attr class=":import-column col.name"}}>{{col.value}}</td>
 					{{/each}}
 				</tr>
 			{{/each}}
 		</tbody>
 	</table>
+	{{/if}}
 </script>
 
 <script type="text/x-handlebars" data-template-name="member">

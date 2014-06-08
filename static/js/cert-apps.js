@@ -67,7 +67,16 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 
 		var a = $.ajax(settings);
 		a.then(function(obj){ obj.data.year = 2014; });
-		a.then(function(obj){ var move = this.moveUpData(obj); move.Member = CERTApps.Member.create(move.Member); console.log('App model returning', move); obj = move; return move; }.bind(this));
+		a.then(function(obj)
+			{ 
+				var move = this.moveUpData(obj); 
+
+				move.Member = CERTApps.Member.create(move.Member); 
+
+				console.log('App model returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this));
 
 		console.groupEnd();
 
@@ -270,7 +279,7 @@ CERTApps.Roster.reopenClass(
 
 			for( var y = 0; y < colsLen; y++ )
 			{
-				obj.cols.pushObject(cols[y]);
+				obj.cols.pushObject({name: '_c' + y.toString(), value: cols[y]});
 			}
 
 			//console.debug('obj', JSON.stringify(obj));
@@ -300,6 +309,11 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			var parsed = CERTApps.Roster.parseInput(content.data.RawPasteDataForImport);
 
 			content.set('data.ParsedColumnsForImport', parsed);
+
+			if( parsed.length > 0 )
+			{
+				content.set('data.importCols', parsed[0].cols);
+			}
 			
 			console.groupEnd();
 		}
@@ -312,6 +326,8 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 		var appModel = this.modelFor('application');
 
 		teamModel.data.loggedInMember = appModel.data.Member;
+
+		teamModel.data.memberFields = teamModel.data.loggedInMember.getFields();
 
 		console.log('teamModel', teamModel);
 		console.groupEnd();
@@ -436,10 +452,136 @@ CERTApps.Member = Ember.Object.extend(
 		}
 
 		return val;
-	}.property('Line2')
+	}.property('Line2'),
 
+	getFields: function()
+	{
+		console.group('getFields');
 
+		var fields = Ember.A([]);
+		var include = Ember.A(["ShowCell","ShowEmail","OKToText","RadioID","Town","OEM","Officer","Active","FirstName","LastName","Cell","HomePhone","Email","Email2","Line1","Line2","City","State","Zip"]);
+
+		for( f in this )
+		{
+			//console.log('f', f);
+			if( this.hasOwnProperty(f) )
+			{
+				//console.log('this, has', f);
+
+				if( include.contains(f) )
+				{
+					fields.pushObject(f);	
+				} else
+				{
+					console.log('skipping', f);
+				}
+			}
+		}
+
+		fields.sort();
+
+		console.log('fields', JSON.stringify(fields));
+
+		console.groupEnd();
+
+		return fields;
+	}
 });
+
 Ember.RSVP.configure('onerror', function(error) {
   Ember.Logger.assert(false, error);
+});
+
+CERTApps.ImportColumnSelect = Ember.Select.extend({
+	change: function (event) 
+	{
+		console.group('CERTApps.ImportColumnSelect change')
+		
+		//console.log('this, event', this, event);
+		
+		var element = $('#' + this.elementId);
+		//console.log('loading this.elementId, element', this.elementId, element);
+
+		var th = element.closest('th');
+		var thead = th.closest('thead');
+		var table = thead.closest('table');
+		var tbody = table.find('tbody');
+
+		//console.log('thead', thead);
+
+		var selects = thead.find('select.import-column');
+
+		for( var x =  selects.length - 1; x >= 0; x-- )
+		{
+			var s = selects[x];
+
+			//console.log('s', s.id, s.value);
+
+			if( s.selectedIndex > 0 && s.value == this.selection )
+			{
+				if( this.elementId != s.id )
+				{
+					console.log('reseting prior selected column', s.id, s.value);
+					s.selectedIndex = 0;
+
+					var $s = $(s);
+					var innerTh = $s.closest('th');
+					var matchClass = this.getMatchClass(innerTh);
+
+					if( matchClass )
+					{
+						var tds = tbody.find('td.' + matchClass);
+
+						console.log('tds that match, removing', tds.length, matchClass);
+
+						tds.removeClass('mapped');
+					}
+				} else
+				{
+					console.log('no reseting because this is the column we just selected')
+				}
+			}
+		}
+
+		var matchClass = this.getMatchClass(th);
+
+		if( matchClass )
+		{
+			var tds = tbody.find('td.' + matchClass);
+
+			console.log('tds that match, adding', tds.length, matchClass);
+
+			tds.addClass('mapped');
+		}
+
+		console.groupEnd();
+	},
+
+	getMatchClass: function(element)
+	{
+		console.group('getMatchClass');
+
+		var match = null;
+		var classList = element.attr('class').split(' ');
+
+		console.log('checking classList from element', classList, element);
+		for( var x = classList.length - 1; x >= 0; x-- )
+		{
+			var c = classList[x];
+
+			console.log('checking', c, c[0]);
+
+			if( c[0] == '_' )
+			{
+				match = c;
+				break;
+			}
+		}
+
+		console.log('match', match);
+
+		console.groupEnd();
+
+		return match;
+	}
 });
