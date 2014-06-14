@@ -292,6 +292,45 @@ CERTApps.Roster.reopenClass(
 		console.groupEnd();
 
 		return toImport;
+	},
+
+	saveImport: function(toImport)
+	{
+		console.group('CERTApps.Roster.saveImport');
+
+		var mapping = toImport.mapping;
+		var data = toImport.ParsedColumnsForImport;
+
+		console.log('mapping', mapping);
+		console.log('data', data);
+
+		var members = Ember.A([]);
+		var dataLen = data.length;
+		for( var r = 0; r < dataLen; r++ )
+		{
+			var row = data[r];
+
+			if( row.selected )
+			{
+
+				var m = CERTApps.Member.create();
+				for( var c = mapping.length - 1; c >= 0; c-- )
+				{
+					var col = mapping[c];
+					var val = row.cols[c].value;
+					console.log('r, c, col, val', r, c, col, val);
+
+					if( col != undefined )
+					{
+						m.set(col, val);
+					}
+				}
+
+				console.log('m', m);
+				members.pushObject(m);
+			}
+		}
+		console.groupEnd();
 	}
 });
 
@@ -316,7 +355,20 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			}
 			
 			console.groupEnd();
-		}
+		},
+
+		save: function(content)
+		{
+			console.group('CERTApps RosterImportRoute save');
+
+			content = Ember.Object.create(content);
+			console.log('content', content);
+
+			CERTApps.Roster.saveImport(content.data);
+
+			console.groupEnd();
+
+		},
 	},
 
 	model: function(params)
@@ -497,7 +549,7 @@ CERTApps.ImportColumnSelect = Ember.Select.extend({
 	{
 		console.group('CERTApps.ImportColumnSelect change')
 		
-		//console.log('this, event', this, event);
+		console.log('this, event, args', this, event, arguments);
 		
 		var element = $('#' + this.elementId);
 		//console.log('loading this.elementId, element', this.elementId, element);
@@ -545,8 +597,19 @@ CERTApps.ImportColumnSelect = Ember.Select.extend({
 
 		var matchClass = this.getMatchClass(th);
 
+		var content = this.get('controller.model');
+
+		if( ! content.data.mapping ) content.data.mapping = Ember.A([]);
+
 		if( matchClass )
 		{
+			var strIdx = matchClass.substring(2);
+			var idx = parseInt(strIdx);
+
+			content.data.mapping[idx] = this.selection;
+
+			console.log('matchClass, strIdx, idx', matchClass, strIdx, idx);
+
 			var tds = tbody.find('td.' + matchClass);
 
 			console.log('tds that match, adding', tds.length, matchClass);
