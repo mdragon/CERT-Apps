@@ -272,10 +272,11 @@ CERTApps.Roster.reopenClass(
 			var cols = line.split(delimiter);
 			var colsLen = cols.length;
 
-			var obj = {
+			var obj = Ember.Object.create({
 				selected: true,
-				cols: Ember.A([])
-			};
+				cols: Ember.A([]),
+				idx: x
+			});
 
 			for( var y = 0; y < colsLen; y++ )
 			{
@@ -318,7 +319,7 @@ CERTApps.Roster.reopenClass(
 				{
 					var col = mapping[c];
 					var val = row.cols[c].value;
-					console.log('r, c, col, val', r, c, col, val);
+					//console.log('r, c, col, val', r, c, col, val);
 
 					if( col != undefined )
 					{
@@ -330,6 +331,35 @@ CERTApps.Roster.reopenClass(
 				members.pushObject(m);
 			}
 		}
+
+		console.log('members', members);
+		console.groupEnd();
+	},
+
+	toggle: function(row, imports, up)
+	{
+		console.group('CERTApps.Roster.toggle');
+		console.log('row, up', row, up);
+
+		var start = 0;
+		var limit = row.idx;
+
+		if( up == false )
+		{
+			start = row.idx;
+			limit = imports.length - 1;
+		}
+
+		console.log('start, limit', start, limit);
+
+		for( var x = start; x <= limit; x++ )
+		{
+			var r = imports[x];
+
+			//console.log('toggling', r);
+			r.toggleProperty('selected');
+		}
+
 		console.groupEnd();
 	}
 });
@@ -340,7 +370,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 	{
 		parseInput: function(content)
 		{
-			console.group('CERTApps RosterImportRoute parseInput');
+			console.group('CERTApps RosterImportRoute actions parseInput');
 
 			content = Ember.Object.create(content);
 			console.log('content', content);
@@ -359,7 +389,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 
 		save: function(content)
 		{
-			console.group('CERTApps RosterImportRoute save');
+			console.group('CERTApps RosterImportRoute actions save');
 
 			content = Ember.Object.create(content);
 			console.log('content', content);
@@ -369,6 +399,31 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			console.groupEnd();
 
 		},
+
+		toggleUp: function(row, imports)
+		{
+			console.group('CERTApps RosterImportRoute actions toggleUp');
+
+			//console.log('row, imports', row, imports);
+
+			CERTApps.Roster.toggle(row, imports, true);
+
+			console.groupEnd();
+
+		},
+
+		toggleDown: function(row, imports)
+		{
+			console.group('CERTApps RosterImportRoute actions toggleUp');
+
+			//console.log('row, imports', row, imports);
+
+			CERTApps.Roster.toggle(row, imports, false);
+
+			console.groupEnd();
+
+		}
+
 	},
 
 	model: function(params)

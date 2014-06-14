@@ -74,6 +74,16 @@
     	{
     		border: 1px solid #efefef;
     	}
+
+    	td.toggle-up-down
+    	{
+    		white-space: nowrap;
+    	}
+
+    	td.toggle-up-down i:hover
+    	{
+    		cursor: pointer;
+    	}
 	</style>
 </head>
 <body>
@@ -170,6 +180,7 @@
 		<thead>
 			<tr>
 			<th></th>
+			<th></th>
 			{{#each col in content.data.importCols }}
 				<th {{bind-attr class=":import-column col.name" }}>
 					{{view CERTApps.ImportColumnSelect
@@ -184,6 +195,10 @@
 		<tbody>
 			{{#each row in content.data.ParsedColumnsForImport}}
 				<tr>
+					<td class="toggle-up-down">
+						<i {{ action toggleDown row content.data.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
+						<i {{ action toggleUp row content.data.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
+					</td>
 					<td>{{input type="checkbox" checked=row.selected}}</td>
 					{{#each col in row.cols}}
 						<td {{bind-attr class=":import-column col.name"}}>{{col.value}}</td>
