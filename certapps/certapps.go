@@ -132,11 +132,59 @@ func init() {
 	http.HandleFunc("/team", teamData)
 	http.HandleFunc("/team/roster", teamRoster)
 	http.HandleFunc("/team/roster/import", membersImport)
-	http.HandleFunct("/del-broken-teamMember-links", delBroken)
+	http.HandleFunc("/del/broken/teamMember/links", delBroken)
 	http.HandleFunc("/", root)
 }
-func delBroken(w http.ResponseWriter, r *http.Request) {
 
+func delBroken(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	//u := user.Current(c)
+
+	var query *datastore.Query
+	query = datastore.NewQuery("TeamMember")
+	var results []*TeamMember
+
+	var keys []*datastore.Key
+	var err error
+
+	c.Infof("calling GetAll")
+	keys, err = query.GetAll(c, &results)
+
+	c.Infof("after GetAll")
+
+	if noErrMsg(err, w, c, "GetAll") {
+		var brokenKeys []*datastore.Key
+		for idx := range results {
+			res := results[idx]
+
+			if res.MemberKey.IntID() == 0 {
+				key := keys[idx]
+				c.Infof("broken %+v", key)
+				brokenKeys = append(brokenKeys, key)
+			} else {
+				c.Infof("ok %+v", res)
+			}
+		}
+
+		c.Infof("Deleting %d broken Entities", len(brokenKeys))
+
+		if len(brokenKeys) > 0 {
+			delErr := datastore.DeleteMulti(c, brokenKeys)
+
+			if noErrMsg(delErr, w, c, "DeleteMulti") {
+
+				c.Infof("Did delete")
+			} else {
+				c.Infof("Error on DeleteMulti")
+			}
+		}
+	}
+
+	context := struct {
+		Whee bool
+	}{false}
+
+	returnJSONorErrorToResponse(context, c, r, w)
 }
 
 // guestbookKey returns the key used for all guestbook entries.
@@ -749,7 +797,7 @@ func memberSave(w http.ResponseWriter, r *http.Request) {
 	save(&saveMember, nil, c, u, w, r)
 }
 
-func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (datastore.Key, error) {
+func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
@@ -771,10 +819,12 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 
 		if saveMember.Key == nil {
 			saveMember.Key = datastore.NewKey(c, "Member", "", 0, nil)
+			saveMember.Created = saveMember.Modified
+			saveMember.CreatedBy = saveMember.CreatedBy
 		}
 		keyOut, mErr := datastore.Put(c, saveMember.Key, saveMember)
 
-		checkErr(mErr, w, c, "Failed to update Member for memberSave: "+saveMember.Key.StringID())
+		checkErr(mErr, w, c, "Failed to update Member for memberSave: ")
 
 		context := struct {
 			Member *Member
