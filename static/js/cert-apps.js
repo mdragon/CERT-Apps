@@ -301,9 +301,19 @@ CERTApps.Roster.reopenClass(
 
 		var mapping = toImport.mapping;
 		var data = toImport.ParsedColumnsForImport;
+		var teamID = toImport.Team.KeyID;
 
 		console.log('mapping', mapping);
 		console.log('data', data);
+
+		var members = this.parseMembers(mapping, data);
+
+		this.saveMembers(members, teamID);
+	},
+
+	parseMembers: function(mapping, data)
+	{
+		console.group("CERTApps.Roster.parseMembers");
 
 		var members = Ember.A([]);
 		var dataLen = data.length;
@@ -333,6 +343,35 @@ CERTApps.Roster.reopenClass(
 		}
 
 		console.log('members', members);
+		console.groupEnd();
+
+		return members;
+	},
+
+	saveMembers: function(members, teamID)
+	{
+		console.group('CERTApps.Roster.saveMembers');
+
+		var obj = 
+		{
+			TeamID: teamID,
+			Members: members
+		}
+
+		var settings = 
+		{
+			url: '/team/roster/import',
+			type: 'json',
+			dataType: 'json',
+			method: 'post',
+			data: JSON.stringify(obj) + "\r\n"
+		};
+
+		console.log('roster import request', settings)
+
+		var a = $.ajax(settings);
+		a.then(function(obj){ console.log('roster import', obj); }.bind(this));		
+
 		console.groupEnd();
 	},
 
