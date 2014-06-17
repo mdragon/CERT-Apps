@@ -60,7 +60,7 @@ type Audit struct {
 	ModifiedBy *datastore.Key
 
 	Key   *datastore.Key `datastore:"-"`
-	KeyID int64
+	KeyID int64          `datastore:"-"`
 }
 
 type Team struct {
@@ -373,8 +373,7 @@ func teamData(w http.ResponseWriter, r *http.Request) {
 				teamOutKey, teamPutError := datastore.Put(c, teamKey, context.Team)
 
 				if noErrMsg(teamPutError, w, c, "Failed putting Default team") {
-					context.Team.Key = teamOutKey
-					context.Team.KeyID = teamOutKey.IntID()
+					context.Team.setKey(teamOutKey)
 
 					updateAudit(&audit, member.Person)
 
@@ -388,8 +387,7 @@ func teamData(w http.ResponseWriter, r *http.Request) {
 					teamMemberOutKey, teamMemberPutError := datastore.Put(c, teamMemberKey, &teamMember)
 
 					if noErrMsg(teamMemberPutError, w, c, "Failed putting TeamMember for Member to Team") {
-						teamMember.Key = teamMemberOutKey
-						teamMember.KeyID = teamMember.Key.IntID()
+						teamMember.setKey(teamMemberOutKey)
 					}
 
 					c.Infof("Created Default Team: %+v, %+v", context.Team.Key, context.Team)
@@ -594,8 +592,8 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 				} else {
 					// found by email
 					mem = &member[0]
-					mem.Key = keys[0]
-					mem.KeyID = mem.Key.IntID()
+					mem.setKey(keys[0])
+
 					found = true
 					mem.UserID = u.ID
 
@@ -606,8 +604,8 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 		} else {
 			// found by id
 			mem = &member[0]
-			mem.Key = keys[0]
-			mem.KeyID = mem.Key.IntID()
+			mem.setKey(keys[0])
+
 			found = true
 
 			if mem.Email == "" {
@@ -622,7 +620,7 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 
 		if found {
 			c.Infof("existing Member found: %d", len(member))
-			c.Debugf("with key: %s, %d, %v", mem.Key.StringID(), mem.Key.IntID(), mem.Key)
+			c.Debugf("with key: %d, %v", mem.Key.IntID(), mem.Key)
 			c.Infof("existing: %+v", mem)
 			c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
 			c.Infof("user: %+v", *u)
@@ -679,8 +677,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request,
 		c.Debugf("Calling Get Team with Key: %+v", teamKey)
 		getTeamErr := datastore.Get(c, teamKey, &team)
 		if noErrMsg(getTeamErr, w, c, "Error Get Team with Key") {
-			team.Key = teamKey
-			team.KeyID = teamKey.IntID()
+			team.setKey(teamKey)
 		} else {
 			return fmt.Errorf("No team found for ID passed: %d", teamID), nil
 		}
@@ -698,8 +695,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request,
 			lenTeams := len(teams)
 			if lenTeams == 1 {
 				team = teams[0]
-				team.Key = keys[0]
-				team.KeyID = team.Key.IntID()
+				team.setKey(keys[0])
 			} else if lenTeams > 1 {
 				return fmt.Errorf("Too many Teams found to not specify an ID, only works if there is a single Team"), nil
 			}
@@ -810,18 +806,14 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 
 	if saveMember.Key != nil {
 		saveMemberKey = saveMember.Key
+	} else {
+		saveMember.Key = datastore.NewKey(c, "Member", "", 0, nil)
 	}
 
 	c.Debugf("Checking Keys || allow: %s", allow)
 	if curMember.Key == saveMemberKey || allow {
-		saveMember.ModifiedBy = curMember.Key
-		saveMember.Modified = time.Now()
+		saveMember.setAudits(curMember)
 
-		if saveMember.Key == nil {
-			saveMember.Key = datastore.NewKey(c, "Member", "", 0, nil)
-			saveMember.Created = saveMember.Modified
-			saveMember.CreatedBy = saveMember.CreatedBy
-		}
 		keyOut, mErr := datastore.Put(c, saveMember.Key, saveMember)
 
 		checkErr(mErr, w, c, "Failed to update Member for memberSave: ")
@@ -882,20 +874,41 @@ func membersImport(w http.ResponseWriter, r *http.Request) {
 			saveMember := importData.Members[idx]
 
 			c.Debugf("Saving Imported Member: %+v", saveMember)
+			tk := datastore.NewKey(c, "Team", "", importData.TeamID, nil)
 
-			mKeyOut, mErr := save(&saveMember, curMember, c, u, w, r)
+			teamErr, team := getTeam(tk.IntID(), curMember, c, r, w)
 
-			if noErrMsg(mErr, w, c, "Save member in import") {
-				tk := datastore.NewKey(c, "Team", "", importData.TeamID, nil)
-				tm := &TeamMember{
-					TeamKey:   tk,
-					MemberKey: mKeyOut,
+			if noErrMsg(teamErr, w, c, "Lookup team") {
+
+				if saveMember.City == "" {
+					saveMember.City = team.City
 				}
 
-				tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
-				_, tmErr := datastore.Put(c, tm.Key, tm)
+				if saveMember.State == "" {
+					saveMember.State = team.State
+				}
 
-				checkErr(tmErr, w, c, "Creating TeamMember record for member: ")
+				if saveMember.Zip == "" {
+					saveMember.Zip = team.Zip
+				}
+
+				saveMember.Active = true
+
+				mKeyOut, mErr := save(&saveMember, curMember, c, u, w, r)
+
+				if noErrMsg(mErr, w, c, "Save member in import") {
+					tm := &TeamMember{
+						TeamKey:   tk,
+						MemberKey: mKeyOut,
+					}
+
+					tm.setAudits(curMember)
+
+					tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
+					_, tmErr := datastore.Put(c, tm.Key, tm)
+
+					checkErr(tmErr, w, c, "Creating TeamMember record for member: ")
+				}
 			}
 		}
 
@@ -915,6 +928,23 @@ func membersImport(w http.ResponseWriter, r *http.Request) {
 			"Only OEM, Town, Officer can update a different Member's record",
 		}
 		returnJSONorErrorToResponse(context, c, r, w)
+	}
+}
+
+func (a *Audit) setAudits(m *Member) {
+	a.ModifiedBy = m.Key
+	a.Modified = time.Now()
+
+	if a.CreatedBy == nil {
+		a.Created = m.Modified
+		a.CreatedBy = m.CreatedBy
+	}
+}
+
+func (a *Audit) setKey(key *datastore.Key) {
+	a.Key = key
+	if key != nil {
+		a.KeyID = key.IntID()
 	}
 }
 
