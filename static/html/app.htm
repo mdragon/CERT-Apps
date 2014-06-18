@@ -99,6 +99,9 @@
 <script type="text/x-handlebars">
 	<div class="nav">
 		{{#if content.data.LoggedIn }}
+			Event {{#link-to 'event.create'}}Create {{/link-to}} | 
+			{{#link-to 'member.update'}}My Info{{/link-to}} | 
+
 			{{#if content.data.Member.FirstName }}
 				Welcome, {{content.data.Member.FirstName}}
 			{{/if}}
@@ -266,8 +269,8 @@
 				{{input name="Line1" placeholder="Address" value=content.Line1 size='50'}}<br/>
 				{{input name="Line2" placeholder="Address Line 2" value=content.Line2 size='50'}}<br/>
 				{{input name="City" placeholder="City" value=content.City size='30'}}, 
-				{{input name="State" placeholder="State" value=content.State size='2'}}
-				{{input name="Zip" placeholder="Zip" value=content.Zip size='5'}}
+				{{input name="State" placeholder="State" value=content.State size='3'}}
+				{{input name="Zip" placeholder="Zip" value=content.Zip size='7'}}
 			</div>
 		</div>
 
@@ -275,11 +278,90 @@
 	</form>
 </script>
 
+<script type="text/x-handlebars" data-template-name="event">
+	<div class="center-content">
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="event/update">
+	<h3>Event Details</h3>
+	<form>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-info"></i> Information</h4>
+			</div>
+			<div class="panel-body">
+				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}
+				{{input name="Summary" placeholder="Summary" value=content.Event.Summary size=70}}
+				{{textarea cols=68 rows=7 value=content.Event.Description placeholder="Description"}}
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-globe"></i> Location</h4>
+			</div>
+			<div class="panel-body">
+				<label>
+					<b>Event:</b>  <br/>
+					{{input name="Line1" placeholder="Address" value=content.Event.DeploymentLocation.Line1 size='50'}}<br/>
+					{{input name="Line2" placeholder="Address Line 2" value=content.Event.DeploymentLocation.Line2 size='50'}}<br/>
+					{{input name="City" placeholder="City" value=content.Event.DeploymentLocation.City size='30'}}, 
+					{{input name="State" placeholder="St" value=content.Event.DeploymentLocation.State size=3}}
+					{{input name="Zip" placeholder="Zip" value=content.Event.DeploymentLocation.Zip size=7}}
+				</label>
+
+				<label>
+					<b>Parking:</b> </br>
+
+					<div class="parking-location" style="" >
+						{{input name="Line1" placeholder="Address" value=content.Event.ParkingLocation.Line1 size='50'}}<br/>
+						{{input name="Line2" placeholder="Address Line 2" value=content.Event.ParkingLocation.Line2 size='50'}}<br/>
+						{{input name="City" placeholder="City" value=content.Event.ParkingLocation.City size='30'}}, 
+						{{input name="State" placeholder="St" value=content.Event.ParkingLocation.State size=3}}
+						{{input name="Zip" placeholder="Zip" value=content.Event.ParkingLocation.Zip size=7}}
+					</div>
+				</label>
+			</div>
+		</div>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-calendar"></i> Dates/Times</h4>
+			</div>
+			<div class="panel-body">
+				<b>Start:</b>
+				<label>Date: {{input name="" placeholder="" value=content.Event.eventStartDate}}</label>
+				<label>Time: {{input name="" value=content.Event.eventStartTime size=10}} </label><br/>
+				<b>End:&nbsp;</b>
+				<label>Date: {{input name="" placeholder="" value=content.Event.eventEndDate}}</label>
+				<label>Time: {{input name="" value=content.Event.eventEndTime size=10}} </label>
+
+				<label>Meet Time: {{input  name="" value=content.Event.meetTime size=10}}(if different than start)</label><br/>				
+			</div>
+		</div>
+		
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-external-link"></i> Links</h4>
+			</div>
+			<div class="panel-body">
+				<label>IAP Link: {{input name="IAP" placeholder="" value=content.Event.IAPLink size=75}}<br/>
+				<label>Roster Link: {{input name="Roster" placeholder="" value=content.Event.RosterLink size=75}}<br/>
+			</div>
+		</div>
+
+		<button {{action saveEvent content}}><i class="fa fa-save"></i> Save</button>
+	</form>
+</script>
+
 <script type="text/x-handlebars" data-template-name="landing">
 Landing
 </script>
 
-<script type="text/x-handlebars" data-template-name="landing.index">
+<script type="text/x-handlebars" data-template-name="landing/index">
 Landing index
 </script>
 

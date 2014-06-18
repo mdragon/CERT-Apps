@@ -46,11 +46,6 @@ type Location struct {
 	City  string
 	State string
 	Zip   string
-
-	// Created    time.Time
-	// CreatedBy  *datastore.Key
-	// Modified   time.Time
-	// ModifiedBy *datastore.Key
 }
 
 type Audit struct {
@@ -122,11 +117,51 @@ type MemberLogin struct {
 	IP        string
 }
 
+type Event struct {
+	TeamKey *datastore.Key
+
+	Summary     string
+	Description string
+
+	Deployment bool
+	Exercise   bool
+	Meeting    bool
+	Training   bool
+
+	MeetTime    time.Time
+	EventStart  time.Time
+	EventFinish time.Time
+
+	EventLocation   Location
+	ParkingLocation Location
+
+	IAPLink    string
+	RosterLink string
+
+	Audit
+}
+
+type MemberEvent struct {
+	MemberKey *datastore.Key
+	EventKey  *datastore.Key
+
+	Attending bool
+	Sure      bool
+
+	Responded time.Time
+	Arrive    time.Time
+	Depart    time.Time
+
+	Audit
+}
+
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 
 func init() {
 	http.HandleFunc("/audit", audit)
+	http.HandleFunc("/event", event)
+	http.HandleFunc("/event/save", eventSave)
 	http.HandleFunc("/member", memberData)
 	http.HandleFunc("/member/save", memberSave)
 	http.HandleFunc("/team", teamData)
@@ -619,8 +654,19 @@ func getMember(c appengine.Context, u *user.User, r *http.Request, w http.Respon
 		}
 
 		if found {
+			keyStuff := struct {
+				IntID int64
+				Key   *datastore.Key
+			}{}
+
+			if mem != nil {
+				keyStuff.Key = mem.Key
+				if mem.Key != nil {
+					keyStuff.IntID = mem.Key.IntID()
+				}
+			}
 			c.Infof("existing Member found: %d", len(member))
-			c.Debugf("with key: %d, %v", mem.Key.IntID(), mem.Key)
+			c.Debugf("with key: %+v", keyStuff)
 			c.Infof("existing: %+v", mem)
 			c.Infof("existing.CreatedBy: %+v", mem.CreatedBy)
 			c.Infof("user: %+v", *u)
@@ -946,6 +992,85 @@ func (a *Audit) setKey(key *datastore.Key) {
 	if key != nil {
 		a.KeyID = key.IntID()
 	}
+}
+
+func event(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	var event *Event
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(event)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+		c.Infof("JSON event: %+v", event)
+		event.lookup(nil, c, u, w, r)
+	} else {
+
+	}
+
+	context := struct {
+		*Event
+	}{
+		event,
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
+}
+
+func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+	if event.KeyID != 0 {
+		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
+
+		//member := getMember(c, u, r, w)
+
+		err := datastore.Get(c, event.Key, event)
+
+		event.setKey(event.Key)
+
+		return err
+	}
+
+	return nil
+}
+
+func eventSave(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	u := user.Current(c)
+	var event Event
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&event)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+		c.Infof("JSON event: %+v", event)
+		event.save(nil, c, u, w, r)
+	} else {
+
+	}
+}
+
+func (event *Event) save(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+	if event.KeyID != 0 {
+		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
+
+		if member == nil {
+			member = getMember(c, u, r, w)
+		}
+
+		event.setAudits(member)
+
+		err := datastore.Get(c, event.Key, event)
+
+		return err
+	}
+
+	return nil
+
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {

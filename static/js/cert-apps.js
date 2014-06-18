@@ -29,6 +29,11 @@ CERTApps.Router.map(function()
 					this.route('import');
 				});
 		});
+	this.resource('event', function()
+		{
+			this.route("create", { path: '/' });
+			this.route("update", { path: '/:teamID' });
+		});
 	});
 
 CERTApps.ApplicationRoute = Ember.Route.extend(
@@ -635,7 +640,7 @@ CERTApps.Member = Ember.Object.extend(
 });
 
 Ember.RSVP.configure('onerror', function(error) {
-  Ember.Logger.assert(false, error);
+	Ember.Logger.assert(false, error);
 });
 
 CERTApps.ImportColumnSelect = Ember.Select.extend({
@@ -741,4 +746,109 @@ CERTApps.ImportColumnSelect = Ember.Select.extend({
 
 		return match;
 	}
+});
+
+CERTApps.EventRoute = Ember.Route.extend(
+{
+	actions:
+	{
+		saveEvent: function(content)
+		{
+			console.log('content', content);
+
+		}
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps.EventRoute model')
+
+		var model = { Event: { DeploymentLocation: {}, ParkingLocation: {} } };
+
+		console.groupEnd();
+
+		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
+
+		return model;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.EventRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
+});
+
+CERTApps.EventCreateRoute = Ember.Route.extend(
+{	
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps.EventCreateRoute model')
+
+		var eventModel = this.modelFor('event');
+
+		console.groupEnd();
+
+		return eventModel;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.EventCreateRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
+});
+
+CERTApps.EventCreateView = Ember.View.extend(
+{
+	templateName: 'event/update'
+});
+
+CERTApps.EventUpdateRoute = Ember.Route.extend(
+{	
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps.EventUpdateRoute model')
+
+		var eventModel = this.modelFor('event');
+
+		console.groupEnd();
+
+		return eventModel;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.EventUpdateRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
 });
