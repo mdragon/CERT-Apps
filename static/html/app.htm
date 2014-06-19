@@ -306,22 +306,14 @@
 			<div class="panel-body">
 				<label>
 					<b>Event:</b>  <br/>
-					{{input name="Line1" placeholder="Address" value=content.Event.DeploymentLocation.Line1 size='50'}}<br/>
-					{{input name="Line2" placeholder="Address Line 2" value=content.Event.DeploymentLocation.Line2 size='50'}}<br/>
-					{{input name="City" placeholder="City" value=content.Event.DeploymentLocation.City size='30'}}, 
-					{{input name="State" placeholder="St" value=content.Event.DeploymentLocation.State size=3}}
-					{{input name="Zip" placeholder="Zip" value=content.Event.DeploymentLocation.Zip size=7}}
+					{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=75}}<br/>
 				</label>
 
 				<label>
 					<b>Parking:</b> </br>
 
 					<div class="parking-location" style="" >
-						{{input name="Line1" placeholder="Address" value=content.Event.ParkingLocation.Line1 size='50'}}<br/>
-						{{input name="Line2" placeholder="Address Line 2" value=content.Event.ParkingLocation.Line2 size='50'}}<br/>
-						{{input name="City" placeholder="City" value=content.Event.ParkingLocation.City size='30'}}, 
-						{{input name="State" placeholder="St" value=content.Event.ParkingLocation.State size=3}}
-						{{input name="Zip" placeholder="Zip" value=content.Event.ParkingLocation.Zip size=7}}
+						{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=75}}<br/>
 					</div>
 				</label>
 			</div>
@@ -333,13 +325,13 @@
 			</div>
 			<div class="panel-body">
 				<b>Start:</b>
-				<label>Date: {{input name="" placeholder="" value=content.Event.eventStartDate}}</label>
-				<label>Time: {{input name="" value=content.Event.eventStartTime size=10}} </label><br/>
+				<label>Date: {{input name="" placeholder="01/31/14" value=content.Event.eventStartDate}}</label>
+				<label>Time: {{input name="" placeholder = "0000" value=content.Event.eventStartTime size=10}} </label><br/>
 				<b>End:&nbsp;</b>
-				<label>Date: {{input name="" placeholder="" value=content.Event.eventEndDate}}</label>
-				<label>Time: {{input name="" value=content.Event.eventEndTime size=10}} </label>
+				<label>Date: {{input name="" placeholder="(if different)" value=content.Event.eventFinishDate}}</label>
+				<label>Time: {{input name="" value=content.Event.eventFinishTime size=10}} </label>
 
-				<label>Meet Time: {{input  name="" value=content.Event.meetTime size=10}}(if different than start)</label><br/>				
+				<label>Meet Time: {{input  name="" value=content.Event.arriveTime size=10}}(if different than start)</label><br/>				
 			</div>
 		</div>
 		

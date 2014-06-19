@@ -639,6 +639,177 @@ CERTApps.Member = Ember.Object.extend(
 	}
 });
 
+CERTApps.Event = Ember.Object.extend(
+{
+	// eventStartDate: function(key, value, previous)
+	// {
+	// 	console.group('eventStartDate');
+	// 	console.log('arguments', arguments)
+
+	// 	if( arguments.length > 1 )
+	// 	{
+	// 		var time = this.get('eventStartTime');
+	// 		var parsed = this.parseDate(value);
+	// 		parsed = parsed + 'T' + time;
+
+	// 		console.log('setting parsed', parsed);
+	// 		this.set('EventStart', parsed);
+	// 		this.set('privEventStartDate', value);
+	// 	}
+
+	// 	console.groupEnd();
+
+	// 	return this.get('privEventStartDate');
+
+	// }.property('EventStart', 'eventStartTime'),
+
+	// eventStartTime: function(key, value, previous)
+	// {
+	// 	console.group('eventStartTime');
+	// 	console.log('arguments', arguments)
+
+	// 	if( arguments.length > 1 )
+	// 	{
+	// 		if( value && value.length == 4 )
+	// 		{
+	// 			value = value.substring(0,2) + ':' + value.substring(2);
+	// 			console.log('formatted value', value);
+	// 		}
+
+	// 		this.set('EventStart', this.get('eventStartDate') + ' ' + value);
+	// 		this.set('privEventStartTime', value);
+	// 	}
+
+	// 	console.groupEnd();
+
+	// 	return this.get('privEventStartTime');
+
+	// }.property('EventStart', 'eventStartDate'),
+
+	// eventFinishDate: function(key, value, previous)
+	// {
+	// 	console.group('eventFinishDate');
+	// 	console.log('arguments', arguments)
+
+	// 	if( arguments.length > 1 )
+	// 	{
+	// 		var time = this.get('eventFinishTime');
+
+	// 		var parsed = this.parseDate(value);
+	// 		parsed = parsed + 'T' + time;
+			
+	// 		console.log('setting parsed', parsed);
+	// 		this.set('EventFinish', parsed);
+	// 		this.set('privEventFinishDate', value);
+	// 	}
+
+	// 	console.groupEnd();
+
+	// 	return this.get('privEventFinishDate');
+
+	// }.property('EventFinish', 'eventFinishTime', 'eventStartDate', 'privEventFinsishTime'),
+
+	// eventFinishTime: function(key, value, previous)
+	// {
+	// 	console.group('eventFinishTime');
+	// 	console.log('arguments', arguments)
+
+	// 	if( arguments.length > 1 )
+	// 	{
+	// 		var finish = this.get('eventFinishDate') || this.get('eventStartDate');
+
+	// 		if( value && value.length == 4 )
+	// 		{
+	// 			value = value.substring(0,2) + ':' + value.substring(2);
+	// 			console.log('formatted value', value);
+	// 		}
+
+	// 		this.set('EventFinish', finish + ' ' + value);
+	// 		this.set('privEventFinishTime', value);
+	// 	}
+
+	// 	console.groupEnd();
+
+	// 	return this.get('privEventFinishTime');
+
+	// }.property('EventEnd', 'eventStartDate'),
+
+	save: function()
+	{
+		console.group('CERTApps.Event save')
+		
+		this.parseDates();
+
+		
+		console.log('will save event', this);
+
+		var settings = 
+		{
+			url: '/event/save',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify(this)
+		};
+
+		console.log('saving event data', settings)
+
+		var a = $.ajax(settings);
+		a.then(function(obj)
+			{ 
+				var move = this.moveUpData(obj); 
+
+				move.Member = CERTApps.Member.create(move.Member); 
+
+				console.log('App model returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this));
+
+		console.groupEnd();
+
+		return a;
+	},
+
+	parseDates: function()
+	{
+		this.set('EventStart', this.parseDate(this.get('eventStartDate'), this.get('eventStartTime')));
+		
+		var finishDate = this.get('eventFinishDate') || this.get('eventStartDate');
+		this.set('EventFinish', this.parseDate(finishDate, this.get('eventFinishTime')));
+
+		var meetTime = this.get('arriveTime');
+		if( meetTime )
+		{
+			this.set('MeetTime', this.parseDate(this.get('eventStartDate'), meetTime));
+		} else
+		{
+			this.set('MeetTime', undefined);
+		}
+
+	},
+
+	parseDate: function(date, time)
+	{
+		var pieces = date.split('/');
+		var dateParsed = '20' + pieces[2] + '-' + pieces[0] + '-' + pieces[1];
+		console.log('formatted date', dateParsed);
+
+
+		var timeParsed = time;
+		if( timeParsed && timeParsed.length == 4 )
+		{
+			timeParsed = timeParsed.substring(0,2) + ':' + timeParsed.substring(2) + ':00';
+			console.log('formatted time', timeParsed);
+		}		
+
+		var dateObj = new Date();
+		offsetHours = dateObj.getTimezoneOffset()/60;
+		var retval = dateParsed + 'T' + timeParsed + '-0' + offsetHours + ':00';
+
+		return retval;
+	}
+});
+
 Ember.RSVP.configure('onerror', function(error) {
 	Ember.Logger.assert(false, error);
 });
@@ -754,8 +925,22 @@ CERTApps.EventRoute = Ember.Route.extend(
 	{
 		saveEvent: function(content)
 		{
-			console.log('content', content);
+			console.group('CERTApps.EventRoute saveEvent');
+			var event = content.Event;
 
+			event.save();
+
+			console.groupEnd();
+		},
+
+		locationLookup: function(content)
+		{
+			console.group('CERTApps.EventRoute saveEvent');
+			var event = content.Event;
+
+			event.save();
+
+			console.groupEnd();
 		}
 	},
 
@@ -763,7 +948,7 @@ CERTApps.EventRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps.EventRoute model')
 
-		var model = { Event: { DeploymentLocation: {}, ParkingLocation: {} } };
+		var model = { Event: CERTApps.Event.create({ EventLocation: {}, ParkingLocation: {} } )};
 
 		console.groupEnd();
 

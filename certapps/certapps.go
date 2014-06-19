@@ -3,6 +3,7 @@ package certapps
 import (
 	//	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	//	"html/template"
 	"io"
@@ -1004,7 +1005,7 @@ func event(w http.ResponseWriter, r *http.Request) {
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
-	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON event: %+v", event)
 		event.lookup(nil, c, u, w, r)
 	} else {
@@ -1046,30 +1047,63 @@ func eventSave(w http.ResponseWriter, r *http.Request) {
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
-	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parasing event json from body") {
 		c.Infof("JSON event: %+v", event)
-		event.save(nil, c, u, w, r)
-	} else {
 
+		saveErr := event.save(nil, c, u, w, r)
+
+		if saveErr != nil {
+			context := struct {
+				error   bool
+				message string
+			}{
+				true,
+				"Only OEM, Town, Officer can update an Event",
+			}
+			returnJSONorErrorToResponse(context, c, r, w)
+		}
+	} else {
+		c.Infof("partial JSON event: %+v", event)
 	}
 }
 
 func (event *Event) save(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
-	if event.KeyID != 0 {
-		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
+	var err error
 
-		if member == nil {
-			member = getMember(c, u, r, w)
-		}
+	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
-		event.setAudits(member)
-
-		err := datastore.Get(c, event.Key, event)
-
-		return err
+	if member == nil {
+		member = getMember(c, u, r, w)
 	}
 
-	return nil
+	if lookupOthers(member) {
+		event.setAudits(member)
+
+		var key *datastore.Key
+
+		c.Infof("Will put event ID: %d", event.KeyID)
+		key, err = datastore.Put(c, event.Key, event)
+
+		if noErrMsg(err, w, c, "Put event") {
+			event.setKey(key)
+		}
+	} else {
+		c.Errorf("Only OEM, Town, Officer can update an event record: %+v, tried to save: %+v", member, event)
+
+		err = errors.New("Only Town, OEM, Officers can save events")
+	}
+
+	return err
+}
+
+func locationLookup(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+
+	url := "https://maps.googleapis.com/maps/api/geocode/json?key="
+	key := "AIzaSyDKyDk-VkRFZIs27NAGmHEbrC17s7ylTYE"
+	address := "address=13%20sheridan%20ave,%2007052"
+
+	c.Debugf("url: %s, key: %s, address: %s", url, key, address)
 
 }
 
