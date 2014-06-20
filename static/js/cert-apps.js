@@ -25,18 +25,18 @@ CERTApps.Router.map(function()
 			this.resource("roster", function()
 				{
 					this.route("index", { path: '/' });
-					this.route("teamID", { path: '/:teamID' });
+					this.route("teamID", { path: '/:teamID' 	});
 					this.route('import');
 				});
 		});
 	this.resource('event', function()
 		{
 			this.route("create", { path: '/' });
-			this.route("update", { path: '/:teamID' });
+			this.route("update", { path: '/:eventID' });
 		});
 	});
 
-CERTApps.ApplicationRoute = Ember.Route.extend(
+CERTApps.BaseRoute = Ember.Route.extend(
 {
 	moveUpData: function(data)
 	{
@@ -53,8 +53,11 @@ CERTApps.ApplicationRoute = Ember.Route.extend(
 		}
 
 		return data;
-	},
+	}
+});
 
+CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
+{
 	model: function(params)
 	{
 		console.group("CERTApps.ApplicationRouter model");
@@ -247,7 +250,27 @@ CERTApps.TeamRoute = Ember.Route.extend(
 
 });
 
-CERTApps.Roster = Ember.Object.extend();
+CERTApps.BaseObject = Ember.Object.extend(
+{
+	moveUpData: function(data)
+	{
+		console.log('moveUpData', data);
+
+		if( ! data.error )
+		{
+			if( data.data )
+			{
+				console.log('data has data');
+				data = data.data;
+				//return data.data;
+			}
+		}
+
+		return data;
+	}	
+});
+
+CERTApps.Roster = CERTApps.BaseObject.extend();
 
 CERTApps.Roster.reopenClass(
 {
@@ -547,7 +570,7 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 // 	}	
 // });
 
-CERTApps.Member = Ember.Object.extend(
+CERTApps.Member = CERTApps.BaseObject.extend(
 {
 	save: function()
 	{
@@ -582,17 +605,25 @@ CERTApps.Member = Ember.Object.extend(
 		console.groupEnd();
 	},
 
-	EmailDisplay: function()
+	emailDisplay: function()
 	{
-		return this.get('ShowEmail') || this.get('loggedInMember.CanLookup');
-	}.property('ShowEmail', 'loggedInMember'),
+		var retval = this.get('ShowEmail') || this.get('loggedInMember.CanLookup');
+	
+		console.log('EmailDisplay', this.get('ShowEmail'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
 
-	CellDisplay: function()
+		return retval;
+	}.property('ShowEmail', 'loggedInMember.CanLookup'),
+
+	cellDisplay: function()
 	{
-		return this.get('ShowCell') || this.get('loggedInMember.CanLookup');
+		var retval = this.get('ShowCell') || this.get('loggedInMember.CanLookup');
+	
+		console.log('CellDisplay', this.get('ShowCell'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
+		
+		return this.get('ShowCell') || this.get('loggedInMember');
 	}.property('ShowCell', 'loggedInMember'),
 
-	Line2Display: function()
+	line2Display: function()
 	{
 		var val = ""
 		
@@ -639,7 +670,7 @@ CERTApps.Member = Ember.Object.extend(
 	}
 });
 
-CERTApps.Event = Ember.Object.extend(
+CERTApps.Event = CERTApps.BaseObject.extend(
 {
 	// eventStartDate: function(key, value, previous)
 	// {
@@ -754,7 +785,7 @@ CERTApps.Event = Ember.Object.extend(
 		console.log('saving event data', settings)
 
 		var a = $.ajax(settings);
-		a.then(function(obj)
+		var t = a.then(function(obj)
 			{ 
 				var move = this.moveUpData(obj); 
 
@@ -764,6 +795,9 @@ CERTApps.Event = Ember.Object.extend(
 				obj = move; 
 				return move; 
 			}.bind(this));
+
+		a.then(function(obj){ console.log('a.then', JSON.stringify(obj)); }.bind(this));
+		t.then(function(obj){ console.log('t.then', JSON.stringify(obj)); }.bind(this));
 
 		console.groupEnd();
 
@@ -790,23 +824,65 @@ CERTApps.Event = Ember.Object.extend(
 
 	parseDate: function(date, time)
 	{
-		var pieces = date.split('/');
-		var dateParsed = '20' + pieces[2] + '-' + pieces[0] + '-' + pieces[1];
-		console.log('formatted date', dateParsed);
+		var retval = null;
 
-
-		var timeParsed = time;
-		if( timeParsed && timeParsed.length == 4 )
+		if( date )
 		{
-			timeParsed = timeParsed.substring(0,2) + ':' + timeParsed.substring(2) + ':00';
-			console.log('formatted time', timeParsed);
-		}		
+			var pieces = date.split('/');
+			var dateParsed = '20' + pieces[2] + '-' + pieces[0] + '-' + pieces[1];
+			console.log('formatted date', dateParsed);
 
-		var dateObj = new Date();
-		offsetHours = dateObj.getTimezoneOffset()/60;
-		var retval = dateParsed + 'T' + timeParsed + '-0' + offsetHours + ':00';
 
+			var timeParsed = time;
+			if( timeParsed && timeParsed.length == 4 )
+			{
+				timeParsed = timeParsed.substring(0,2) + ':' + timeParsed.substring(2) + ':00';
+				console.log('formatted time', timeParsed);
+			}		
+
+			var dateObj = new Date();
+			offsetHours = dateObj.getTimezoneOffset()/60;
+			retval = dateParsed + 'T' + timeParsed + '-0' + offsetHours + ':00';
+		}
 		return retval;
+	},
+
+	parse: function()
+	{
+		console.group("CERTApps.Event parse")
+
+		var date = new Date(this.EventStart);
+
+		console.log('EventStart', this.EventStart, 'date', date);
+
+		var month = (date.getMonth() + 1).toString();
+		var d = date.getDate().toString();
+		if( month.length == 1 ) month = '0' + month;
+		if( d.length == 1 ) d = '0' + d;
+
+		var startDate =  month + '/' + d + '/' + date.getFullYear().toString().substring(2);
+		var startTime = date.getHours() + '' + date.getMinutes();		
+
+		this.set('eventStartDate', startDate);
+		this.set('eventStartTime', startTime);
+
+		var date = new Date(this.EventFinish);
+
+		month = (date.getMonth() + 1).toString();
+		d = date.getDate().toString();
+		if( month.length == 1 ) month = '0' + month;
+		if( d.length == 1 ) d = '0' + d;
+
+		var finishDate =  month + '/' + d + '/' + date.getFullYear().toString().substring(2);
+		var finishTime = date.getHours() + '' + date.getMinutes();		
+
+		if( startDate !== finishDate )
+		{
+			this.set('eventFinishDate', finishDate);
+		}
+		this.set('eventFinishTime', finishTime);
+
+		console.groupEnd();
 	}
 });
 
@@ -1007,7 +1083,7 @@ CERTApps.EventCreateView = Ember.View.extend(
 	templateName: 'event/update'
 });
 
-CERTApps.EventUpdateRoute = Ember.Route.extend(
+CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
 {	
 	actions:
 	{
@@ -1017,11 +1093,47 @@ CERTApps.EventUpdateRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps.EventUpdateRoute model')
 
-		var eventModel = this.modelFor('event');
+		console.log('params', params);
+
+		var obj = {
+			KeyID: parseInt(params.eventID)
+		};
+
+		var settings = 
+		{
+			url: '/event',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify(obj)
+		};
+
+		console.log('requesting data', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(obj)
+			{ 
+				console.log('obj', obj);
+
+				var move = this.moveUpData(obj);
+
+				console.log('move', move);
+
+				move.Event = CERTApps.Event.create(move.Event); 
+
+				console.log('EventUpdate model returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this)
+		);
+
+		t.then(function(obj)
+		{
+			obj.Event.parse();
+		});
 
 		console.groupEnd();
 
-		return eventModel;
+		return t;
 	},
 
 	setupController: function(controller, model)

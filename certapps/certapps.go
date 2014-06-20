@@ -998,10 +998,10 @@ func (a *Audit) setKey(key *datastore.Key) {
 func event(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
-	var event *Event
+	var event Event
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(event)
+	jsonDecodeErr := decoder.Decode(&event)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
@@ -1013,7 +1013,7 @@ func event(w http.ResponseWriter, r *http.Request) {
 	}
 
 	context := struct {
-		*Event
+		Event Event
 	}{
 		event,
 	}
@@ -1022,6 +1022,8 @@ func event(w http.ResponseWriter, r *http.Request) {
 }
 
 func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+	c.Infof("*Event.lookup %d", event.KeyID)
+
 	if event.KeyID != 0 {
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
@@ -1065,10 +1067,20 @@ func eventSave(w http.ResponseWriter, r *http.Request) {
 	} else {
 		c.Infof("partial JSON event: %+v", event)
 	}
+
+	context := struct {
+		Event
+	}{
+		event,
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
 }
 
 func (event *Event) save(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	var err error
+
+	c.Infof("*Event.save %d", event.KeyID)
 
 	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
@@ -1085,6 +1097,7 @@ func (event *Event) save(member *Member, c appengine.Context, u *user.User, w ht
 		key, err = datastore.Put(c, event.Key, event)
 
 		if noErrMsg(err, w, c, "Put event") {
+			c.Infof("Set Key: %d, %d", event.KeyID, key.IntID())
 			event.setKey(key)
 		}
 	} else {

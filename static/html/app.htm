@@ -99,7 +99,10 @@
 <script type="text/x-handlebars">
 	<div class="nav">
 		{{#if content.data.LoggedIn }}
-			Event {{#link-to 'event.create'}}Create {{/link-to}} | 
+			{{#if content.data.Member.CanLookup }}
+				Event {{#link-to 'event.create'}}Create {{/link-to}} | 
+				Team {{#link-to 'roster'}}Roster {{/link-to}} | 
+			{{/if}}
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
 
 			{{#if content.data.Member.FirstName }}
@@ -145,7 +148,9 @@
 
 		</thead>
 		<tbody>
+			{{log content.data.Members}}
 			{{#each mem in content.data.Members }}
+				{{#if mem }}
 				<tr class="">
 					{{#if content.data.loggedInMember.CanLookup}}
 						<td>{{mem.RadioID}}</td>
@@ -153,19 +158,20 @@
 					
 					<td>{{mem.FirstName}} {{mem.LastName}}</td>
 					<td>
-						{{#if mem.CellDisplay}}
+						{{#if mem.cellDisplay}}
 							{{mem.Cell}}
 						{{/if}}
 					</td>
 					<td>
-						{{#if mem.EmailDisplay}}
+						{{#if mem.emailDisplay}}
 							{{mem.Email}}
 						{{/if}}
 					</td>
 					{{#if content.data.loggedInMember.CanLookup}}
-						<td>{{mem.Line1}}{{mem.Line2Display}}</td>
+						<td>{{mem.Line1}}{{mem.line2Display}}</td>
 					{{/if}}
 				</tr>
+				{{/if}}
 			{{/each}}
 		</tbody>
 	</table>
