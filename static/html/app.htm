@@ -98,24 +98,27 @@
 
 <script type="text/x-handlebars">
 	<div class="nav">
-		{{#if content.data.LoggedIn }}
-			{{#if content.data.Member.CanLookup }}
-				Event {{#link-to 'event.create'}}Create {{/link-to}} | 
-				Team {{#link-to 'roster'}}Roster {{/link-to}} | 
+		{{log "nav content"}}
+		{{log content}}
+
+		{{#if content.LoggedIn }}
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
+				Team {{#link-to 'roster.index' content.Team}}Roster {{/link-to}} | 
 			{{/if}}
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
 
-			{{#if content.data.Member.FirstName }}
-				Welcome, {{content.data.Member.FirstName}}
+			{{#if content.Member.FirstName }}
+				Welcome, {{content.Member.FirstName}}
 			{{/if}}
 		{{/if}}
-		<a {{bind-attr href="content.data.LogInOutLink"}}>{{content.data.LogInOutText}}</a>
+		<a {{bind-attr href="content.LogInOutLink"}}>{{content.LogInOutText}}</a>
 	</div>
 	<div class="app">
 		{{outlet}}
 	</div>
 	<div class="foot">
-		Copyright Matt Dragon 2013-{{content.data.year}}
+		Copyright Matt Dragon 2013-{{content.year}}
 	</div>
 </script>
 
@@ -131,28 +134,25 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="roster/index">
-{{log content.data}}
-
-	<h3>{{content.data.Team.Name}} Roster</h3>
+	<h3>{{content.Team.Name}} Roster</h3>
 	<table class="table table-responsive table-striped table-condensed table-bordered",>
 		<thead>
-			{{#if content.data.loggedInMember.CanLookup }}
+			{{#if content.loggedInMember.CanLookup }}
 				<th>Radio</th>
 			{{/if}}
 			<th>Name</th>
 			<th>Cell</th>
 			<th>Email</th>
-			{{#if content.data.loggedInMember.CanLookup }}
+			{{#if content.loggedInMember.CanLookup }}
 				<th>Address</th>
 			{{/if}}
 
 		</thead>
 		<tbody>
-			{{log content.data.Members}}
-			{{#each mem in content.data.Members }}
+			{{#each mem in content.Members }}
 				{{#if mem }}
 				<tr class="">
-					{{#if content.data.loggedInMember.CanLookup}}
+					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.RadioID}}</td>
 					{{/if}}
 					
@@ -167,7 +167,7 @@
 							{{mem.Email}}
 						{{/if}}
 					</td>
-					{{#if content.data.loggedInMember.CanLookup}}
+					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.Line1}}{{mem.line2Display}}</td>
 					{{/if}}
 				</tr>
@@ -178,22 +178,22 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="roster/import">
-	<h3>Import Member Data for {{content.data.Team.Name}}</h3>
+	<h3>Import Member Data for {{content.Team.Name}}</h3>
 
-	{{textarea cols=180 rows=15 value=content.data.RawPasteDataForImport}}
+	{{textarea cols=180 rows=15 value=content.RawPasteDataForImport}}
 	<br/>
 	<button {{action parseInput content}}><i class="fa fa-save"></i> Parse</button>
 
-	{{#if content.data.importCols}}
+	{{#if content.importCols}}
 	<table class="table table-striped table-condensed table-bordered importMapping">
 		<thead>
 			<tr>
 			<th></th>
 			<th></th>
-			{{#each col in content.data.importCols }}
+			{{#each col in content.importCols }}
 				<th {{bind-attr class=":import-column col.name" }}>
 					{{view CERTApps.ImportColumnSelect
-						content=content.data.memberFields
+						content=content.memberFields
 						prompt="Map to..."
 						class="import-column"
 						}}
@@ -202,11 +202,11 @@
 			</tr>
 		</thead>
 		<tbody>
-			{{#each row in content.data.ParsedColumnsForImport}}
+			{{#each row in content.ParsedColumnsForImport}}
 				<tr>
 					<td class="toggle-up-down">
-						<i {{ action toggleDown row content.data.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
-						<i {{ action toggleUp row content.data.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
+						<i {{ action toggleDown row content.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
+						<i {{ action toggleUp row content.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
 					</td>
 					<td>{{input type="checkbox" checked=row.selected}}</td>
 					{{#each col in row.cols}}
@@ -282,6 +282,16 @@
 
 		<button {{action saveContact content}}><i class="fa fa-save"></i> Save</button>
 	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="teamID/events">
+	<div class="center-content">
+	<h4>Upcoming Events</h4>
+
+
+	<h4>Recent Events</h4>
+
+	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="event">

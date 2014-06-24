@@ -22,37 +22,46 @@ CERTApps.Router.map(function()
 		});
 	this.resource('team', function()
 		{
-			this.resource("roster", function()
+			this.resource("teamID", { path: '/:teamID' 	}, function()
+			{
+				this.resource('event', function()
 				{
-					this.route("index", { path: '/' });
-					this.route("teamID", { path: '/:teamID' 	});
+					this.route("create", { path: '/' });
+					this.route("update", { path: '/:eventID' });
+				});
+
+				this.resource("roster", function()
+				{
 					this.route('import');
 				});
-		});
-	this.resource('event', function()
-		{
-			this.route("create", { path: '/' });
-			this.route("update", { path: '/:eventID' });
+
+				this.route('events');
+			});
 		});
 	});
+
+CERTApps.moveUpData = function(data)
+{
+	console.log('moveUpData', data);
+
+	if( ! data.error )
+	{
+		if( data.data )
+		{
+			console.log('data has data');
+			data = data.data;
+			//return data.data;
+		}
+	}
+
+	return data;
+}
 
 CERTApps.BaseRoute = Ember.Route.extend(
 {
 	moveUpData: function(data)
 	{
-		console.log('moveUpData', data);
-
-		if( ! data.error )
-		{
-			if( data.data )
-			{
-				console.log('data has data');
-				data = data.data;
-				//return data.data;
-			}
-		}
-
-		return data;
+		return CERTApps.moveUpData(data);
 	}
 });
 
@@ -74,21 +83,30 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 		console.log('requesting data', settings)
 
 		var a = $.ajax(settings);
-		a.then(function(obj){ obj.data.year = 2014; });
-		a.then(function(obj)
-			{ 
-				var move = this.moveUpData(obj); 
+		var t = a.then(function(obj)
+		{ 
+			var obj = this.moveUpData(obj); 
 
-				move.Member = CERTApps.Member.create(move.Member); 
+			return obj;
+		}.bind(this));
 
-				console.log('App model returning', move); 
-				obj = move; 
-				return move; 
-			}.bind(this));
+		t.then(function(obj){ obj.year = 2014; });
+
+		var t2 = t.then(function(obj)
+		{
+			obj.Member = CERTApps.Member.create(obj.Member); 
+			console.log('App model returning', obj); 
+
+			var model = CERTApps.AppModel.create(obj);
+
+			CERTApps.Team.lookup().then(function(team){ console.log('model resolved for team', team); model.set('Team', team); console.log('after set model', model); });
+
+			return model; 
+		}.bind(this));
 
 		console.groupEnd();
 
-		return a;
+		return t2;
 	},
 
 	setupController: function(controller, model)
@@ -166,7 +184,7 @@ CERTApps.MemberRoute = Ember.Route.extend(
 
 		var appModel = this.modelFor('application');
 		//var model = null;
-		var model = appModel.data.Member;
+		var model = appModel.Member;
 
 		console.log('appModel, model', appModel, model);
 
@@ -200,8 +218,43 @@ CERTApps.TeamRoute = Ember.Route.extend(
 		console.log('params, args', params, arguments);
 
 		var appModel = this.modelFor('application');
-		//var model = null;
-		var team = appModel.data.Team;
+		var model = null;
+
+		if(params)
+		{
+			if( params.teamID )
+			{
+				model = CERTApps.Team.lookup(params.teamID);
+			}
+		}
+
+		if( !model )
+		{
+			model = CERTApps.Team.lookup();
+		}
+	
+		model.then(function(model){console.log("resolved TeamRoute model", model);});
+		console.groupEnd();
+
+		return model;
+	},
+
+});
+
+
+CERTApps.RosterRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group("CERTApps.RosterRoute model");
+
+		console.log('params, args', params, arguments);
+
+		var team = this.modelFor('team');
 
 		var settings = 
 		{
@@ -211,41 +264,43 @@ CERTApps.TeamRoute = Ember.Route.extend(
 			method: 'get',
 			data: 
 			{
-				team: params.teamID || 0
+				team: team.get('KeyID') || 0
 			}
 		};
 
 		console.log('getRoster', settings)
 
-		var model = $.ajax(settings);
+		var a = $.ajax(settings);
 
 		var appModel = this.modelFor('application');
 
-		model.then(function(obj) { 
-			//obj.data.Team = team;  
+		var t = a.then(function(obj){ return this.moveUpData(obj); }.bind(this));
+		var t2 = t.then(function(obj) 
+		{ 
+			console.log('t2 obj', obj, 'appModel', appModel);
 
 			var parsed = Ember.A([]);
-			if( obj.data.Members )
+			if( obj.Members )
 			{
-				for( var x = obj.data.Members.length - 1; x >= 0; x-- )
+				for( var x = obj.Members.length - 1; x >= 0; x-- )
 				{
-					var o = obj.data.Members[x];
+					var o = obj.Members[x];
 					var m = CERTApps.Member.create(o);
 
-					m.loggedInMember = appModel.data.Member;
+					m.loggedInMember = appModel.Member;
 
 					parsed.unshiftObject(m);
 				}
 			}
-			
-			obj.data.Members = parsed;
+			obj.loggedInMember = appModel.Member;
+			obj.Members = parsed;
 
 			return obj; 
 		}.bind(this));		
 
 		console.groupEnd();
 
-		return model;
+		return t2;
 	},
 
 });
@@ -254,24 +309,17 @@ CERTApps.BaseObject = Ember.Object.extend(
 {
 	moveUpData: function(data)
 	{
-		console.log('moveUpData', data);
-
-		if( ! data.error )
-		{
-			if( data.data )
-			{
-				console.log('data has data');
-				data = data.data;
-				//return data.data;
-			}
-		}
-
-		return data;
+		return CERTApps.moveUpData(data);
 	}	
 });
 
-CERTApps.Roster = CERTApps.BaseObject.extend();
+CERTApps.AppModel = CERTApps.BaseObject.extend(
+{
+	Member: null,
+	Team: null,
+});
 
+CERTApps.Roster = CERTApps.BaseObject.extend();
 CERTApps.Roster.reopenClass(
 {
 	parseInput: function(rawData)
@@ -442,7 +490,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			content = Ember.Object.create(content);
 			console.log('content', content);
 
-			var parsed = CERTApps.Roster.parseInput(content.data.RawPasteDataForImport);
+			var parsed = CERTApps.Roster.parseInput(content.RawPasteDataForImport);
 
 			content.set('data.ParsedColumnsForImport', parsed);
 
@@ -495,13 +543,13 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 
 	model: function(params)
 	{
-		console.group('CERTApps TeamRosterRoute model')
+		console.group('CERTApps RosterImportRoute model')
 		var teamModel = this.modelFor('team');
 		var appModel = this.modelFor('application');
 
-		teamModel.data.loggedInMember = appModel.data.Member;
+		teamModel.loggedInMember = appModel.Member;
 
-		teamModel.data.memberFields = teamModel.data.loggedInMember.getFields();
+		teamModel.memberFields = teamModel.loggedInMember.getFields();
 
 		console.log('teamModel', teamModel);
 		console.groupEnd();
@@ -511,7 +559,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps TeamRosterRoute setupController')
+		console.group('CERTApps RosterImportRoute setupController')
 
 		controller.set('content', model);
 
@@ -529,23 +577,23 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 	{
 	},
 
-	model: function(params)
+/*	model: function(params)
 	{
-		console.group('CERTApps TeamRosterRoute model')
+		console.group('CERTApps RosterIndexRoute model')
 		var teamModel = this.modelFor('team');
 		var appModel = this.modelFor('application');
 
-		teamModel.data.loggedInMember = appModel.data.Member;
+		teamModel.loggedInMember = appModel.Member;
 
 		console.log('teamModel', teamModel);
 		console.groupEnd();
 
 		return teamModel;
-	},
+	},*/
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps TeamRosterRoute setupController')
+		console.group('CERTApps RosterIndexRoute setupController')
 
 		controller.set('content', model);
 
@@ -609,7 +657,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	{
 		var retval = this.get('ShowEmail') || this.get('loggedInMember.CanLookup');
 	
-		console.log('EmailDisplay', this.get('ShowEmail'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
+		//console.log('EmailDisplay', this.get('ShowEmail'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
 
 		return retval;
 	}.property('ShowEmail', 'loggedInMember.CanLookup'),
@@ -618,7 +666,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	{
 		var retval = this.get('ShowCell') || this.get('loggedInMember.CanLookup');
 	
-		console.log('CellDisplay', this.get('ShowCell'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
+		//console.log('CellDisplay', this.get('ShowCell'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
 		
 		return this.get('ShowCell') || this.get('loggedInMember');
 	}.property('ShowCell', 'loggedInMember'),
@@ -945,14 +993,14 @@ CERTApps.ImportColumnSelect = Ember.Select.extend({
 
 		var content = this.get('controller.model');
 
-		if( ! content.data.mapping ) content.data.mapping = Ember.A([]);
+		if( ! content.mapping ) content.mapping = Ember.A([]);
 
 		if( matchClass )
 		{
 			var strIdx = matchClass.substring(2);
 			var idx = parseInt(strIdx);
 
-			content.data.mapping[idx] = this.selection;
+			content.mapping[idx] = this.selection;
 
 			console.log('matchClass, strIdx, idx', matchClass, strIdx, idx);
 
@@ -1148,4 +1196,124 @@ CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
 		return;		
 	}
 
+});
+
+
+CERTApps.TeamIndexRoute = CERTApps.BaseRoute.extend(
+{
+	// model: function(params)
+	// {
+	// 	console.group("CERTApps.TeamIndexRoute model");
+
+	// 	console.log('params', params);
+
+	// 	var model = this.modelFor('team');
+		
+	// 	console.log('model', model);
+
+	// 	console.groupEnd();
+
+	// 	return model;
+	// },
+
+	afterModel: function(team, transition) 
+	{
+		console.group("CERTApps.TeamIndexRoute afterModel");
+
+		console.log('args', arguments);
+
+		this.transitionTo('teamID', team);
+
+		console.groupEnd();
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.TeamIndexRoute serialize");
+
+	//	console.log('model', model);
+
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
+});
+
+CERTApps.TeamIDRoute = CERTApps.BaseRoute.extend(
+{
+/*	model: function(params)
+	{
+		console.group("CERTApps.TeamIDRoute model");
+
+		console.log('params', params);
+
+		var model = this.modelFor('team');
+		
+		console.log('model', model);
+
+		console.groupEnd();
+
+		return model;
+	},
+
+	afterModel: function(team, transition) 
+	{
+		console.group("CERTApps.TeamIDRoute afterModel");
+
+		console.log('args', arguments);
+
+   		//this.transitionTo('teamID', team);
+
+		console.groupEnd();
+
+	}
+*/
+	serialize: function(model)
+	{
+		console.group("CERTApps.TeamIDRoute serialize");
+
+		//console.log('model', model);
+
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
+});
+
+CERTApps.Team = CERTApps.BaseObject.extend({});
+
+CERTApps.Team.reopenClass(
+{
+	lookup: function(teamID)
+	{
+		var settings = 
+		{
+			url: '/team',
+			//type: 'json',
+			dataType: 'json',
+			method: 'get',
+			data: 
+			{
+				team: teamID || 0
+			}
+		};
+
+		console.log('get Team', settings)
+
+		var a = $.ajax(settings);
+
+		var t = a.then(function(data)
+		{
+			var teamData = CERTApps.moveUpData(data).Team;
+			var team = CERTApps.Team.create(teamData);
+			
+			return team;
+		});
+
+		return t;
+	}
 });

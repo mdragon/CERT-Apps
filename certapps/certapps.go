@@ -272,13 +272,13 @@ func audit(w http.ResponseWriter, r *http.Request) {
 			_, mErr := datastore.Put(c, mem.Key, mem)
 
 			checkErr(mErr, w, c, "Failed to update Last Login for member: "+mem.Key.StringID())
-
-			http.Redirect(w, r, url, http.StatusFound)
 		}
 	}
 
 	if noErrMsg(err, w, c, "could not unescape url") {
 		c.Debugf("url %v", rawurl)
+
+		http.Redirect(w, r, url, http.StatusFound)
 	}
 }
 
