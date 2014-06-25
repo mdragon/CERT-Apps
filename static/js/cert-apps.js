@@ -1317,3 +1317,71 @@ CERTApps.Team.reopenClass(
 		return t;
 	}
 });
+
+CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
+{	
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps.TeamIDEventsRoute model')
+		console.log('params', params);
+
+		var team = this.modelFor('team');
+
+		var obj = {
+			KeyID: team.KeyID
+		};
+
+		var settings = 
+		{
+			url: '/events',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify(obj)
+		};
+
+		console.log('requesting data', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(
+			function(obj)
+			{ 
+				console.log('obj', obj);
+
+				var move = this.moveUpData(obj);
+
+				console.log('move', move);
+
+				move.Event = CERTApps.Event.create(move.Event); 
+
+				console.log('EventUpdate model returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this),
+			function(xhr)
+			{
+				console.error(xhr);
+			}.bind(this)
+		);
+
+		console.groupEnd();
+
+		return t;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.TeamIDEventsRoute setupController')
+
+		controller.set('content', model);
+
+		console.log('controller, model', controller, model);
+		console.groupEnd();
+
+		return;		
+	}
+
+});
