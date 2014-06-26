@@ -43,7 +43,7 @@ type JSONContext struct {
 
 type ErrorContext struct {
 	Message string
-	Error bool
+	Error   bool
 }
 
 type Location struct {
@@ -209,9 +209,8 @@ func fixData(w http.ResponseWriter, r *http.Request) {
 			c.Infof("fix team key for id %d, event %+v", key.IntID(), e)
 
 			datastore.Put(c, key, e)
-		}	
+		}
 	}
-
 
 	context := struct {
 		Whee bool
@@ -644,7 +643,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w htt
 
 			found = true
 
-			if mem.Email == ""  {
+			if mem.Email == "" {
 				mem.Email = u.Email
 
 				_, err = datastore.Put(c, mem.Key, mem)
@@ -846,7 +845,7 @@ func memberSave(w http.ResponseWriter, r *http.Request) {
 }
 
 func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
-	
+
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
 		_, curMember = getMemberFromUser(c, u, r, w)
@@ -1049,7 +1048,7 @@ func eventSave(w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	jsonData := struct {
 		Event *Event
-		Team *Team
+		Team  *Team
 	}{}
 
 	decoder := json.NewDecoder(r.Body)
@@ -1104,7 +1103,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 			var key *datastore.Key
 
 			event.TeamKey = team.Key
-			event.Deleted = false;
+			event.Deleted = false
 
 			c.Infof("Will put event ID: %d", event.KeyID)
 
@@ -1114,8 +1113,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 				c.Infof("Set Key: %d, %d", event.KeyID, key.IntID())
 				event.setKey(key)
 			}
-		} else
-		{
+		} else {
 			c.Errorf("You must be a member of a team to save an event record: %+v, tried to save: %+v", member, event)
 
 			err = errors.New("You must be a member of a team to save an event record")
@@ -1135,8 +1133,7 @@ func events(w http.ResponseWriter, r *http.Request) {
 	var team *Team
 	var events []*Event
 	var eventsErr error
-	var context interface {}
-
+	var context interface{}
 
 	team = &Team{}
 	decoder := json.NewDecoder(r.Body)
@@ -1154,8 +1151,7 @@ func events(w http.ResponseWriter, r *http.Request) {
 			}{
 				events,
 			}
-		} else
-		{
+		} else {
 			context = errorContextError(eventsErr)
 		}
 
@@ -1185,12 +1181,12 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 
 		c.Infof("Got eventQ and events for ID: %v, calling GetAll", team.KeyID)
 		keys, err = eventQ.GetAll(c, &events)
-		
+
 		c.Infof("Found: %d, Events for Team: %d", len(events), team.KeyID)
 
 		for idx := range events {
-			e  := events[idx]
-			k  := keys[idx]
+			e := events[idx]
+			k := keys[idx]
 
 			e.setKey(k)
 
@@ -1208,7 +1204,7 @@ func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w
 	var teamMembers []TeamMember
 
 	team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
-	member.Key  = datastore.NewKey(c, "Member", "", member.KeyID, nil)
+	member.Key = datastore.NewKey(c, "Member", "", member.KeyID, nil)
 
 	q := datastore.NewQuery("TeamMember").Filter("TeamKey =", team.Key).Filter("MemberKey =", member.Key).KeysOnly()
 
@@ -1223,18 +1219,18 @@ func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w
 }
 
 func errorContextString(message string) ErrorContext {
-	context := ErrorContext  {
+	context := ErrorContext{
 		Message: message,
-		Error: true,
+		Error:   true,
 	}
 
 	return context
 }
 
 func errorContextError(err error) ErrorContext {
-	context := ErrorContext  {
+	context := ErrorContext{
 		Message: fmt.Sprintf("%s", err),
-		Error: true,
+		Error:   true,
 	}
 
 	return context
