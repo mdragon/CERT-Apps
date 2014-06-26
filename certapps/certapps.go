@@ -62,6 +62,8 @@ type Audit struct {
 
 	Key   *datastore.Key `datastore:"-"`
 	KeyID int64          `datastore:"-"`
+
+	Deleted bool
 }
 
 type Team struct {
@@ -176,53 +178,40 @@ func init() {
 	http.HandleFunc("/team", teamData)
 	http.HandleFunc("/team/roster", teamRoster)
 	http.HandleFunc("/team/roster/import", membersImport)
-	http.HandleFunc("/del/broken/teamMember/links", delBroken)
+	http.HandleFunc("/fix/events/without/team", fixData)
 	http.HandleFunc("/", root)
 }
 
-func delBroken(w http.ResponseWriter, r *http.Request) {
+func fixData(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	//u := user.Current(c)
 
 	var query *datastore.Query
-	query = datastore.NewQuery("TeamMember")
-	var results []*TeamMember
+	var results []*Event
 
 	var keys []*datastore.Key
 	var err error
+	var teamKey = datastore.NewKey(c, "Team", "", 6067380039974912, nil)
+	var wrongKey = datastore.NewKey(c, "Event", "", 6067380039974912, nil)
+
+	query = datastore.NewQuery("Event").Filter("TeamKey =", wrongKey)
 
 	c.Infof("calling GetAll")
 	keys, err = query.GetAll(c, &results)
 
-	c.Infof("after GetAll")
+	if noErrMsg(err, w, c, "Getting Events with no TeamKey") {
+		for idx, _ := range results {
+			e := results[idx]
+			key := keys[idx]
 
-	if noErrMsg(err, w, c, "GetAll") {
-		var brokenKeys []*datastore.Key
-		for idx := range results {
-			res := results[idx]
+			e.TeamKey = teamKey
 
-			if res.MemberKey.IntID() == 0 {
-				key := keys[idx]
-				c.Infof("broken %+v", key)
-				brokenKeys = append(brokenKeys, key)
-			} else {
-				c.Infof("ok %+v", res)
-			}
-		}
+			c.Infof("fix team key for id %d, event %+v", key.IntID(), e)
 
-		c.Infof("Deleting %d broken Entities", len(brokenKeys))
-
-		if len(brokenKeys) > 0 {
-			delErr := datastore.DeleteMulti(c, brokenKeys)
-
-			if noErrMsg(delErr, w, c, "DeleteMulti") {
-
-				c.Infof("Did delete")
-			} else {
-				c.Infof("Error on DeleteMulti")
-			}
-		}
+			datastore.Put(c, key, e)
+		}	
 	}
+
 
 	context := struct {
 		Whee bool
@@ -598,6 +587,8 @@ func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w htt
 										// need to be nil because we don't have the member key to use yet
 										CreatedBy:  nil,
 										ModifiedBy: nil,
+
+										Deleted: false,
 									},
 
 									Enabled: true,
@@ -1056,17 +1047,20 @@ func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w 
 func eventSave(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
-	var event Event
+	jsonData := struct {
+		Event *Event
+		Team *Team
+	}{}
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&event)
+	jsonDecodeErr := decoder.Decode(&jsonData)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
-	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
-		c.Infof("JSON event: %+v", event)
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event and team json from body") {
+		c.Infof("JSON event and team: %+v", jsonData)
 
-		saveErr := event.save(nil, c, u, w, r)
+		saveErr := jsonData.Event.save(nil, jsonData.Team, c, u, w, r)
 
 		if saveErr != nil {
 			context := struct {
@@ -1083,18 +1077,18 @@ func eventSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	context := struct {
-		Event
+		*Event
 	}{
-		event,
+		jsonData.Event,
 	}
 
 	returnJSONorErrorToResponse(context, c, r, w)
 }
 
-func (event *Event) save(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+func (event *Event) save(member *Member, team *Team, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	var err error
 
-	c.Infof("*Event.save %d", event.KeyID)
+	c.Infof("*Event.save %d, for team: %d", event.KeyID, team.KeyID)
 
 	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
@@ -1103,16 +1097,28 @@ func (event *Event) save(member *Member, c appengine.Context, u *user.User, w ht
 	}
 
 	if lookupOthers(member) {
-		event.setAudits(member)
 
-		var key *datastore.Key
+		if team.hasMember(member, c, u, w, r) {
+			event.setAudits(member)
 
-		c.Infof("Will put event ID: %d", event.KeyID)
-		key, err = datastore.Put(c, event.Key, event)
+			var key *datastore.Key
 
-		if noErrMsg(err, w, c, "Put event") {
-			c.Infof("Set Key: %d, %d", event.KeyID, key.IntID())
-			event.setKey(key)
+			event.TeamKey = team.Key
+			event.Deleted = false;
+
+			c.Infof("Will put event ID: %d", event.KeyID)
+
+			key, err = datastore.Put(c, event.Key, event)
+
+			if noErrMsg(err, w, c, "Put event") {
+				c.Infof("Set Key: %d, %d", event.KeyID, key.IntID())
+				event.setKey(key)
+			}
+		} else
+		{
+			c.Errorf("You must be a member of a team to save an event record: %+v, tried to save: %+v", member, event)
+
+			err = errors.New("You must be a member of a team to save an event record")
 		}
 	} else {
 		c.Errorf("Only OEM, Town, Officer can update an event record: %+v, tried to save: %+v", member, event)
@@ -1144,7 +1150,7 @@ func events(w http.ResponseWriter, r *http.Request) {
 
 		if noErrMsg(eventsErr, w, c, "Looking up team.events") {
 			context = struct {
-				Event []*Event
+				Events []*Event
 			}{
 				events,
 			}
@@ -1193,6 +1199,27 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 	}
 
 	return err, eventList
+}
+
+func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) bool {
+	c.Infof("Team.hasMember team: %d, member: %d", team.KeyID, member.KeyID)
+
+	retval := false
+	var teamMembers []TeamMember
+
+	team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+	member.Key  = datastore.NewKey(c, "Member", "", member.KeyID, nil)
+
+	q := datastore.NewQuery("TeamMember").Filter("TeamKey =", team.Key).Filter("MemberKey =", member.Key).KeysOnly()
+
+	c.Infof("Got q and events for team ID: %d, member ID: %d, calling GetAll", team.KeyID, member.KeyID)
+	keys, err := q.GetAll(c, &teamMembers)
+
+	if noErrMsg(err, w, c, "Looking for TeamMember records") {
+		retval = len(keys) == 1
+	}
+
+	return retval
 }
 
 func errorContextString(message string) ErrorContext {

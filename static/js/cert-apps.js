@@ -813,13 +813,12 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 
 	// }.property('EventEnd', 'eventStartDate'),
 
-	save: function()
+	save: function(team)
 	{
 		console.group('CERTApps.Event save')
 		
 		this.parseDates();
 
-		
 		console.log('will save event', this);
 
 		var settings = 
@@ -827,7 +826,7 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 			url: '/event/save',
 			type: 'json',
 			dataType: 'json',
-			data: JSON.stringify(this)
+			data: JSON.stringify({ Event: this, Team: team})
 		};
 
 		console.log('saving event data', settings)
@@ -929,6 +928,20 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 			this.set('eventFinishDate', finishDate);
 		}
 		this.set('eventFinishTime', finishTime);
+
+		console.groupEnd();
+	},
+
+	parseDatesToJS: function()
+	{
+		console.group('parseDatesToJS');
+
+		var strDate = this.get('EventStart');
+		var date = new Date(strDate);
+
+		console.log('strDate, date', strDate, date);
+
+		this.set('startTimestamp', date.getTime());
 
 		console.groupEnd();
 	}
@@ -1052,7 +1065,8 @@ CERTApps.EventRoute = Ember.Route.extend(
 			console.group('CERTApps.EventRoute saveEvent');
 			var event = content.Event;
 
-			event.save();
+			var team = this.modelFor('team');
+			event.save(team);
 
 			console.groupEnd();
 		},
@@ -1349,17 +1363,26 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		var t = a.then(
 			function(obj)
 			{ 
+				obj = this.moveUpData(obj);
 				console.log('obj', obj);
 
-				var move = this.moveUpData(obj);
+				var list = Ember.A([]);
+				for( var x = obj.Events.length - 1; x >= 0; x-- )
+				{
+					var e = obj.Events[x];
+					var event = CERTApps.Event.create(e); 
 
-				console.log('move', move);
+					event.parseDatesToJS();
 
-				move.Event = CERTApps.Event.create(move.Event); 
+					console.log('adding event to list', event);
 
-				console.log('EventUpdate model returning', move); 
-				obj = move; 
-				return move; 
+					list.pushObject(event)
+				}
+
+				var events = CERTApps.Events.create({events: list});
+
+				console.log('TeamIDEventsRoute model returning', events); 
+				return events; 
 			}.bind(this),
 			function(xhr)
 			{
@@ -1384,4 +1407,79 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		return;		
 	}
 
+});
+
+
+CERTApps.Events = CERTApps.BaseObject.extend({
+	events: null,
+
+	init: function()
+	{
+		events = Ember.A([]);
+	},
+
+	upcoming: function()
+	{
+		var now = Date.now();
+
+		var list = Ember.A([]);
+
+		var events = this.get('events');
+
+		for( var x = events.length - 1; x >= 0; x-- )
+		{
+			var e = events[x];
+
+			if( e.get('startTimestamp') > now )
+			{
+				console.log('upcoming because',  e.get('startTimestamp'),' > ', now);
+				list.pushObject(e);
+			}
+		}
+
+		list.sort(this.sortByDate.bind(this));
+
+		return list;
+
+	}.property('events.@each.startTimestamp'),
+
+	recent: function()
+	{
+		var now = Date.now();
+
+		var list = Ember.A([]);
+
+		var events = this.get('events');
+
+		for( var x = events.length - 1; x >= 0; x-- )
+		{
+			var e = events[x];
+
+			if( e.get('startTimestamp') < now )
+			{
+				console.log('recent because',  e.get('startTimestamp'),' < ', now);
+				list.pushObject(e);
+			}
+		}
+
+		list.sort(this.sortByDate.bind(this));
+
+		return list;
+	}.property('events.@each.startTimestamp'),
+
+	sortByDate: function(a, b)
+	{
+		var aStamp = a.get('startTimestamp');
+		var bStamp = b.get('startTimestamp');
+
+		if( aStamp > bStamp )
+		{
+			return 1;
+		} else if( bStamp > aStamp) 
+		{
+			return -1;
+		}
+
+		return 0;
+	}
 });

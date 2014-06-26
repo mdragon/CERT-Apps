@@ -286,11 +286,25 @@
 
 <script type="text/x-handlebars" data-template-name="teamID/events">
 	<div class="center-content">
-	<h4>Upcoming Events</h4>
+		<h4>Upcoming Events</h4>
+		{{#each e in upcoming}}
+			{{#if e.Summary }}
+				{{e.Summary}}
+			{{else}}
+				Un-named
+			{{/if}}
+			{{e.EventStart}}
+			<br/>
+		{{else}}
+			No upcoming events
+		{{/each}}
 
-
-	<h4>Recent Events</h4>
-
+		<h4>Recent Events</h4>
+		{{#each e in recent}}
+			{{e.Summary}} 
+		{{else}}
+			No recent events
+		{{/each}}
 	</div>
 </script>
 
