@@ -148,6 +148,8 @@ type Event struct {
 	IAPLink    string
 	RosterLink string
 
+	Responses []*MemberEvent `datastore:"-"`
+
 	Audit
 }
 
@@ -158,9 +160,12 @@ type MemberEvent struct {
 	Attending bool
 	Sure      bool
 
-	Responded time.Time
-	Arrive    time.Time
-	Depart    time.Time
+	FirstViewed    time.Time
+	FirstResponded time.Time
+	LastViewed     time.Time
+	LastResponded  time.Time
+	Arrive         time.Time
+	Depart         time.Time
 
 	Audit
 }
@@ -238,7 +243,7 @@ func audit(w http.ResponseWriter, r *http.Request) {
 	url, err := url.QueryUnescape(rawurl)
 
 	if u != nil {
-		_, mem := getMemberFromUser(c, u, r, w)
+		mem, _ := getMemberFromUser(c, u, r, w)
 
 		c.Debugf("Got member: %s", mem.Key.StringID())
 
@@ -351,7 +356,7 @@ func teamRoster(w http.ResponseWriter, r *http.Request) {
 			member = mainContext.Member
 			c.Debugf("using mainContext.Member")
 		} else {
-			_, member = getMemberFromUser(c, u, r, w)
+			member, _ = getMemberFromUser(c, u, r, w)
 		}
 
 		teamKey := r.FormValue("team")
@@ -380,7 +385,7 @@ func teamData(w http.ResponseWriter, r *http.Request) {
 	c, u, context := auth(w, r)
 
 	if context.LoggedIn {
-		_, member := getMemberFromUser(c, u, r, w)
+		member, _ := getMemberFromUser(c, u, r, w)
 
 		teamKey := r.FormValue("team")
 		if teamKey == "" {
@@ -472,7 +477,7 @@ func memberData(w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		_, member := getMemberFromUser(c, u, r, w)
+		member, _ := getMemberFromUser(c, u, r, w)
 
 		memKey := r.FormValue("member")
 		if memKey != "" {
@@ -529,7 +534,7 @@ func returnJSONorErrorToResponse(context interface{}, c appengine.Context, r *ht
 	}
 }
 
-func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w http.ResponseWriter) (error, *Member) {
+func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w http.ResponseWriter) (*Member, error) {
 
 	var memberQ *datastore.Query
 	var member []Member
@@ -681,7 +686,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w htt
 		}
 	}
 
-	return retErr, mem
+	return mem, retErr
 }
 
 func getMemberByKey2(key string, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
@@ -848,7 +853,7 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
-		_, curMember = getMemberFromUser(c, u, r, w)
+		curMember, _ = getMemberFromUser(c, u, r, w)
 	}
 	c.Debugf("Looking up allow for curMember")
 	allow := lookupOthers(curMember)
@@ -915,7 +920,7 @@ func membersImport(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	_, curMember := getMemberFromUser(c, u, r, w)
+	curMember, _ := getMemberFromUser(c, u, r, w)
 	allow := lookupOthers(curMember)
 
 	if allow {
@@ -1003,6 +1008,8 @@ func event(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	u := user.Current(c)
 	var event Event
+	var context interface{}
+	var mem *Member
 
 	decoder := json.NewDecoder(r.Body)
 	jsonDecodeErr := decoder.Decode(&event)
@@ -1011,15 +1018,23 @@ func event(w http.ResponseWriter, r *http.Request) {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON event: %+v", event)
-		event.lookup(nil, c, u, w, r)
+		event.lookup(mem, c, u, w, r)
+
+		var responsesErr error
+		event.Responses, responsesErr = event.responses(mem, c, u, w, r)
+
+		if checkErr(responsesErr, w, c, "Getting responses for event") {
+			c.Infof("No errors looking up responses")
+		}
+
+		context = struct {
+			Event Event
+		}{
+			event,
+		}
+
 	} else {
 
-	}
-
-	context := struct {
-		Event Event
-	}{
-		event,
 	}
 
 	returnJSONorErrorToResponse(context, c, r, w)
@@ -1027,20 +1042,54 @@ func event(w http.ResponseWriter, r *http.Request) {
 
 func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	c.Infof("*Event.lookup %d", event.KeyID)
+	var err error
 
 	if event.KeyID != 0 {
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
-		//member := getMemberFromUser(c, u, r, w)
+		if member == nil {
+			member, _ = getMemberFromUser(c, u, r, w)
+		}
 
-		err := datastore.Get(c, event.Key, event)
+		err = datastore.Get(c, event.Key, event)
 
 		event.setKey(event.Key)
-
-		return err
+	} else {
+		err = errors.New("Must pass an event with a KeyID")
 	}
 
-	return nil
+	return err
+}
+
+func (event *Event) responses(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) ([]*MemberEvent, error) {
+	c.Infof("*Event.responses %d", event.KeyID)
+	var results []*MemberEvent
+
+	if event.KeyID != 0 {
+		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
+
+		if member == nil {
+			member, _ = getMemberFromUser(c, u, r, w)
+		}
+
+		query := datastore.NewQuery("MemberEvent").Filter("EventKey =", event.Key)
+
+		c.Infof("calling GetAll")
+		keys, err := query.GetAll(c, &results)
+
+		if noErrMsg(err, w, c, "Getting MemberEvent") {
+			for idx, _ := range results {
+				me := results[idx]
+				key := keys[idx]
+
+				me.setKey(key)
+			}
+		}
+
+		return results, err
+	}
+
+	return nil, errors.New("Must pass an event with a KeyID")
 }
 
 func eventSave(w http.ResponseWriter, r *http.Request) {
@@ -1092,7 +1141,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 	if member == nil {
-		_, member = getMemberFromUser(c, u, r, w)
+		member, _ = getMemberFromUser(c, u, r, w)
 	}
 
 	if lookupOthers(member) {

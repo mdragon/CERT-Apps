@@ -84,6 +84,11 @@
     	{
     		cursor: pointer;
     	}
+
+    	.action:hover
+    	{
+    		cursor: pointer;
+    	}
 	</style>
 </head>
 <body>
@@ -287,17 +292,57 @@
 <script type="text/x-handlebars" data-template-name="teamID/events">
 	<div class="center-content">
 		<h4>Upcoming Events</h4>
-		{{#each e in upcoming}}
-			{{#if e.Summary }}
-				{{e.Summary}}
-			{{else}}
-				Un-named
-			{{/if}}
-			{{e.EventStart}}
-			<br/>
+
+		{{#if upcoming}}
+
+			<table class="table">
+				<thead>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Yes</th>
+					<th>No</th>
+					<th>Maybe</th>
+					<th>Pending</th>
+				</thead>
+				<tbody>
+					{{#each e in upcoming}}
+						<tr>
+							<td>
+								<i {{action userResponseForm e}} class="fa fa-reply action"></i>
+							</td>
+							<td>
+							</td>
+							<td>
+								{{#if e.summary }}
+									{{e.summary}}
+								{{else}}
+									Un-named
+								{{/if}}
+							</td>
+							<td>
+								{{e.prettyEventStart}}
+							</td>
+							<td>
+								{{e.countYes}}
+							</td>
+							<td>
+								{{e.countNo}}
+							</td>
+							<td>
+								{{e.countMaybe}}
+							</td>
+							<td>
+								{{e.countUnknown}}
+							</td>
+						</tr>
+					{{/each}}
+				</tbody>
+			</table>
 		{{else}}
 			No upcoming events
-		{{/each}}
+		{{/if}}
 
 		<h4>Recent Events</h4>
 		{{#each e in recent}}
@@ -312,6 +357,18 @@
 	<div class="center-content">
 		{{outlet}}
 	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="event/response">
+{{log "event/response"}}
+{{log content}}
+	<h3>Please Respond With Your Availability</h3>
+
+	<h4>{{content.summary}}</h4>
+	{{content.startDateBreakout.prettyDate}}*
+	{{content.eventStartDate}}
+	<form>
+	</form>
 </script>
 
 <script type="text/x-handlebars" data-template-name="event/update">

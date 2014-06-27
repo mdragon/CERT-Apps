@@ -38,7 +38,15 @@ CERTApps.Router.map(function()
 				this.route('events');
 			});
 		});
-	});
+	this.resource('event', function()
+		{
+				this.route('response', { path: 'response/:eventID' }	);
+				// , function()
+				// 	{
+				// 		this.route('/:eventID');
+				// 	});
+		});
+});
 
 CERTApps.moveUpData = function(data)
 {
@@ -720,99 +728,6 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 CERTApps.Event = CERTApps.BaseObject.extend(
 {
-	// eventStartDate: function(key, value, previous)
-	// {
-	// 	console.group('eventStartDate');
-	// 	console.log('arguments', arguments)
-
-	// 	if( arguments.length > 1 )
-	// 	{
-	// 		var time = this.get('eventStartTime');
-	// 		var parsed = this.parseDate(value);
-	// 		parsed = parsed + 'T' + time;
-
-	// 		console.log('setting parsed', parsed);
-	// 		this.set('EventStart', parsed);
-	// 		this.set('privEventStartDate', value);
-	// 	}
-
-	// 	console.groupEnd();
-
-	// 	return this.get('privEventStartDate');
-
-	// }.property('EventStart', 'eventStartTime'),
-
-	// eventStartTime: function(key, value, previous)
-	// {
-	// 	console.group('eventStartTime');
-	// 	console.log('arguments', arguments)
-
-	// 	if( arguments.length > 1 )
-	// 	{
-	// 		if( value && value.length == 4 )
-	// 		{
-	// 			value = value.substring(0,2) + ':' + value.substring(2);
-	// 			console.log('formatted value', value);
-	// 		}
-
-	// 		this.set('EventStart', this.get('eventStartDate') + ' ' + value);
-	// 		this.set('privEventStartTime', value);
-	// 	}
-
-	// 	console.groupEnd();
-
-	// 	return this.get('privEventStartTime');
-
-	// }.property('EventStart', 'eventStartDate'),
-
-	// eventFinishDate: function(key, value, previous)
-	// {
-	// 	console.group('eventFinishDate');
-	// 	console.log('arguments', arguments)
-
-	// 	if( arguments.length > 1 )
-	// 	{
-	// 		var time = this.get('eventFinishTime');
-
-	// 		var parsed = this.parseDate(value);
-	// 		parsed = parsed + 'T' + time;
-			
-	// 		console.log('setting parsed', parsed);
-	// 		this.set('EventFinish', parsed);
-	// 		this.set('privEventFinishDate', value);
-	// 	}
-
-	// 	console.groupEnd();
-
-	// 	return this.get('privEventFinishDate');
-
-	// }.property('EventFinish', 'eventFinishTime', 'eventStartDate', 'privEventFinsishTime'),
-
-	// eventFinishTime: function(key, value, previous)
-	// {
-	// 	console.group('eventFinishTime');
-	// 	console.log('arguments', arguments)
-
-	// 	if( arguments.length > 1 )
-	// 	{
-	// 		var finish = this.get('eventFinishDate') || this.get('eventStartDate');
-
-	// 		if( value && value.length == 4 )
-	// 		{
-	// 			value = value.substring(0,2) + ':' + value.substring(2);
-	// 			console.log('formatted value', value);
-	// 		}
-
-	// 		this.set('EventFinish', finish + ' ' + value);
-	// 		this.set('privEventFinishTime', value);
-	// 	}
-
-	// 	console.groupEnd();
-
-	// 	return this.get('privEventFinishTime');
-
-	// }.property('EventEnd', 'eventStartDate'),
-
 	save: function(team)
 	{
 		console.group('CERTApps.Event save')
@@ -894,40 +809,69 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 		return retval;
 	},
 
+	leftZeroPad: function(value)
+	{
+		if( value.length == 1 ) value = '0' + value;
+
+		return value;
+	},
+
+	dateBreakout: function(dateString)
+	{
+		var date = new Date(dateString);
+
+		var retval = 
+		{
+			dateObj: date
+		};
+
+		retval.timestamp = date.getTime();
+
+		retval.month = (date.getMonth() + 1).toString();
+		retval.date = date.getDate().toString();
+		retval.fullYear = date.getFullYear().toString();
+		retval.shortYear = retval.fullYear.substring(2);
+
+		retval.month = this.leftZeroPad(retval.month);
+		retval.date = this.leftZeroPad(retval.date);
+
+		retval.hours = date.getHours().toString();
+		retval.minutes = date.getMinutes().toString();
+		retval.seconds = date.getSeconds().toString();
+
+		retval.hours = this.leftZeroPad(retval.hours);
+		retval.minutes = this.leftZeroPad(retval.minutes);
+		retval.seconds = this.leftZeroPad(retval.seconds);
+
+		retval.prettyDate =  retval.month + '/' + retval.date + '/' + retval.shortYear;
+		retval.prettyDateFullYear =  retval.month + '/' + retval.date + '/' + retval.fullYear;
+		retval.prettyTime =  retval.hours + '' + retval.minutes
+
+		retval.prettyDateTime = retval.prettyDate + ' ' + retval.prettyTime
+
+		return retval;
+	},
+
 	parse: function()
 	{
 		console.group("CERTApps.Event parse")
 
-		var date = new Date(this.EventStart);
-
+		var startDB = this.dateBreakout(this.EventStart);
 		console.log('EventStart', this.EventStart, 'date', date);
 
-		var month = (date.getMonth() + 1).toString();
-		var d = date.getDate().toString();
-		if( month.length == 1 ) month = '0' + month;
-		if( d.length == 1 ) d = '0' + d;
+		this.set('eventStartDate', startDB.prettyDate);
+		this.set('eventStartTime', startDB.prettyTime);
 
-		var startDate =  month + '/' + d + '/' + date.getFullYear().toString().substring(2);
-		var startTime = date.getHours() + '' + date.getMinutes();		
+		var finishDB = this.dateBreakout(this.EventFinish);
 
-		this.set('eventStartDate', startDate);
-		this.set('eventStartTime', startTime);
-
-		var date = new Date(this.EventFinish);
-
-		month = (date.getMonth() + 1).toString();
-		d = date.getDate().toString();
-		if( month.length == 1 ) month = '0' + month;
-		if( d.length == 1 ) d = '0' + d;
-
-		var finishDate =  month + '/' + d + '/' + date.getFullYear().toString().substring(2);
-		var finishTime = date.getHours() + '' + date.getMinutes();		
-
-		if( startDate !== finishDate )
+		if( startDB.prettyDate !== finishDB.prettyDate )
 		{
-			this.set('eventFinishDate', finishDate);
+			this.set('eventFinishDate', finishDB.prettyDate);
 		}
-		this.set('eventFinishTime', finishTime);
+		this.set('eventFinishTime', finishDB.prettyTIme);
+
+		this.set('startDateBreakout', startDB);
+		this.set('finishDateBreakout', finishDB);
 
 		console.groupEnd();
 	},
@@ -944,8 +888,61 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 		this.set('startTimestamp', date.getTime());
 
 		console.groupEnd();
+	},
+
+	prettyEventStart: function()
+	{
+		var es = this.get('EventStart');
+
+		var db = this.dateBreakout(es);
+
+		return db.prettyDateTime;
+
+	}.property('EventStart'),
+
+	summary: function()
+	{
+		return this.get('Summary');
+	}.property('Summary')
+});
+
+CERTApps.Event.reopenClass(
+{
+	lookup: function(eventID)
+	{
+		var settings = 
+		{
+			url: '/event',
+			//type: 'json',
+			dataType: 'json',
+			method: 'post',
+			data: JSON.stringify( 
+				{
+					KeyID: parseInt(eventID || 0)
+				}
+			)
+		};
+
+		console.log('get Event', settings)
+
+		var a = $.ajax(settings);
+
+		var t = a.then(function(data)
+		{
+			var eventData = CERTApps.moveUpData(data).Event;
+			var event = CERTApps.Event.create(eventData);
+
+			event.parseDates();
+			
+			console.log('returning Event', event);
+
+			return event;
+		});
+
+		return t;
 	}
 });
+
 
 Ember.RSVP.configure('onerror', function(error) {
 	Ember.Logger.assert(false, error);
@@ -1336,6 +1333,16 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 {	
 	actions:
 	{
+		userResponseForm: function(event)
+		{
+			console.group('CERTApps.TeamIDEventsRoute.actions userResposne');
+
+			console.log('event', event);
+
+			this.transitionTo('event.response', event);
+
+			console.groupEnd();
+		}
 	},
 
 	model: function(params)
@@ -1409,6 +1416,61 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 
 });
 
+CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group("CERTApps.EventResponseRoute model");
+
+		console.log('params, args', params, arguments);
+
+		var appModel = this.modelFor('application');
+		var model = null;
+
+		if(params)
+		{
+			if( params.eventID )
+			{
+				model = CERTApps.Event.lookup(params.eventID);
+			}
+		}
+
+		console.groupEnd();
+
+		return model;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.EventResponseRoute setupController')
+		console.log('controller, model', controller, model);
+
+		if( model.Event ) model = model.Event;
+
+		controller.set('content', model);
+
+		console.groupEnd();
+
+		return;		
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.EventResponseRoute serialize");
+
+	//	console.log('model', model);
+
+		var obj = { eventID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
+});
 
 CERTApps.Events = CERTApps.BaseObject.extend({
 	events: null,
@@ -1432,7 +1494,7 @@ CERTApps.Events = CERTApps.BaseObject.extend({
 
 			if( e.get('startTimestamp') > now )
 			{
-				console.log('upcoming because',  e.get('startTimestamp'),' > ', now);
+				//console.log('upcoming because',  e.get('startTimestamp'),' > ', now);
 				list.pushObject(e);
 			}
 		}
