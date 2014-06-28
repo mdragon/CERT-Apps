@@ -17,6 +17,8 @@ import (
 	"appengine"
 	"appengine/datastore"
 	"appengine/user"
+
+	"github.com/mjibson/appstats"
 )
 
 type Greeting struct {
@@ -174,21 +176,20 @@ var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 
 func init() {
-	http.HandleFunc("/audit", audit)
-	http.HandleFunc("/event", event)
-	http.HandleFunc("/event/save", eventSave)
-	http.HandleFunc("/events", events)
-	http.HandleFunc("/member", memberData)
-	http.HandleFunc("/member/save", memberSave)
-	http.HandleFunc("/team", teamData)
-	http.HandleFunc("/team/roster", teamRoster)
-	http.HandleFunc("/team/roster/import", membersImport)
-	http.HandleFunc("/fix/events/without/team", fixData)
-	http.HandleFunc("/", root)
+	http.Handle("/audit", appstats.NewHandler(audit))
+	http.Handle("/event", appstats.NewHandler(event))
+	http.Handle("/event/save", appstats.NewHandler(eventSave))
+	http.Handle("/events", appstats.NewHandler(events))
+	http.Handle("/member", appstats.NewHandler(memberData))
+	http.Handle("/member/save", appstats.NewHandler(memberSave))
+	http.Handle("/team", appstats.NewHandler(teamData))
+	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
+	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
+	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
+	http.Handle("/", appstats.NewHandler(root))
 }
 
-func fixData(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	//u := user.Current(c)
 
 	var query *datastore.Query
@@ -230,12 +231,11 @@ func guestbookKey(c appengine.Context) *datastore.Key {
 	return datastore.NewKey(c, "Guestbook", "default_guestbook", 0, nil)
 }
 
-func root(w http.ResponseWriter, r *http.Request) {
+func root(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/static/html/app.htm", http.StatusFound)
 }
 
-func audit(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 
 	rawurl := r.FormValue("finalURL")
@@ -283,8 +283,7 @@ func audit(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func auth(w http.ResponseWriter, r *http.Request) (appengine.Context, *user.User, MainAppContext) {
-	c := appengine.NewContext(r)
+func auth(c appengine.Context, w http.ResponseWriter, r *http.Request) (appengine.Context, *user.User, MainAppContext) {
 	u := user.Current(c)
 
 	var context MainAppContext
@@ -340,8 +339,8 @@ func updateAuditWithKey(audit *Audit, key *datastore.Key) {
 	}
 }
 
-func teamRoster(w http.ResponseWriter, r *http.Request) {
-	c, u, mainContext := auth(w, r)
+func teamRoster(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	_, u, mainContext := auth(c, w, r)
 
 	context := struct {
 		Team    *Team
@@ -381,8 +380,8 @@ func teamRoster(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func teamData(w http.ResponseWriter, r *http.Request) {
-	c, u, context := auth(w, r)
+func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	_, u, context := auth(c, w, r)
 
 	if context.LoggedIn {
 		member, _ := getMemberFromUser(c, u, r, w)
@@ -440,8 +439,7 @@ func teamData(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func memberData(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 
 	var context MainAppContext
@@ -830,8 +828,7 @@ type MemberSaveContext struct {
 	Whee string
 }
 
-func memberSave(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func memberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var saveMember Member
 
@@ -897,8 +894,7 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 	return nil, nil
 }
 
-func membersImport(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var saveMember Member
 
@@ -1004,8 +1000,7 @@ func (a *Audit) setKey(key *datastore.Key) {
 	}
 }
 
-func event(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func event(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var event Event
 	var context interface{}
@@ -1018,21 +1013,22 @@ func event(w http.ResponseWriter, r *http.Request) {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON event: %+v", event)
-		event.lookup(mem, c, u, w, r)
+		lookupErr := event.lookup(mem, c, u, w, r)
 
-		var responsesErr error
-		event.Responses, responsesErr = event.responses(mem, c, u, w, r)
+		if noErrMsg(lookupErr, w, c, "event.lookup") {
+			var responsesErr error
+			event.Responses, responsesErr = event.responses(mem, c, u, w, r)
 
-		if checkErr(responsesErr, w, c, "Getting responses for event") {
-			c.Infof("No errors looking up responses")
+			if checkErr(responsesErr, w, c, "Getting responses for event") {
+				c.Infof("No errors looking up responses")
+			}
+
+			context = struct {
+				Event Event
+			}{
+				event,
+			}
 		}
-
-		context = struct {
-			Event Event
-		}{
-			event,
-		}
-
 	} else {
 
 	}
@@ -1092,8 +1088,7 @@ func (event *Event) responses(member *Member, c appengine.Context, u *user.User,
 	return nil, errors.New("Must pass an event with a KeyID")
 }
 
-func eventSave(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	jsonData := struct {
 		Event *Event
@@ -1176,8 +1171,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 	return err
 }
 
-func events(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var team *Team
 	var events []*Event
@@ -1285,8 +1279,7 @@ func errorContextError(err error) ErrorContext {
 	return context
 }
 
-func locationLookup(w http.ResponseWriter, r *http.Request) {
-	c := appengine.NewContext(r)
+func locationLookup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	url := "https://maps.googleapis.com/maps/api/geocode/json?key="
 	key := "AIzaSyDKyDk-VkRFZIs27NAGmHEbrC17s7ylTYE"
