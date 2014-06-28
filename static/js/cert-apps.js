@@ -40,7 +40,15 @@ CERTApps.Router.map(function()
 		});
 	this.resource('event', function()
 		{
-				this.route('response', { path: 'response/:eventID' }	);
+				this.route('response', { path: '/:eventID' }	);
+				// , function()
+				// 	{
+				// 		this.route('/:eventID');
+				// 	});
+		});
+	this.resource('response', function()
+		{
+				this.route('responseID', { path: '/:responseID' }	);
 				// , function()
 				// 	{
 				// 		this.route('/:eventID');
@@ -822,7 +830,8 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 
 		var retval = 
 		{
-			dateObj: date
+			dateObj: date,
+			dateString: dateString
 		};
 
 		retval.timestamp = date.getTime();
@@ -856,13 +865,15 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 	{
 		console.group("CERTApps.Event parse")
 
-		var startDB = this.dateBreakout(this.EventStart);
-		console.log('EventStart', this.EventStart, 'date', date);
+		var es = this.get('EventStart');
+		var startDB = this.dateBreakout(es);
+		console.log('EventStart', es);
 
 		this.set('eventStartDate', startDB.prettyDate);
 		this.set('eventStartTime', startDB.prettyTime);
 
-		var finishDB = this.dateBreakout(this.EventFinish);
+		var ef = this.get('EventFinish');
+		var finishDB = this.dateBreakout(ef);
 
 		if( startDB.prettyDate !== finishDB.prettyDate )
 		{
@@ -912,7 +923,7 @@ CERTApps.Event.reopenClass(
 	{
 		var settings = 
 		{
-			url: '/event',
+			url: '/eventA',
 			//type: 'json',
 			dataType: 'json',
 			method: 'post',
@@ -932,7 +943,7 @@ CERTApps.Event.reopenClass(
 			var eventData = CERTApps.moveUpData(data).Event;
 			var event = CERTApps.Event.create(eventData);
 
-			event.parseDates();
+			event.parse();
 			
 			console.log('returning Event', event);
 
@@ -1329,6 +1340,44 @@ CERTApps.Team.reopenClass(
 	}
 });
 
+CERTApps.MemberEvent = CERTApps.BaseObject.extend({});
+
+CERTApps.MemberEvent.reopenClass(
+{
+	lookupByEvent: function(eventID)
+	{
+		console.group("lookupByEvent");
+
+		var settings = 
+		{
+			url: '/response',
+			//type: 'json',
+			dataType: 'json',
+			method: 'get',
+			data: 
+			{
+				event: eventID || 0
+			}
+		};
+
+		console.log('get Response', settings)
+
+		var a = $.ajax(settings);
+
+		var t = a.then(function(data)
+		{
+			var dataObj = CERTApps.moveUpData(data).Response;
+			var retval = CERTApps.MemberEvent.create(dataObj);
+			
+			return retval;
+		});
+
+		console.groupEnd();
+
+		return t;
+	}
+});
+
 CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 {	
 	actions:
@@ -1339,7 +1388,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 
 			console.log('event', event);
 
-			this.transitionTo('event.response', event);
+			this.transitionTo('event.response', {Event: event});
 
 			console.groupEnd();
 		}
@@ -1428,20 +1477,37 @@ CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
 
 		console.log('params, args', params, arguments);
 
-		var appModel = this.modelFor('application');
-		var model = null;
+		
+		var e = CERTApps.Event.lookup(params.eventID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
 
-		if(params)
-		{
-			if( params.eventID )
+		var a = CERTApps.MemberEvent.lookupByEvent(params.eventID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
+
+		var combo = Ember.RSVP.all([e,a]);
+
+		var t = combo.then(
+			function(data)
 			{
-				model = CERTApps.Event.lookup(params.eventID);
-			}
-		}
+				console.log('EventResponseRoute model combo.then', data);
+
+				var event = data[0];
+				var response = data[1];
+
+				var model = 
+				{
+					Event: CERTApps.Event.create(event),
+					Response: CERTApps.MemberEvent.create(response)
+				}
+				
+				console.log('calling model.Event.parse')
+				//model.Event.parse();
+
+				return model;
+			}.bind(this)
+		);
 
 		console.groupEnd();
 
-		return model;
+		return t;
 	},
 
 	setupController: function(controller, model)
@@ -1449,7 +1515,7 @@ CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.EventResponseRoute setupController')
 		console.log('controller, model', controller, model);
 
-		if( model.Event ) model = model.Event;
+		//if( model.Event ) model = model.Event;
 
 		controller.set('content', model);
 
@@ -1462,9 +1528,12 @@ CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
 	{
 		console.group("CERTApps.EventResponseRoute serialize");
 
-	//	console.log('model', model);
+		console.log('model', model);
 
-		var obj = { eventID: model.get('KeyID') };
+		var e = model;
+		if( model.Event ) e = model.Event;
+
+		var obj = { eventID: e.get('KeyID') };
 
 		console.groupEnd();
 

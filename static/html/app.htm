@@ -364,9 +364,13 @@
 {{log content}}
 	<h3>Please Respond With Your Availability</h3>
 
-	<h4>{{content.summary}}</h4>
-	{{content.startDateBreakout.prettyDate}}*
-	{{content.eventStartDate}}
+	<h4>{{content.Event.summary}}</h4>
+	{{content.Event.startDateBreakout.prettyDate}}*
+	{{content.Event.eventStartDate}}
+
+	<p>
+		{{content.Event.Description}}
+	</p>
 	<form>
 	</form>
 </script>

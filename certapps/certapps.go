@@ -177,11 +177,13 @@ var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {
 
 func init() {
 	http.Handle("/audit", appstats.NewHandler(audit))
+	http.Handle("/eventA", appstats.NewHandler(eventA))
 	http.Handle("/event", appstats.NewHandler(event))
 	http.Handle("/event/save", appstats.NewHandler(eventSave))
 	http.Handle("/events", appstats.NewHandler(events))
 	http.Handle("/member", appstats.NewHandler(memberData))
 	http.Handle("/member/save", appstats.NewHandler(memberSave))
+	http.Handle("/response", appstats.NewHandler(response))
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
@@ -1036,6 +1038,121 @@ func event(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, r, w)
 }
 
+func eventA(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var event Event
+	var context interface{}
+	var mem *Member
+
+	c.Infof("event-async")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&event)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON event: %+v", event)
+
+		errc := make(chan error)
+		lookupC := make(chan Event)
+		responsesC := make(chan []*MemberEvent)
+
+		go func() {
+			lookupErr := event.lookup(mem, c, u, w, r)
+			if noErrMsg(lookupErr, w, c, "event.lookup") {
+			}
+			lookupC <- event
+		}()
+
+		go func() {
+			innerResp, errResp := event.responses(mem, c, u, w, r)
+
+			if checkErr(errResp, w, c, "Getting responses for event") {
+				c.Infof("No errors looking up responses")
+			}
+
+			responsesC <- innerResp
+			errc <- errResp
+		}()
+
+		event2 := <-lookupC
+		responses := <-responsesC
+
+		event.Responses = responses
+		event2.Responses = responses
+
+		context = struct {
+			EventOrg Event
+			Event    Event
+		}{
+			event,
+			event2,
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
+}
+
+func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var response *MemberEvent
+
+	c.Infof("event-async")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&response)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON response: %+v", response)
+
+		errc := make(chan error)
+		//lookupC := make(chan Event)
+		responseC := make(chan *MemberEvent)
+
+		go func() {
+			lookupErr := response.lookup(mem, c, u, w, r)
+			if noErrMsg(lookupErr, w, c, "response.lookup") {
+
+			}
+			responseC <- response
+			errc <- lookupErr
+		}()
+
+		/*
+				go func() {
+					innerResp, errResp := event.responses(mem, c, u, w, r)
+
+					if checkErr(errResp, w, c, "Getting responses for event") {
+						c.Infof("No errors looking up responses")
+					}
+
+					responsesC <- innerResp
+					errc <- errResp
+				}()
+			event2 := <-lookupC
+		*/
+
+		response2 := <-responseC
+
+		context = struct {
+			Response *MemberEvent
+		}{
+			response2,
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
+}
+
 func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	c.Infof("*Event.lookup %d", event.KeyID)
 	var err error
@@ -1052,6 +1169,27 @@ func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w 
 		event.setKey(event.Key)
 	} else {
 		err = errors.New("Must pass an event with a KeyID")
+	}
+
+	return err
+}
+
+func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+	c.Infof("*MemberEvent.lookup %d", me.KeyID)
+	var err error
+
+	if me.KeyID != 0 {
+		me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
+
+		if member == nil {
+			member, _ = getMemberFromUser(c, u, r, w)
+		}
+
+		err = datastore.Get(c, me.Key, me)
+
+		me.setKey(me.Key)
+	} else {
+		err = errors.New("Must pass an MemberEvent with a KeyID")
 	}
 
 	return err
