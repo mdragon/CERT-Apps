@@ -38,22 +38,24 @@ CERTApps.Router.map(function()
 				this.route('events');
 			});
 		});
-	this.resource('event', function()
+	this.resource('eventDetails', { path: '/event' }, function()
 		{
-				this.route('response', { path: '/:eventID' }	);
-				// , function()
-				// 	{
-				// 		this.route('/:eventID');
-				// 	});
+			this.resource('eventID', { path: '/:eventID' }, function()
+				{
+					this.resource('response',  function()
+						{
+								this.route('/:responseID');
+						});
+				});
 		});
-	this.resource('response', function()
-		{
-				this.route('responseID', { path: '/:responseID' }	);
-				// , function()
-				// 	{
-				// 		this.route('/:eventID');
-				// 	});
-		});
+	// this.resource('response', function()
+	// 	{
+	// 			this.route('responseID', { path: '/:responseID' }	);
+	// 			// , function()
+	// 			// 	{
+	// 			// 		this.route('/:eventID');
+	// 			// 	});
+	// 	});
 });
 
 CERTApps.moveUpData = function(data)
@@ -734,62 +736,14 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	}
 });
 
-CERTApps.Event = CERTApps.BaseObject.extend(
+CERTApps.TimesObject = CERTApps.BaseObject.extend(
 {
-	save: function(team)
+	init: function()
 	{
-		console.group('CERTApps.Event save')
+		console.group('CERTApps.TimesObject init');
+		this._super();
 		
-		this.parseDates();
-
-		console.log('will save event', this);
-
-		var settings = 
-		{
-			url: '/event/save',
-			type: 'json',
-			dataType: 'json',
-			data: JSON.stringify({ Event: this, Team: team})
-		};
-
-		console.log('saving event data', settings)
-
-		var a = $.ajax(settings);
-		var t = a.then(function(obj)
-			{ 
-				var move = this.moveUpData(obj); 
-
-				move.Member = CERTApps.Member.create(move.Member); 
-
-				console.log('App model returning', move); 
-				obj = move; 
-				return move; 
-			}.bind(this));
-
-		a.then(function(obj){ console.log('a.then', JSON.stringify(obj)); }.bind(this));
-		t.then(function(obj){ console.log('t.then', JSON.stringify(obj)); }.bind(this));
-
 		console.groupEnd();
-
-		return a;
-	},
-
-	parseDates: function()
-	{
-		this.set('EventStart', this.parseDate(this.get('eventStartDate'), this.get('eventStartTime')));
-		
-		var finishDate = this.get('eventFinishDate') || this.get('eventStartDate');
-		this.set('EventFinish', this.parseDate(finishDate, this.get('eventFinishTime')));
-
-		var meetTime = this.get('arriveTime');
-		if( meetTime )
-		{
-			this.set('MeetTime', this.parseDate(this.get('eventStartDate'), meetTime));
-		} else
-		{
-			this.set('MeetTime', undefined);
-		}
-
 	},
 
 	parseDate: function(date, time)
@@ -861,6 +815,90 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 		return retval;
 	},
 
+	parseDatesToJS: function()
+	{
+		console.group('parseDatesToJS');
+
+		var strDate = this.get('EventStart');
+		var date = new Date(strDate);
+
+		console.log('strDate, date', strDate, date);
+
+		this.set('startTimestamp', date.getTime());
+
+		console.groupEnd();
+	},
+
+});
+
+CERTApps.Event = CERTApps.TimesObject.extend(
+{
+	init: function()
+	{
+		console.group('CERTApps.Event init');
+		this._super();
+		
+		this.parse();
+		
+		console.groupEnd();
+	},
+
+	save: function(team)
+	{
+		console.group('CERTApps.Event save')
+		
+		this.parseDates();
+
+		console.log('will save event', this);
+
+		var settings = 
+		{
+			url: '/event/save',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify({ Event: this, Team: team})
+		};
+
+		console.log('saving event data', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(obj)
+			{ 
+				var move = this.moveUpData(obj); 
+
+				move.Member = CERTApps.Member.create(move.Member); 
+
+				console.log('App model returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this));
+
+		a.then(function(obj){ console.log('a.then', JSON.stringify(obj)); }.bind(this));
+		t.then(function(obj){ console.log('t.then', JSON.stringify(obj)); }.bind(this));
+
+		console.groupEnd();
+
+		return a;
+	},
+
+	parseDates: function()
+	{
+		this.set('EventStart', this.parseDate(this.get('eventStartDate'), this.get('eventStartTime')));
+		
+		var finishDate = this.get('eventFinishDate') || this.get('eventStartDate');
+		this.set('EventFinish', this.parseDate(finishDate, this.get('eventFinishTime')));
+
+		var meetTime = this.get('arriveTime');
+		if( meetTime )
+		{
+			this.set('MeetTime', this.parseDate(this.get('eventStartDate'), meetTime));
+		} else
+		{
+			this.set('MeetTime', undefined);
+		}
+
+	},
+
 	parse: function()
 	{
 		console.group("CERTApps.Event parse")
@@ -887,20 +925,6 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 		console.groupEnd();
 	},
 
-	parseDatesToJS: function()
-	{
-		console.group('parseDatesToJS');
-
-		var strDate = this.get('EventStart');
-		var date = new Date(strDate);
-
-		console.log('strDate, date', strDate, date);
-
-		this.set('startTimestamp', date.getTime());
-
-		console.groupEnd();
-	},
-
 	prettyEventStart: function()
 	{
 		var es = this.get('EventStart');
@@ -911,10 +935,7 @@ CERTApps.Event = CERTApps.BaseObject.extend(
 
 	}.property('EventStart'),
 
-	summary: function()
-	{
-		return this.get('Summary');
-	}.property('Summary')
+	summary: Ember.computed.alias('Summary')
 });
 
 CERTApps.Event.reopenClass(
@@ -942,8 +963,6 @@ CERTApps.Event.reopenClass(
 		{
 			var eventData = CERTApps.moveUpData(data).Event;
 			var event = CERTApps.Event.create(eventData);
-
-			event.parse();
 			
 			console.log('returning Event', event);
 
@@ -1094,6 +1113,8 @@ CERTApps.EventRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps.EventRoute model')
 
+		console.log('params', params);
+
 		var model = { Event: CERTApps.Event.create({ EventLocation: {}, ParkingLocation: {} } )};
 
 		console.groupEnd();
@@ -1198,7 +1219,6 @@ CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
 
 		t.then(function(obj)
 		{
-			obj.Event.parse();
 		});
 
 		console.groupEnd();
@@ -1340,7 +1360,75 @@ CERTApps.Team.reopenClass(
 	}
 });
 
-CERTApps.MemberEvent = CERTApps.BaseObject.extend({});
+CERTApps.MemberEvent = CERTApps.TimesObject.extend(
+{
+	value:  null,
+	arriveTime: null,
+	departTime: null,
+
+	init: function()
+	{
+		console.group('CERTApps.MemberEvent init');
+		this._super();
+		
+		this.parse();
+		
+		console.groupEnd();
+	},
+
+	defaults: function(event)
+	{
+		console.group('CERTApps.MemberEvent defaults')
+
+		console.log('MemberEvent', this);
+		console.log('event', event);
+
+		var startDB = this.dateBreakout(event.EventStart);
+		var finishDB = this.dateBreakout(event.EventFinish);
+
+
+		if( ! this.arriveTime )
+		{
+			if( startDB )
+			{
+				this.set('arriveTime', startDB.prettyTime);
+			}
+		}
+
+		if( ! this.departTime )
+		{
+			if( finishDB )
+			{
+				this.set('departTime', finishDB.prettyTime);
+			}
+		}
+
+		console.groupEnd();
+	},
+
+	parse: function()
+	{
+		console.group('CERTApps.MemberEvent parse');
+
+		var arrive = this.get('Arrive');
+		var depart = this.get('Depart');
+		if( arrive )
+		{
+			var arriveDB = this.dateBreakout(arrive);
+			console.log('arriveDB', arriveDB)
+			this.set('arriveTime', arriveDB.prettyTime);
+		}
+
+		if( depart )
+		{
+			var departDB = this.dateBreakout(depart);
+		}
+
+
+
+		console.groupEnd();
+	}
+});
 
 CERTApps.MemberEvent.reopenClass(
 {
@@ -1388,7 +1476,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 
 			console.log('event', event);
 
-			this.transitionTo('event.response', {Event: event});
+			this.transitionTo('response', {Event: event});
 
 			console.groupEnd();
 		}
@@ -1465,57 +1553,56 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 
 });
 
-CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
+CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
 	},
 
-	model: function(params)
+	model: function(params, transition)
 	{
-		console.group("CERTApps.EventResponseRoute model");
+		console.group("CERTApps.EventIDResponseRoute model");
 
 		console.log('params, args', params, arguments);
 
-		
-		var e = CERTApps.Event.lookup(params.eventID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
+		var e = this.modelFor('eventID');
 
-		var a = CERTApps.MemberEvent.lookupByEvent(params.eventID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
+		if( ! e )
+		{
+			log.warn('Doing bad things using transition to get eventID model because modelFor returned null');
 
-		var combo = Ember.RSVP.all([e,a]);
-
-		var t = combo.then(
-			function(data)
+			if( transition )
 			{
-				console.log('EventResponseRoute model combo.then', data);
+				e = transition.get('resolvedModels.eventID');
+			} else
+			{
+				log.warn('transition was null');
+			}
+		}
 
-				var event = data[0];
-				var response = data[1];
+		if( e.Event ) e = e.Event;
+		console.log('e', e);
 
-				var model = 
-				{
-					Event: CERTApps.Event.create(event),
-					Response: CERTApps.MemberEvent.create(response)
-				}
-				
-				console.log('calling model.Event.parse')
-				//model.Event.parse();
 
-				return model;
-			}.bind(this)
-		);
+		var a = CERTApps.MemberEvent.lookupByEvent(e.KeyID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
 
 		console.groupEnd();
 
-		return t;
+		return a;
 	},
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps.EventResponseRoute setupController')
+		console.group('CERTApps.EventIDResponseRoute setupController')
 		console.log('controller, model', controller, model);
 
 		//if( model.Event ) model = model.Event;
+
+		if( ! model.Response ) model = {Response: CERTApps.MemberEvent.create()};
+		var event = this.modelFor('eventID');
+		if( event.Event ) event = event.Event;
+
+		model.Response.defaults(event);
 
 		controller.set('content', model);
 
@@ -1526,7 +1613,7 @@ CERTApps.EventResponseRoute = CERTApps.BaseRoute.extend(
 
 	serialize: function(model)
 	{
-		console.group("CERTApps.EventResponseRoute serialize");
+		console.group("CERTApps.EventIDResponseRoute serialize");
 
 		console.log('model', model);
 
@@ -1613,4 +1700,112 @@ CERTApps.Events = CERTApps.BaseObject.extend({
 
 		return 0;
 	}
+});
+
+CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
+{
+	afterModel: function(model)
+	{
+		console.log('afterModel', model, arguments)
+		if( model.Event )
+		{
+		}
+	},
+
+	model: function(params)
+	{
+		var m = CERTApps.Event.lookup(params.eventID);
+
+		var model = m.then(
+		function(data)
+			{
+				console.log('m.then', data);
+
+				data = this.moveUpData(data);
+
+				var model = {Event: CERTApps.Event.create(data)};
+
+				return model;
+			}.bind(this)
+		);
+
+		return model;
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.EventIDRoute serialize");
+
+		console.log('model', model);
+		var m = model;
+		if( model.Event ) m = model.Event;
+
+		var obj = { eventID: m.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
+});
+
+CERTApps.RadioButton = Ember.View.extend({  
+    tagName : "input",
+    type : "radio",
+    attributeBindings : [ "name", "type", "value", "checked:checked:" ],
+    click : function() {
+    	console.group('CERTApps.RadioButton click');
+
+    	// var val = this.$().val();
+     //    this.set("selection", val)
+
+     //    console.log('RadioButton this', this);
+     //    var controller = this.get('controller');
+     //    console.log('controller', controller, controller.get('content.ResponseValue'))
+
+     //    var value = this.get('selectionBinding._from');
+     //    console.log('value', value);
+
+     //    //controller.set(value, val);
+     //    var existing = controller.get(value);
+     //    console.log('changing binding value', value, 'from existing to new', existing, val);
+
+//        controller.set(value, val);
+		console.groupEnd();
+    },
+    checked : function() {
+        return this.get("value") == this.get("selection");   
+    }.property()
+});
+
+CERTApps.ResponseRadioButton = CERTApps.RadioButton.extend({  
+    tagName : "input",
+    type : "radio",
+    attributeBindings : [ "name", "type", "value", "checked:checked:" ],
+    click : function() {
+    	console.group('CERTApps.ResponseRadioButton click');
+
+    	this._super();
+
+    	var $ = this.$();
+
+    	var val = $.val();
+    	var form$ = $.closest('form');
+    	var details$ = form$.find('div.details');
+    	var arrive$ = Ember.$(details$.find('input[name=arriveTime]')[0]);
+
+    	console.log('val, this, $', val, this, $);
+    	if( val === "Yes" || val === "Maybe") 
+    	{
+    		details$.slideDown();
+    		arrive$.focus();
+
+    	} else
+    	{
+    		details$.slideUp();
+    	}
+
+    	console.groupEnd();
+
+    	return true;
+    },
 });

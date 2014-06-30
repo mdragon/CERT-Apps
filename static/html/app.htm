@@ -131,7 +131,7 @@
 	Test
 	{{outlet}}
 </script>
-
+00
 <script type="text/x-handlebars" data-template-name="team">
 	<div style="width: 80%; margin: 0 auto;">
 		{{outlet}}
@@ -353,25 +353,35 @@
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="event">
+<script type="text/x-handlebars" data-template-name="eventID">
+{{log 'template eventID'}}
+{{log content}}
 	<div class="center-content">
+		<h3>{{content.Event.summary}}</h3>
+		{{content.Event.startDateBreakout.prettyDate}}*
+		{{content.Event.eventStartDate}}
+
+		<p>
+			{{content.Event.Description}}
+		</p>
+
 		{{outlet}}
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="event/response">
-{{log "event/response"}}
+<script type="text/x-handlebars" data-template-name="response">
+{{log "template response (under eventID)"}}
 {{log content}}
-	<h3>Please Respond With Your Availability</h3>
+	<h4>Please Respond With Your Availability</h4>
+	<form  class="form">
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="Yes"}} Yes</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="No"}} No</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="Maybe"}} Maybe</label><br/>
 
-	<h4>{{content.Event.summary}}</h4>
-	{{content.Event.startDateBreakout.prettyDate}}*
-	{{content.Event.eventStartDate}}
-
-	<p>
-		{{content.Event.Description}}
-	</p>
-	<form>
+		<div class="details" style="display: none;">
+			<label>Arrive: {{input name="arriveTime" value=content.Response.arriveTime size=5}}
+			<lable>Depart: {{input name="departTime" value=content.Response.departTime size=5}}
+		</div>
 	</form>
 </script>
 
@@ -449,5 +459,7 @@ Landing index
 </script>
 
 <script type="text/x-handlebars" data-template-name="loading">
-Loading...
+	<div class="center-content" style="text-align: center">
+		<img src="../image/spinner.gif" /> Loading...
+	</div>
 </script>
