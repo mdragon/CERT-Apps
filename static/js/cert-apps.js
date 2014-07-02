@@ -962,11 +962,11 @@ CERTApps.Event.reopenClass(
 		var t = a.then(function(data)
 		{
 			var eventData = CERTApps.moveUpData(data).Event;
-			var event = CERTApps.Event.create(eventData);
+			var ev = CERTApps.Event.create(eventData);
 			
-			console.log('returning Event', event);
+			console.log('returning Event', ev);
 
-			return event;
+			return ev;
 		});
 
 		return t;
@@ -979,11 +979,11 @@ Ember.RSVP.configure('onerror', function(error) {
 });
 
 CERTApps.ImportColumnSelect = Ember.Select.extend({
-	change: function (event) 
+	change: function (ev) 
 	{
 		console.group('CERTApps.ImportColumnSelect change')
 		
-		console.log('this, event, args', this, event, arguments);
+		console.log('this, ev, args', this, ev, arguments);
 		
 		var element = $('#' + this.elementId);
 		//console.log('loading this.elementId, element', this.elementId, element);
@@ -1090,10 +1090,10 @@ CERTApps.EventRoute = Ember.Route.extend(
 		saveEvent: function(content)
 		{
 			console.group('CERTApps.EventRoute saveEvent');
-			var event = content.Event;
+			var ev = content.Event;
 
 			var team = this.modelFor('team');
-			event.save(team);
+			ev.save(team);
 
 			console.groupEnd();
 		},
@@ -1101,9 +1101,9 @@ CERTApps.EventRoute = Ember.Route.extend(
 		locationLookup: function(content)
 		{
 			console.group('CERTApps.EventRoute saveEvent');
-			var event = content.Event;
+			var ev = content.Event;
 
-			event.save();
+			ev.save();
 
 			console.groupEnd();
 		}
@@ -1376,15 +1376,15 @@ CERTApps.MemberEvent = CERTApps.TimesObject.extend(
 		console.groupEnd();
 	},
 
-	defaults: function(event)
+	defaults: function(ev)
 	{
 		console.group('CERTApps.MemberEvent defaults')
 
 		console.log('MemberEvent', this);
-		console.log('event', event);
+		console.log('ev', ev);
 
-		var startDB = this.dateBreakout(event.EventStart);
-		var finishDB = this.dateBreakout(event.EventFinish);
+		var startDB = this.dateBreakout(ev.EventStart);
+		var finishDB = this.dateBreakout(ev.EventFinish);
 
 
 		if( ! this.arriveTime )
@@ -1470,13 +1470,13 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 {	
 	actions:
 	{
-		userResponseForm: function(event)
+		userResponseForm: function(ev)
 		{
 			console.group('CERTApps.TeamIDEventsRoute.actions userResposne');
 
-			console.log('event', event);
+			console.log('ev', ev);
 
-			this.transitionTo('response', {Event: event});
+			this.transitionTo('response', {Event: ev});
 
 			console.groupEnd();
 		}
@@ -1514,13 +1514,13 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 				for( var x = obj.Events.length - 1; x >= 0; x-- )
 				{
 					var e = obj.Events[x];
-					var event = CERTApps.Event.create(e); 
+					var ev = CERTApps.Event.create(e); 
 
-					event.parseDatesToJS();
+					ev.parseDatesToJS();
 
-					console.log('adding event to list', event);
+					console.log('adding event to list', ev);
 
-					list.pushObject(event)
+					list.pushObject(ev)
 				}
 
 				var events = CERTApps.Events.create({events: list});
@@ -1599,10 +1599,10 @@ CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 		//if( model.Event ) model = model.Event;
 
 		if( ! model.Response ) model = {Response: CERTApps.MemberEvent.create()};
-		var event = this.modelFor('eventID');
-		if( event.Event ) event = event.Event;
+		var ev = this.modelFor('eventID');
+		if( ev.Event ) ev = ev.Event;
 
-		model.Response.defaults(event);
+		model.Response.defaults(ev);
 
 		controller.set('content', model);
 
