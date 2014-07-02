@@ -1557,6 +1557,50 @@ CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
+		submitResponse: function(response)
+		{
+			console.group('CERTApps.ResponseRoute.actions submitResponse')
+
+			var ev = this.modelFor('eventID');
+
+			if( ev.Event ) ev = ev.Event;
+
+			console.log('response, ev', response, ev);
+
+			var obj = 
+			{
+				Event: {KeyID: ev.KeyID},
+				Response: response
+			}
+
+			var settings = 
+			{
+				url: '/response/save',
+				type: 'json',
+				dataType: 'json',
+				data: JSON.stringify(obj),
+				method: 'POST'
+			};
+
+			console.log('requesting data', settings)
+
+			var a = $.ajax(settings);
+			var t = a.then(function(obj)
+			{ 
+				var obj = this.moveUpData(obj); 
+
+				return obj;
+			}.bind(this));
+
+			t.then(function(obj)
+			{ 
+				return obj;
+			});
+
+			console.groupEnd();
+
+			return t;
+		}
 	},
 
 	model: function(params, transition)
@@ -1791,6 +1835,7 @@ CERTApps.ResponseRadioButton = CERTApps.RadioButton.extend({
     	var val = $.val();
     	var form$ = $.closest('form');
     	var details$ = form$.find('div.details');
+    	var button$ = form$.find('div.submit-response');
     	var arrive$ = Ember.$(details$.find('input[name=arriveTime]')[0]);
 
     	console.log('val, this, $', val, this, $);
@@ -1803,6 +1848,8 @@ CERTApps.ResponseRadioButton = CERTApps.RadioButton.extend({
     	{
     		details$.slideUp();
     	}
+
+    	if( button$.find(":visible").length === 0 ) button$.slideDown()
 
     	console.groupEnd();
 

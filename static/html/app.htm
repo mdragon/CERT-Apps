@@ -93,6 +93,9 @@
 </head>
 <body>
 
+	<div style="opacity: 0;">
+		<span style="font-family: FontAwesome;"></span>
+	<div>
 </body>
 </html>
 
@@ -131,7 +134,7 @@
 	Test
 	{{outlet}}
 </script>
-00
+	
 <script type="text/x-handlebars" data-template-name="team">
 	<div style="width: 80%; margin: 0 auto;">
 		{{outlet}}
@@ -372,6 +375,7 @@
 <script type="text/x-handlebars" data-template-name="response">
 {{log "template response (under eventID)"}}
 {{log content}}
+
 	<h4>Please Respond With Your Availability</h4>
 	<form  class="form">
 		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="Yes"}} Yes</label><br/>
@@ -382,6 +386,11 @@
 			<label>Arrive: {{input name="arriveTime" value=content.Response.arriveTime size=5}}
 			<lable>Depart: {{input name="departTime" value=content.Response.departTime size=5}}
 		</div>
+
+		<div class="submit-response" style="display: none;">
+			<button {{action submitResponse content.Response}} class="button"><i class="fa fa-save"></i> Save</button>
+		</div>
+		
 	</form>
 </script>
 
