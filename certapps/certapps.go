@@ -184,6 +184,7 @@ func init() {
 	http.Handle("/member", appstats.NewHandler(memberData))
 	http.Handle("/member/save", appstats.NewHandler(memberSave))
 	http.Handle("/response", appstats.NewHandler(response))
+	http.Handle("/response/save", appstats.NewHandler(responseSave))
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
@@ -1397,6 +1398,63 @@ func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w
 	}
 
 	return retval
+}
+
+func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var response *MemberEvent
+
+	c.Infof("event-async")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&response)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON response: %+v", response)
+
+		errc := make(chan error)
+		//lookupC := make(chan Event)
+		responseC := make(chan *MemberEvent)
+
+		go func() {
+			lookupErr := response.lookup(mem, c, u, w, r)
+			if noErrMsg(lookupErr, w, c, "response.lookup") {
+
+			}
+			responseC <- response
+			errc <- lookupErr
+		}()
+
+		/*
+				go func() {
+					innerResp, errResp := event.responses(mem, c, u, w, r)
+
+					if checkErr(errResp, w, c, "Getting responses for event") {
+						c.Infof("No errors looking up responses")
+					}
+
+					responsesC <- innerResp
+					errc <- errResp
+				}()
+			event2 := <-lookupC
+		*/
+
+		response2 := <-responseC
+
+		context = struct {
+			Response *MemberEvent
+		}{
+			response2,
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
 }
 
 func errorContextString(message string) ErrorContext {

@@ -1427,6 +1427,86 @@ CERTApps.MemberEvent = CERTApps.TimesObject.extend(
 
 
 		console.groupEnd();
+	},
+
+	save: function(ev)
+	{
+		console.group('CERTApps.MemberEvent save')
+
+		this.parseInputs(ev);
+
+		var obj = 
+			{
+				Event: {KeyID: ev.KeyID},
+				Response: this
+			}
+
+		var settings = 
+			{
+				url: '/response/save',
+				type: 'json',
+				dataType: 'json',
+				data: JSON.stringify(obj),
+				method: 'POST'
+			};
+
+		console.log('requesting data', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(obj)
+		{ 
+			var obj = this.moveUpData(obj); 
+
+			return obj;
+		}.bind(this));
+
+		t.then(function(obj)
+		{ 
+			return obj;
+		});
+
+		console.groupEnd();
+
+		return t;
+	},
+
+	parseInputs: function(ev)
+	{
+		console.group('CERTApps.MemberEvent parseInputs')
+
+		console.log('this, ev', this, ev);
+
+		switch(this.get('value'))
+		{
+			case 'Yes':
+				this.set('Attending', true);
+				this.set('Sure', true)
+				break;
+			case 'Maybe':
+				this.set('Attending', true);
+				this.set('Sure', false);
+				break;
+			case 'No':
+				this.set('Attending', false);
+				this.set('Sure', true);
+				break;
+		}
+
+		var eventStart = ev.get('EventStart');
+		var startDB = this.dateBreakout(eventStart);
+		var arriveT = this.get('arriveTime');
+		arriveT = arriveT.substring(0,2) + ':' + arriveT.substring(2) + ':00';
+		var arriveStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', arriveT);
+
+		var eventFinish = ev.get('EventFinish');
+		var departT = this.get('departTime');
+		departT = departT.substring(0,2) + ':' + departT.substring(2) + ':00';
+		var departStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', departT);
+
+		this.set('Arrive', arriveStamp);
+		this.set('Depart', departStamp);
+
+		console.groupEnd();
 	}
 });
 
@@ -1567,35 +1647,9 @@ CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 
 			console.log('response, ev', response, ev);
 
-			var obj = 
-			{
-				Event: {KeyID: ev.KeyID},
-				Response: response
-			}
+			var respObj = CERTApps.MemberEvent.create(response);
 
-			var settings = 
-			{
-				url: '/response/save',
-				type: 'json',
-				dataType: 'json',
-				data: JSON.stringify(obj),
-				method: 'POST'
-			};
-
-			console.log('requesting data', settings)
-
-			var a = $.ajax(settings);
-			var t = a.then(function(obj)
-			{ 
-				var obj = this.moveUpData(obj); 
-
-				return obj;
-			}.bind(this));
-
-			t.then(function(obj)
-			{ 
-				return obj;
-			});
+			var t = respObj.save(ev);
 
 			console.groupEnd();
 
@@ -1793,66 +1847,54 @@ CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
 });
 
 CERTApps.RadioButton = Ember.View.extend({  
-    tagName : "input",
-    type : "radio",
-    attributeBindings : [ "name", "type", "value", "checked:checked:" ],
-    click : function() {
-    	console.group('CERTApps.RadioButton click');
+	tagName : "input",
+	type : "radio",
+	attributeBindings : [ "name", "type", "value", "checked:checked:" ],
+	click : function() {
+		console.group('CERTApps.RadioButton click');
 
-    	// var val = this.$().val();
-     //    this.set("selection", val)
+		var val = this.$().val();
+		this.set("selection", val)
 
-     //    console.log('RadioButton this', this);
-     //    var controller = this.get('controller');
-     //    console.log('controller', controller, controller.get('content.ResponseValue'))
-
-     //    var value = this.get('selectionBinding._from');
-     //    console.log('value', value);
-
-     //    //controller.set(value, val);
-     //    var existing = controller.get(value);
-     //    console.log('changing binding value', value, 'from existing to new', existing, val);
-
-//        controller.set(value, val);
 		console.groupEnd();
-    },
-    checked : function() {
-        return this.get("value") == this.get("selection");   
-    }.property()
+	},
+	checked : function() {
+    	return this.get("value") == this.get("selection");   
+	}.property()
 });
 
 CERTApps.ResponseRadioButton = CERTApps.RadioButton.extend({  
-    tagName : "input",
-    type : "radio",
-    attributeBindings : [ "name", "type", "value", "checked:checked:" ],
-    click : function() {
-    	console.group('CERTApps.ResponseRadioButton click');
+	tagName : "input",
+	type : "radio",
+	attributeBindings : [ "name", "type", "value", "checked:checked:" ],
+	click : function() {
+		console.group('CERTApps.ResponseRadioButton click');
 
-    	this._super();
+		this._super();
 
-    	var $ = this.$();
+		var $ = this.$();
 
-    	var val = $.val();
-    	var form$ = $.closest('form');
-    	var details$ = form$.find('div.details');
-    	var button$ = form$.find('div.submit-response');
-    	var arrive$ = Ember.$(details$.find('input[name=arriveTime]')[0]);
+		var val = $.val();
+		var form$ = $.closest('form');
+		var details$ = form$.find('div.details');
+		var button$ = form$.find('div.submit-response');
+		var arrive$ = Ember.$(details$.find('input[name=arriveTime]')[0]);
 
-    	console.log('val, this, $', val, this, $);
-    	if( val === "Yes" || val === "Maybe") 
-    	{
-    		details$.slideDown();
-    		arrive$.focus();
+		console.log('val, this, $', val, this, $);
+		if( val === "Yes" || val === "Maybe") 
+		{
+			details$.slideDown();
+			arrive$.focus();
 
-    	} else
-    	{
-    		details$.slideUp();
-    	}
+		} else
+		{
+			details$.slideUp();
+		}
 
-    	if( button$.find(":visible").length === 0 ) button$.slideDown()
+		if( button$.find(":visible").length === 0 ) button$.slideDown()
 
-    	console.groupEnd();
+		console.groupEnd();
 
-    	return true;
+		return true;
     },
 });
