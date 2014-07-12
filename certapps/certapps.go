@@ -991,8 +991,8 @@ func (a *Audit) setAudits(m *Member) {
 	a.Modified = time.Now()
 
 	if a.CreatedBy == nil {
-		a.Created = m.Modified
-		a.CreatedBy = m.CreatedBy
+		a.Created = a.Modified
+		a.CreatedBy = a.ModifiedBy
 	}
 }
 
@@ -1103,7 +1103,7 @@ func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	var mem *Member
 	var response *MemberEvent
 
-	c.Infof("event-async")
+	c.Infof("response")
 
 	decoder := json.NewDecoder(r.Body)
 	jsonDecodeErr := decoder.Decode(&response)
@@ -1404,51 +1404,43 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
-	var response *MemberEvent
+	var postData struct {
+		Event    *Event
+		Response *MemberEvent
+	}
 
-	c.Infof("event-async")
+	c.Infof("responseSave")
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&response)
+	jsonDecodeErr := decoder.Decode(&postData)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
-		c.Infof("JSON response: %+v", response)
+		c.Infof("JSON from request: %+v", postData)
 
-		errc := make(chan error)
-		//lookupC := make(chan Event)
-		responseC := make(chan *MemberEvent)
+		if postData.Response.KeyID == 0 {
+			postData.Response.Key = datastore.NewKey(c, "MemberEvent", "", 0, nil)
+			postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
+			postData.Response.FirstResponded = time.Now()
+		}
+		postData.Response.LastResponded = time.Now()
 
-		go func() {
-			lookupErr := response.lookup(mem, c, u, w, r)
-			if noErrMsg(lookupErr, w, c, "response.lookup") {
+		mem, _ = getMemberFromUser(c, u, r, w)
 
-			}
-			responseC <- response
-			errc <- lookupErr
-		}()
+		postData.Response.MemberKey = mem.Key
 
-		/*
-				go func() {
-					innerResp, errResp := event.responses(mem, c, u, w, r)
+		postData.Response.setAudits(mem)
 
-					if checkErr(errResp, w, c, "Getting responses for event") {
-						c.Infof("No errors looking up responses")
-					}
-
-					responsesC <- innerResp
-					errc <- errResp
-				}()
-			event2 := <-lookupC
-		*/
-
-		response2 := <-responseC
+		newKey, responseSaveErr := datastore.Put(c, postData.Response.Key, postData.Response)
+		if noErrMsg(responseSaveErr, w, c, "Saving MemberEvent") {
+			postData.Response.setKey(newKey)
+		}
 
 		context = struct {
 			Response *MemberEvent
 		}{
-			response2,
+			postData.Response,
 		}
 	} else {
 
