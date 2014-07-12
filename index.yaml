@@ -21,6 +21,11 @@ indexes:
   - name: Date
     direction: desc
 
+- kind: MemberEvent
+  properties:
+  - name: EventKey
+  - name: EventStart
+
 - kind: TeamMember
   properties:
   - name: TeamKey

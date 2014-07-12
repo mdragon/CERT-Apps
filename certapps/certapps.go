@@ -1316,6 +1316,7 @@ func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	var events []*Event
 	var eventsErr error
 	var context interface{}
+	var responses []*MemberEvent
 
 	team = &Team{}
 	decoder := json.NewDecoder(r.Body)
@@ -1325,13 +1326,15 @@ func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing team json from body") {
 		c.Infof("JSON team: %+v", team)
-		eventsErr, events = team.events(nil, c, u, w, r)
+		eventsErr, events, responses = team.events(nil, c, u, w, r)
 
 		if noErrMsg(eventsErr, w, c, "Looking up team.events") {
 			context = struct {
-				Events []*Event
+				Events    []*Event
+				Responses []*MemberEvent
 			}{
 				events,
+				responses,
 			}
 		} else {
 			context = errorContextError(eventsErr)
@@ -1345,13 +1348,19 @@ func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (team *Team) events(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (error, []*Event) {
+func (team *Team) events(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (error, []*Event, []*MemberEvent) {
 	var eventList []*Event
+	var eventKeys []*datastore.Key
 	var err error
 	var events []*Event
 	var keys []*datastore.Key
+	var responseList []*MemberEvent
 
 	c.Infof("*Team.events %d", team.KeyID)
+
+	if member == nil {
+		member, _ = getMemberFromUser(c, u, r, w)
+	}
 
 	if team.KeyID != 0 {
 		team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
@@ -1364,19 +1373,80 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 		c.Infof("Got eventQ and events for ID: %v, calling GetAll", team.KeyID)
 		keys, err = eventQ.GetAll(c, &events)
 
-		c.Infof("Found: %d, Events for Team: %d", len(events), team.KeyID)
+		if noErrMsg(err, w, c, "Calling GetAll for events by Team and EventStart") {
+			c.Infof("Found: %d, Events for Team: %d", len(events), team.KeyID)
 
-		for idx := range events {
-			e := events[idx]
-			k := keys[idx]
+			errc := make(chan error)
+			doneC := make(chan bool)
+			responsesC := make(chan []*MemberEvent)
 
-			e.setKey(k)
+			for idx := range events {
+				e := events[idx]
+				k := keys[idx]
 
-			eventList = append(eventList, e)
+				e.setKey(k)
+
+				eventList = append(eventList, e)
+
+				if lookupOthers(member) {
+					//var responses []MemberEvent
+					c.Debugf("Finding Event Responses Calling GetMulti with Keys: %+v", eventKeys)
+
+					go func() {
+						var responses []*MemberEvent
+						var responseList []*MemberEvent
+						responseQ := datastore.NewQuery("MemberEvent").Filter("EventKey =", e.Key)
+
+						c.Infof("Got responseQ for ID: %v, calling GetAll", e.KeyID)
+						keys, memberEventsErr := responseQ.GetAll(c, &responses)
+
+						if noErrMsg(memberEventsErr, w, c, "Calling GetMulti for MemberEvents for Event") {
+							c.Infof("Found: %d, Responses for Event: %d", len(responses), e.KeyID)
+
+							for idx := range responses {
+								r := responses[idx]
+								k := keys[idx]
+
+								r.setKey(k)
+
+								c.Debugf("Got a response in go routine %+v", r)
+
+								//panic("Need to make this pass back slices not individual so counts range counts will match up also need to return something, empty slice? nil? if no responses are found")
+								responseList = append(responseList, r)
+							}
+
+							c.Debugf("sending on channel list of %d responses", len(responseList))
+							responsesC <- responseList
+						} else {
+							c.Errorf("Error in Response lookup: %v", memberEventsErr)
+							errc <- memberEventsErr
+						}
+						//doneC <- true
+					}()
+
+				} else {
+					c.Infof("Member cannot lookup, not sending Responses: %+v", member)
+					responsesC <- nil
+				}
+			}
+
+			for idx := range events {
+				c.Debugf("select idx %d", idx)
+				select {
+				case response := <-responsesC:
+					c.Debugf("received from channel list of %d responses", len(response))
+					responseList = append(responseList, response...)
+				case done := <-doneC:
+					c.Debugf("done from channel")
+					c.Infof("Done: %v", done)
+				}
+			}
+
+			c.Debugf("responseList afterdone %+v", responseList)
 		}
 	}
 
-	return err, eventList
+	return err, eventList, responseList
 }
 
 func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) bool {
