@@ -833,6 +833,8 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 
 CERTApps.Event = CERTApps.TimesObject.extend(
 {
+	responses: null,
+
 	init: function()
 	{
 		console.group('CERTApps.Event init');
@@ -935,6 +937,43 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 	}.property('EventStart'),
 
+	responsesYes: function()
+	{
+		var responses = this.get('responses');
+
+		var retval = responses.filterBy('Attending', true).filterBy('Sure', true);
+
+		return retval;
+	}.property('responses.@each'),
+
+	responsesMaybe: function()
+	{
+		var responses = this.get('responses');
+
+		var retval = responses.filterBy('Attending', true).filterBy('Sure', false);
+
+		return retval;
+	}.property('responses.@each'),
+
+	responsesNo: function()
+	{
+		var responses = this.get('responses');
+
+		var retval = responses.filterBy('Attending', false);
+
+		return retval;
+	}.property('responses.@each'),
+
+
+	responsesPending: function()
+	{
+		var responses = this.get('responses');
+
+		var retval = responses.filterBy('Attending', null);
+
+		return retval;
+	}.property('responses.@each'),
+	
 	summary: Ember.computed.alias('Summary')
 });
 
@@ -1590,23 +1629,9 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 				obj = this.moveUpData(obj);
 				console.log('obj', obj);
 
-				var list = Ember.A([]);
-				for( var x = obj.Events.length - 1; x >= 0; x-- )
-				{
-					var e = obj.Events[x];
-					var ev = CERTApps.Event.create(e); 
+				var events = this.parseEventsData(obj);
 
-					ev.parseDatesToJS();
-
-					console.log('adding event to list', ev);
-
-					list.pushObject(ev)
-				}
-
-				var events = CERTApps.Events.create({events: list});
-
-				console.log('TeamIDEventsRoute model returning', events); 
-				return events; 
+				return events;
 			}.bind(this),
 			function(xhr)
 			{
@@ -1629,8 +1654,83 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		console.groupEnd();
 
 		return;		
-	}
+	},
 
+	parseEventsData: function(obj)
+	{
+		console.group('CERTApps.TeamIDEventsRoute parseEventsData');
+		console.log('obj', obj);
+
+		var list = Ember.A([]);
+		for( var x = obj.Events.length - 1; x >= 0; x-- )
+		{
+			var e = obj.Events[x];
+			var ev = CERTApps.Event.create(e); 
+
+			ev.parseDatesToJS();
+
+			console.log('adding event to list', ev);
+
+			list.pushObject(ev)
+		}
+
+		var events = CERTApps.Events.create({events: list});
+
+		console.log('TeamIDEventsRoute model returning', events); 
+
+		this.parseResponses(events, obj.Responses);
+
+		console.log('events after parseResponses', events);
+
+		console.groupEnd();
+
+		return events; 
+	},
+
+	parseResponses: function(events, responses)
+	{
+		console.group('CERTApps.TeamIDEventsRoute parseResponses');
+		console.log('events, responses', events, responses);
+
+		if( responses )
+		{
+
+			var lookup = {};
+
+			events.events.forEach( 
+				function(e)
+				{
+					var eventID = e.Key;
+					lookup[eventID] = e;
+					e.responses = Ember.A([]);
+
+					console.log('added to lookup key', eventID, e);
+				}.bind(this)
+			);
+			
+			responses.forEach(
+				function(r)
+				{
+					var eventID = r.EventKey;
+					var ev = lookup[eventID];
+
+					console.log('found event using key', eventID, ev);
+					if( ev ) 
+					{
+						ev.responses.pushObject(r);
+					} else
+					{
+						console.warn('No event found for Key from Response', eventID, r);
+					}
+				}.bind(this)
+			);
+		} else 
+		{
+			console.log('no responses found to parse');
+		}
+
+		console.groupEnd();
+	}
 });
 
 CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
