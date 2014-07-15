@@ -316,6 +316,7 @@
 								<i {{action userResponseForm e}} class="fa fa-reply action"></i>
 							</td>
 							<td>
+								<i {{action eventEdit e}} class="fa fa-pencil action"></i>
 							</td>
 							<td>
 								{{#if e.summary }}
@@ -395,6 +396,10 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="event/update">
+{{log "event/update content"}}
+{{log content}}
+
+	<div class="center-content">
 	<h3>Event Details</h3>
 	<form>
 
@@ -450,13 +455,14 @@
 				<h4><i class="fa fa-external-link"></i> Links</h4>
 			</div>
 			<div class="panel-body">
-				<label>IAP Link: {{input name="IAP" placeholder="" value=content.Event.IAPLink size=75}}<br/>
-				<label>Roster Link: {{input name="Roster" placeholder="" value=content.Event.RosterLink size=75}}<br/>
+				<label class="link1">{{content.Event.link1Label}} Link: {{input name="IAP" placeholder="" value=content.Event.Link1 size=75}}<br/></label>
+				<label class="link2" style="display: none;">{{content.Event.link2Label}} Link: {{input name="Roster" placeholder="" value=content.Event.Link2 size=75}}<br/></label>
 			</div>
 		</div>
 
 		<button {{action saveEvent content}}><i class="fa fa-save"></i> Save</button>
 	</form>
+	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="landing">

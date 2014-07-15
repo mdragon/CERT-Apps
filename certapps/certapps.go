@@ -147,8 +147,8 @@ type Event struct {
 	EventLocation   Location
 	ParkingLocation Location
 
-	IAPLink    string
-	RosterLink string
+	Link1 string //Deployment: IAP, Meeting: Agenda
+	Link2 string //Deployment: Roster
 
 	Responses []*MemberEvent `datastore:"-"`
 
@@ -1018,6 +1018,8 @@ func event(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		c.Infof("JSON event: %+v", event)
 		lookupErr := event.lookup(mem, c, u, w, r)
 
+		c.Debugf("event lookupErr %v", lookupErr)
+
 		if noErrMsg(lookupErr, w, c, "event.lookup") {
 			var responsesErr error
 			event.Responses, responsesErr = event.responses(mem, c, u, w, r)
@@ -1167,10 +1169,54 @@ func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w 
 
 		err = datastore.Get(c, event.Key, event)
 
+		if err != nil {
+			err = event.checkMissingFields(c, err)
+		}
+
 		event.setKey(event.Key)
 	} else {
 		err = errors.New("Must pass an event with a KeyID")
 	}
+
+	return err
+}
+
+func (event *Event) checkMissingFields(c appengine.Context, err error) error {
+	c.Infof("Event.checkMissingFields")
+
+	var efm *datastore.ErrFieldMismatch
+	var ok bool
+
+	if err != nil {
+		efm, ok = err.(*datastore.ErrFieldMismatch)
+
+		c.Debugf("Was a ErrFieldMismatch?, %s, %s, %s", ok, err, efm)
+
+		if efm != nil {
+			c.Debugf("Was a ErrFieldMismatch, %s, %s", efm.FieldName, efm.Reason)
+
+			clear := false
+
+			switch efm.FieldName {
+			case "RosterLink":
+				clear = true
+			case "IAPLink":
+				clear = true
+				break
+			default:
+
+			}
+
+			if clear == true {
+				err = nil
+				efm = nil
+			}
+		} else {
+			c.Errorf("Error loading Event")
+		}
+	}
+
+	c.Debugf("checkMissingFields final err value %v", err)
 
 	return err
 }
@@ -1373,7 +1419,31 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 		c.Infof("Got eventQ and events for ID: %v, calling GetAll", team.KeyID)
 		keys, err = eventQ.GetAll(c, &events)
 
-		if noErrMsg(err, w, c, "Calling GetAll for events by Team and EventStart") {
+		var storeErr error
+		if err != nil {
+			c.Debugf("Had an error loading events, looping events, err: %+v", err)
+			for idx := range events {
+				e := events[idx]
+
+				newErr := e.checkMissingFields(c, err)
+
+				c.Debugf("newErr %s, %s", newErr, err)
+
+				if newErr != nil {
+					c.Debugf("setting storeErr %s", newErr)
+					storeErr = newErr
+				}
+			}
+		}
+
+		c.Debugf("storeErr %s", storeErr)
+		if storeErr == nil {
+			c.Debugf("reseting err = nil because storeErr %s", storeErr)
+
+			err = nil
+		}
+
+		if noErrMsg(storeErr, w, c, "Calling GetAll for events by Team and EventStart") {
 			c.Infof("Found: %d, Events for Team: %d", len(events), team.KeyID)
 
 			errc := make(chan error)

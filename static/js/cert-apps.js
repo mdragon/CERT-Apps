@@ -835,6 +835,7 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 {
 	responses: null,
 
+
 	init: function()
 	{
 		console.group('CERTApps.Event init');
@@ -973,7 +974,75 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		return retval;
 	}.property('responses.@each'),
-	
+
+	link1Label: function()
+	{
+		var deploy = this.get('Deployment');
+		var retval = "???";
+
+		if( deploy )	
+		{
+			retval = "IAP";
+		} else
+		{
+			retval = "Agenda";
+		}
+
+		return retval;
+	}.property('Deployment'),
+
+	link2Label: function()
+	{
+		var meeting = this.get('Meeting');
+		var retval = "???";
+
+		if( meeting )	
+		{
+		} else
+		{
+			retval = "Roster";
+			
+		}
+
+		return retval;
+	}.property('Meeting'),
+
+	eventType: function(key, value, previous)
+	{
+		// setter
+		if (arguments.length > 1) 
+		{
+			this.set("Deployment", false);
+			this.set("Meeting", false);
+
+			this.set(value, true);
+		}
+
+		// getter
+		var retval = null;
+		var match = false;
+
+		if( match == false )
+		{
+			retval = 'Deployment';
+			if( this.get(retval) )
+			{
+				match = true;
+			}
+		}
+
+		if( match == false )
+		{
+			retval = 'Meeting';
+			if( this.get(retval) )
+			{
+				match = true;
+			}
+		}
+
+		return retval;
+	}.property('Deployment', 'Meeting'),
+
 	summary: Ember.computed.alias('Summary')
 });
 
@@ -1158,8 +1227,6 @@ CERTApps.EventRoute = Ember.Route.extend(
 
 		console.groupEnd();
 
-		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
-
 		return model;
 	},
 
@@ -1167,12 +1234,26 @@ CERTApps.EventRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps.EventRoute setupController')
 
+
 		controller.set('content', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
 
 		return;		
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.EventRoute serialize");
+
+	//	console.log('model', model);
+		debugger;
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
 	}
 
 });
@@ -1197,6 +1278,8 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 	setupController: function(controller, model)
 	{
 		console.group('CERTApps.EventCreateRoute setupController')
+
+		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
 
 		controller.set('content', model);
 
@@ -1271,10 +1354,26 @@ CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
 
 		controller.set('content', model);
 
+		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
+
 		console.log('controller, model', controller, model);
 		console.groupEnd();
 
 		return;		
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.EventUpdateRoute serialize");
+
+		var ev = model;
+		if( ev.Event ) ev = ev.Event;
+
+		var obj = { eventID: ev.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
 	}
 
 });
@@ -1598,7 +1697,20 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 			this.transitionTo('response', {Event: ev});
 
 			console.groupEnd();
+		},
+
+		eventEdit: function(ev)
+		{
+			console.group('CERTApps.TeamIDEventsRoute.actions eventEdit');
+
+			console.log('ev', ev);
+			var team = this.modelFor('team');
+
+			this.transitionTo('event.update', team, {Event: ev});
+
+			console.groupEnd();
 		}
+
 	},
 
 	model: function(params)
@@ -1654,6 +1766,22 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		console.groupEnd();
 
 		return;		
+	},
+
+	serialize: function(model)
+	{
+		console.group("CERTApps.TeamIDEventsRoute serialize");
+
+		console.log('model', model);
+
+		var e = model;
+		if( model.Event ) e = model.Event;
+
+		var obj = { eventID: e.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
 	},
 
 	parseEventsData: function(obj)
