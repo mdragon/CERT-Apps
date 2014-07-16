@@ -26,6 +26,11 @@ indexes:
   - name: EventKey
   - name: EventStart
 
+- kind: MemberEvent
+  properties:
+  - name: EventKey
+  - name: MemberKey
+
 - kind: TeamMember
   properties:
   - name: TeamKey

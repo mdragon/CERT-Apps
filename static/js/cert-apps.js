@@ -962,6 +962,8 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		var retval = responses.filterBy('Attending', false);
 
+		retval = retval.filterBy('Sure', true);
+
 		return retval;
 	}.property('responses.@each'),
 
@@ -970,7 +972,9 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 	{
 		var responses = this.get('responses');
 
-		var retval = responses.filterBy('Attending', null);
+		var retval = responses.filterBy('Attending', false);
+
+		retval = retval.filterBy('Sure', false);
 
 		return retval;
 	}.property('responses.@each'),
@@ -1013,6 +1017,7 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 		if (arguments.length > 1) 
 		{
 			this.set("Deployment", false);
+			this.set("Exercise", false);
 			this.set("Meeting", false);
 
 			this.set(value, true);
@@ -1033,6 +1038,15 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		if( match == false )
 		{
+			retval = 'Exercise';
+			if( this.get(retval) )
+			{
+				match = true;
+			}
+		}
+
+		if( match == false )
+		{
 			retval = 'Meeting';
 			if( this.get(retval) )
 			{
@@ -1041,7 +1055,18 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 		}
 
 		return retval;
-	}.property('Deployment', 'Meeting'),
+	}.property('Deployment', 'Exercise', 'Meeting', 'Training'),
+
+	showSecondLink: function()
+	{
+		var retval = "display: none;";
+		if( this.get('Deployment') || this.get('Excercise') )
+		{
+			retval =  "display: show;";
+		}
+
+		return retval;
+	}.property('Deployment', 'Exercise', 'Meeting', 'Training'),
 
 	summary: Ember.computed.alias('Summary')
 });
@@ -1212,6 +1237,15 @@ CERTApps.EventRoute = Ember.Route.extend(
 			var ev = content.Event;
 
 			ev.save();
+
+			console.groupEnd();
+		},
+
+		sendReminder: function(content)
+		{
+			console.group('CERTApps.EventRoute saveEvent');
+			
+			console.log('content', content);
 
 			console.groupEnd();
 		}

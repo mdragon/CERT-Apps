@@ -172,6 +172,17 @@ type MemberEvent struct {
 	Audit
 }
 
+type Reminder struct {
+	MemberEvent *datastore.Key
+
+	Subject string
+	Body    string
+
+	Sent time.Time
+
+	Audit
+}
+
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 
@@ -185,6 +196,8 @@ func init() {
 	http.Handle("/member/save", appstats.NewHandler(memberSave))
 	http.Handle("/response", appstats.NewHandler(response))
 	http.Handle("/response/save", appstats.NewHandler(responseSave))
+	http.Handle("/responses/create", appstats.NewHandler(responsesCreate))
+	http.Handle("/reminders/send", appstats.NewHandler(remindersSend))
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
@@ -1288,6 +1301,7 @@ func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event and team json from body") {
 		c.Infof("JSON event and team: %+v", jsonData)
 
+		newEvent := (jsonData.Event.KeyID == 0)
 		saveErr := jsonData.Event.save(nil, jsonData.Team, c, u, w, r)
 
 		if saveErr != nil {
@@ -1299,6 +1313,10 @@ func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 				"Only OEM, Town, Officer can update an Event",
 			}
 			returnJSONorErrorToResponse(context, c, r, w)
+		}
+
+		if newEvent || 1 == 1 {
+			responsesGenerate(jsonData.Event, jsonData.Team, u, c, w, r)
 		}
 	} else {
 		c.Infof("partial JSON event: %+v", event)
@@ -1550,6 +1568,179 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.Infof("responseSave")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		if postData.Response.KeyID == 0 {
+			postData.Response.Key = datastore.NewKey(c, "MemberEvent", "", 0, nil)
+			postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
+			postData.Response.FirstResponded = time.Now()
+		}
+		postData.Response.LastResponded = time.Now()
+
+		mem, _ = getMemberFromUser(c, u, r, w)
+
+		postData.Response.MemberKey = mem.Key
+
+		postData.Response.setAudits(mem)
+
+		newKey, responseSaveErr := datastore.Put(c, postData.Response.Key, postData.Response)
+		if noErrMsg(responseSaveErr, w, c, "Saving MemberEvent") {
+			postData.Response.setKey(newKey)
+		}
+
+		context = struct {
+			Response *MemberEvent
+		}{
+			postData.Response,
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
+}
+
+func responsesCreate(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var postData struct {
+		Event *Event
+	}
+
+	c.Infof("responsesCreate")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		responsesGenerate(postData.Event, nil, u, c, w, r)
+
+		context = struct {
+			Whee bool
+		}{
+			true,
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, r, w)
+}
+
+func responsesGenerate(event *Event, team *Team, u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	if event.KeyID != 0 {
+		var responses []*MemberEvent
+		var roster []*TeamMember
+
+		if team == nil {
+			c.Errorf("Need to lookup Team")
+		}
+
+		mem, _ := getMemberFromUser(c, u, r, w)
+
+		if lookupOthers(mem) {
+			done := make(chan error)
+			respMap := make(map[int64]*MemberEvent)
+
+			event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
+
+			meQ := datastore.NewQuery("MemberEvent").Filter("EventKey =", event.Key).Project("MemberKey")
+
+			c.Infof("Got q and responses for event ID: %d, calling GetAll", event.KeyID)
+
+			go func() {
+				_, err := meQ.GetAll(c, &responses)
+
+				if noErrMsg(err, w, c, "GetAll MemberEvent") {
+					c.Infof("Found %d responses for Event ID: %d", len(responses), event.KeyID)
+				}
+
+				done <- err
+			}()
+
+			team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+			mQ := datastore.NewQuery("TeamMember").Filter("TeamKey =", team.Key).Project("MemberKey")
+
+			c.Infof("Got q and responses for event ID: %d, calling GetAll", event.KeyID)
+
+			go func() {
+				_, err := mQ.GetAll(c, &roster)
+
+				if noErrMsg(err, w, c, "GetAll MemberEvent") {
+					c.Infof("Found %d Members for Team ID: %d", len(roster), team.KeyID)
+				}
+
+				done <- err
+			}()
+
+			success := true
+
+			for i := 0; i < 2; i++ {
+				if err := <-done; err != nil {
+					success = false
+				}
+			}
+
+			if success {
+				c.Infof("In success")
+				emptyKey := datastore.NewKey(c, "MemberEvent", "", 0, nil)
+
+				for idx := range responses {
+					r := responses[idx]
+					key := r.MemberKey.IntID()
+					respMap[key] = r
+					c.Debugf("Response item %d, %d, %+v", idx, key, r)
+				}
+
+				for idx := range roster {
+					m := roster[idx]
+					key := m.MemberKey.IntID()
+
+					item := respMap[key]
+
+					found := (item != nil)
+					c.Debugf("Roster item found? %v, %d, %d, %+v", found, idx, key, m)
+
+					if found == false {
+						newMe := new(MemberEvent)
+						newMe.MemberKey = m.MemberKey
+						newMe.EventKey = event.Key
+						newMe.setAudits(mem)
+
+						outKey, putErr := datastore.Put(c, emptyKey, newMe)
+
+						if noErrMsg(putErr, w, c, "Creating new MemberEvent") {
+							c.Infof("Created new MemberEvent with ID: %d, for Event ID: %d, Member ID: %d", outKey.IntID(), event.KeyID, key)
+						}
+					}
+				}
+			}
+		}
+	}
+
+}
+
+func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var postData struct {
+		Event    *Event
+		Response *MemberEvent
+	}
+
+	c.Infof("remindersSend")
 
 	decoder := json.NewDecoder(r.Body)
 	jsonDecodeErr := decoder.Decode(&postData)
