@@ -48,6 +48,13 @@ type ErrorContext struct {
 	Error   bool
 }
 
+type RemindersToSend struct {
+	All                 bool
+	RespondedYesOrMaybe bool
+	Unsent              bool
+	NoResponse          bool
+}
+
 type Location struct {
 	Line1 string
 	Line2 string
@@ -162,10 +169,12 @@ type MemberEvent struct {
 	Attending bool
 	Sure      bool
 
-	FirstViewed    time.Time
+	FirstReminder  time.Time
 	FirstResponded time.Time
-	LastViewed     time.Time
+	FirstViewed    time.Time
+	LastReminder   time.Time
 	LastResponded  time.Time
+	LastViewed     time.Time
 	Arrive         time.Time
 	Depart         time.Time
 
@@ -190,6 +199,7 @@ func init() {
 	http.Handle("/audit", appstats.NewHandler(audit))
 	http.Handle("/eventA", appstats.NewHandler(eventA))
 	http.Handle("/event", appstats.NewHandler(event))
+	http.Handle("/event/reminders/send", appstats.NewHandler(remindersSend))
 	http.Handle("/event/save", appstats.NewHandler(eventSave))
 	http.Handle("/events", appstats.NewHandler(events))
 	http.Handle("/member", appstats.NewHandler(memberData))
@@ -197,7 +207,6 @@ func init() {
 	http.Handle("/response", appstats.NewHandler(response))
 	http.Handle("/response/save", appstats.NewHandler(responseSave))
 	http.Handle("/responses/create", appstats.NewHandler(responsesCreate))
-	http.Handle("/reminders/send", appstats.NewHandler(remindersSend))
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
@@ -1035,7 +1044,7 @@ func event(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		if noErrMsg(lookupErr, w, c, "event.lookup") {
 			var responsesErr error
-			event.Responses, responsesErr = event.responses(mem, c, u, w, r)
+			event.Responses, responsesErr = event.responses(nil, mem, c, u, w, r)
 
 			if checkErr(responsesErr, w, c, "Getting responses for event") {
 				c.Infof("No errors looking up responses")
@@ -1082,7 +1091,7 @@ func eventA(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		}()
 
 		go func() {
-			innerResp, errResp := event.responses(mem, c, u, w, r)
+			innerResp, errResp := event.responses(nil, mem, c, u, w, r)
 
 			if checkErr(errResp, w, c, "Getting responses for event") {
 				c.Infof("No errors looking up responses")
@@ -1255,7 +1264,28 @@ func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User,
 	return err
 }
 
-func (event *Event) responses(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) ([]*MemberEvent, error) {
+func (reminders *RemindersToSend) addFilters(query *datastore.Query) *datastore.Query {
+	if reminders != nil {
+		if reminders.All == false {
+			zeroDate := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+			if reminders.Unsent {
+				query = query.Filter("FirstReminder =", zeroDate)
+			}
+
+			if reminders.RespondedYesOrMaybe {
+				query = query.Filter("Attending =", true)
+			}
+
+			if reminders.NoResponse {
+				query = query.Filter("FirstResponded =", zeroDate)
+			}
+		}
+	}
+
+	return query
+}
+
+func (event *Event) responses(reminders *RemindersToSend, member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) ([]*MemberEvent, error) {
 	c.Infof("*Event.responses %d", event.KeyID)
 	var results []*MemberEvent
 
@@ -1267,9 +1297,18 @@ func (event *Event) responses(member *Member, c appengine.Context, u *user.User,
 		}
 
 		query := datastore.NewQuery("MemberEvent").Filter("EventKey =", event.Key)
+		var q2 *datastore.Query
 
-		c.Infof("calling GetAll")
-		keys, err := query.GetAll(c, &results)
+		if reminders != nil {
+			c.Infof("adding filters for: %+v", reminders)
+			c.Infof("times %d, %s, %+v", time.Time{}, time.Time{}, time.Time{})
+			q2 = reminders.addFilters(query)
+		} else {
+			q2 = query
+		}
+
+		c.Infof("calling GetAll on query %+v", q2)
+		keys, err := q2.GetAll(c, &results)
 
 		if noErrMsg(err, w, c, "Getting MemberEvent") {
 			for idx, _ := range results {
@@ -1529,8 +1568,6 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 					c.Infof("Done: %v", done)
 				}
 			}
-
-			c.Debugf("responseList afterdone %+v", responseList)
 		}
 	}
 
@@ -1736,8 +1773,9 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	var context interface{}
 	var mem *Member
 	var postData struct {
-		Event    *Event
-		Response *MemberEvent
+		Event Event
+
+		RemindersToSend RemindersToSend
 	}
 
 	c.Infof("remindersSend")
@@ -1750,28 +1788,21 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		if postData.Response.KeyID == 0 {
-			postData.Response.Key = datastore.NewKey(c, "MemberEvent", "", 0, nil)
-			postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
-			postData.Response.FirstResponded = time.Now()
-		}
-		postData.Response.LastResponded = time.Now()
-
 		mem, _ = getMemberFromUser(c, u, r, w)
 
-		postData.Response.MemberKey = mem.Key
+		responses, err := postData.Event.responses(&postData.RemindersToSend, mem, c, u, w, r)
 
-		postData.Response.setAudits(mem)
+		if noErrMsg(err, w, c, "Getting reminders that need to be sent") {
 
-		newKey, responseSaveErr := datastore.Put(c, postData.Response.Key, postData.Response)
-		if noErrMsg(responseSaveErr, w, c, "Saving MemberEvent") {
-			postData.Response.setKey(newKey)
+			for _, r := range responses {
+				c.Debugf("Would send reminder: %d, %s, %+v", r.FirstResponded, r.FirstResponded, r)
+			}
 		}
 
 		context = struct {
 			Response *MemberEvent
 		}{
-			postData.Response,
+			nil,
 		}
 	} else {
 

@@ -835,7 +835,6 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 {
 	responses: null,
 
-
 	init: function()
 	{
 		console.group('CERTApps.Event init');
@@ -869,9 +868,7 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 			{ 
 				var move = this.moveUpData(obj); 
 
-				move.Member = CERTApps.Member.create(move.Member); 
-
-				console.log('App model returning', move); 
+				console.log('save returning', move); 
 				obj = move; 
 				return move; 
 			}.bind(this));
@@ -883,6 +880,45 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		return a;
 	},
+
+	sendReminder: function()
+	{
+		console.group('CERTApps.Event sendReminder')
+		
+		this.parseDates();
+
+		console.log('will send reminders for  event', this);
+
+		var ev = {KeyID: this.get('KeyID')};
+
+		var settings = 
+		{
+			url: '/event/reminders/send',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify({ Event: ev, RemindersToSend: { NoResponse: true}})
+		};
+
+		console.log('saving event data', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(obj)
+			{ 
+				var move = this.moveUpData(obj); 
+
+				console.log('sendReminder returning', move); 
+				obj = move; 
+				return move; 
+			}.bind(this));
+
+		a.then(function(obj){ console.log('a.then', JSON.stringify(obj)); }.bind(this));
+		t.then(function(obj){ console.log('t.then', JSON.stringify(obj)); }.bind(this));
+
+		console.groupEnd();
+
+		return a;
+	},
+
 
 	parseDates: function()
 	{
@@ -1246,6 +1282,10 @@ CERTApps.EventRoute = Ember.Route.extend(
 			console.group('CERTApps.EventRoute saveEvent');
 			
 			console.log('content', content);
+
+			var ev = content.Event;
+
+			ev.sendReminder();
 
 			console.groupEnd();
 		}

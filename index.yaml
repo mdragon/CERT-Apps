@@ -29,6 +29,16 @@ indexes:
 - kind: MemberEvent
   properties:
   - name: EventKey
+  - name: FirstResponded
+
+- kind: MemberEvent
+  properties:
+  - name: EventKey
+  - name: FirstResponse
+
+- kind: MemberEvent
+  properties:
+  - name: EventKey
   - name: MemberKey
 
 - kind: TeamMember
