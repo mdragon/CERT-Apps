@@ -328,7 +328,20 @@ CERTApps.BaseObject = Ember.Object.extend(
 	moveUpData: function(data)
 	{
 		return CERTApps.moveUpData(data);
-	}	
+	},
+
+	sync: function(obj)
+	{
+		console.group("CERTApps.BaseOjbect sync");
+
+		console.log('this', JSON.stringify(this));
+		console.log('obj', JSON.stringify(obj));
+
+		this.set('KeyID', obj.KeyID);
+
+		console.groupEnd();
+	},
+
 });
 
 CERTApps.AppModel = CERTApps.BaseObject.extend(
@@ -661,16 +674,6 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		console.groupEnd();
 	},
 
-	sync: function(obj)
-	{
-		console.group("CERTApps.Member sync");
-
-		console.log('this', JSON.stringify(this));
-		console.log('obj', JSON.stringify(obj));
-
-		console.groupEnd();
-	},
-
 	emailDisplay: function()
 	{
 		var retval = this.get('ShowEmail') || this.get('loggedInMember.CanLookup');
@@ -876,19 +879,26 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 		a.then(function(obj){ console.log('a.then', JSON.stringify(obj)); }.bind(this));
 		t.then(function(obj){ console.log('t.then', JSON.stringify(obj)); }.bind(this));
 
+		t.then(function(obj)
+			{ 
+				this.sync(obj); 
+			}.bind(this)
+		);
+
 		console.groupEnd();
 
 		return a;
 	},
 
-	sendReminder: function()
+	sendReminders: function(team)
 	{
-		console.group('CERTApps.Event sendReminder')
+		console.group('CERTApps.Event sendReminders')
 		
 		this.parseDates();
 
 		console.log('will send reminders for  event', this);
 
+		var t = {KeyID: team.get('KeyID')};
 		var ev = {KeyID: this.get('KeyID')};
 
 		var settings = 
@@ -896,10 +906,10 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 			url: '/event/reminders/send',
 			type: 'json',
 			dataType: 'json',
-			data: JSON.stringify({ Event: ev, RemindersToSend: { NoResponse: true}})
+			data: JSON.stringify({ Event: ev, Team: t, RemindersToSend: { NoResponse: true}})
 		};
 
-		console.log('saving event data', settings)
+		console.log('sending event reminders', settings)
 
 		var a = $.ajax(settings);
 		var t = a.then(function(obj)
@@ -1003,14 +1013,26 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 		return retval;
 	}.property('responses.@each'),
 
-
 	responsesPending: function()
 	{
 		var responses = this.get('responses');
 
-		var retval = responses.filterBy('Attending', false);
+		var retval = responses.filter(this.filterSent.bind(this));
+
+		retval.filterBy('Attending', false);
 
 		retval = retval.filterBy('Sure', false);
+
+		return retval;
+	}.property('responses.@each'),
+
+	responsesUnsent: function()
+	{
+		var responses = this.get('responses');
+
+		console.group("responses.filter for Unsent");
+		var retval = responses.filter(this.filterUnSent.bind(this));
+		console.groupEnd();
 
 		return retval;
 	}.property('responses.@each'),
@@ -1030,6 +1052,33 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		return retval;
 	}.property('Deployment'),
+
+	filterSent: function(item, index, list)
+	{
+		console.log('filter item, index, list', item, index, list);
+		var eItem = CERTApps.MemberEvent.create(item);
+		
+		return this.filterBySent(eItem, index, list, true);
+	},
+
+	filterUnSent: function(item, index, list)
+	{
+		console.log('filter item, index, list', item, index, list);
+		var eItem = CERTApps.MemberEvent.create(item);
+		
+		return this.filterBySent(eItem, index, list, false);
+	},
+
+	filterBySent: function(item, index, list, sent)
+	{
+		var rem = item.get('FirstReminder');
+
+		var dRem = new Date(rem);
+		var include = (dRem.getTime() > -62135596800000); // Sun Dec 31 0 19:00:00 GMT-0500 in js time
+		console.log('rem, dRem, include', rem, dRem, include);
+
+		return (include == sent);
+	},
 
 	link2Label: function()
 	{
@@ -1277,15 +1326,16 @@ CERTApps.EventRoute = Ember.Route.extend(
 			console.groupEnd();
 		},
 
-		sendReminder: function(content)
+		sendReminders: function(content)
 		{
-			console.group('CERTApps.EventRoute saveEvent');
+			console.group('CERTApps.EventRoute sendReminders');
 			
 			console.log('content', content);
 
 			var ev = content.Event;
+			var team = this.modelFor('team');
 
-			ev.sendReminder();
+			ev.sendReminders(team);
 
 			console.groupEnd();
 		}
@@ -1783,8 +1833,19 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 			this.transitionTo('event.update', team, {Event: ev});
 
 			console.groupEnd();
-		}
+		},
 
+		sendReminders: function(ev)
+		{
+			console.group('CERTApps.TeamIDEventsRoute.actions eventEdit');
+
+			console.log('ev', ev);
+			var team = this.modelFor('team');
+
+			ev.sendReminders(team);
+
+			console.groupEnd();
+		}
 	},
 
 	model: function(params)
@@ -1795,7 +1856,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		var team = this.modelFor('team');
 
 		var obj = {
-			KeyID: team.KeyID
+			KeyID: team.KeyID,
 		};
 
 		var settings = 

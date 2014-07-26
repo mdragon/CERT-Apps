@@ -308,6 +308,7 @@
 					<th>No</th>
 					<th>Maybe</th>
 					<th>Pending</th>
+					<th>Un-Sent</th>
 				</thead>
 				<tbody>
 					{{#each e in upcoming}}
@@ -340,6 +341,10 @@
 							<td>
 								{{e.responsesPending.length}}
 							</td>
+							<td>
+								{{e.responsesUnsent.length}}
+								<i {{action sendReminders e}} class="fa fa-envelope-o action"></i>
+							</td>
 						</tr>
 					{{/each}}
 				</tbody>
@@ -349,11 +354,45 @@
 		{{/if}}
 
 		<h4>Recent Events</h4>
-		{{#each e in recent}}
-			{{e.Summary}} 
+
+		{{#if recent }}
+			<table class="table">
+				<thead>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Attended</th>
+					<th>Hours</th>
+				</thead>
+				<tbody>
+					{{#each e in recent}}
+						<tr>
+							<td>
+								<i {{action eventEdit e}} class="fa fa-pencil action"></i>
+							</td>
+							<td>
+								{{#if e.summary }}
+									{{e.summary}}
+								{{else}}
+									Un-named
+								{{/if}}
+							</td>
+							<td>
+								{{e.prettyEventStart}}
+							</td>
+							<td>
+								{{e.attended.length}}
+							</td>
+							<td>
+								{{e.totalHours}}
+							</td>
+						</tr>
+					{{/each}}
+				</tbody>
+			</table>
 		{{else}}
 			No recent events
-		{{/each}}
+		{{/if}}
 	</div>
 </script>
 

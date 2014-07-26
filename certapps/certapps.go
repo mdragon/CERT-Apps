@@ -11,11 +11,14 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	textT "text/template"
 	"time"
 
 	"appengine"
 	"appengine/datastore"
+	"appengine/delay"
+	"appengine/mail"
 	"appengine/user"
 
 	"github.com/mjibson/appstats"
@@ -194,6 +197,9 @@ type Reminder struct {
 
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
+var zeroDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+
+var delayEmailReminders2 = delay.Func("sendEmailReminders2", sendEmailReminders)
 
 func init() {
 	http.Handle("/audit", appstats.NewHandler(audit))
@@ -247,7 +253,7 @@ func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		Whee bool
 	}{false}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 // guestbookKey returns the key used for all guestbook entries.
@@ -268,7 +274,7 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	url, err := url.QueryUnescape(rawurl)
 
 	if u != nil {
-		mem, _ := getMemberFromUser(c, u, r, w)
+		mem, _ := getMemberFromUser(c, u, w, r)
 
 		c.Debugf("Got member: %s", mem.Key.StringID())
 
@@ -331,7 +337,7 @@ func auth(c appengine.Context, w http.ResponseWriter, r *http.Request) (appengin
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		//context.Member = getMemberFromUser(c, u, context, r, w)
+		//context.Member = getMemberFromUser(c, u, context, w, r)
 		context.LoggedIn = true
 
 		url, err := user.LogoutURL(c, returnUrl)
@@ -380,7 +386,7 @@ func teamRoster(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 			member = mainContext.Member
 			c.Debugf("using mainContext.Member")
 		} else {
-			member, _ = getMemberFromUser(c, u, r, w)
+			member, _ = getMemberFromUser(c, u, w, r)
 		}
 
 		teamKey := r.FormValue("team")
@@ -391,16 +397,16 @@ func teamRoster(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
 		var getTeamErr error
 		var team *Team
-		getTeamErr, team = getTeam(intKey, member, c, r, w)
+		getTeamErr, team = getTeam(intKey, member, c, w, r)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
-			context.Members = getMembersByTeam(team.Key.IntID(), member, c, r, w)
+			context.Members = getMembersByTeam(team.Key.IntID(), member, c, w, r)
 
 			context.Team = team
 		}
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 
 	return
 }
@@ -409,7 +415,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	_, u, context := auth(c, w, r)
 
 	if context.LoggedIn {
-		member, _ := getMemberFromUser(c, u, r, w)
+		member, _ := getMemberFromUser(c, u, w, r)
 
 		teamKey := r.FormValue("team")
 		if teamKey == "" {
@@ -418,7 +424,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
 		var getTeamErr error
-		getTeamErr, context.Team = getTeam(intKey, member, c, r, w)
+		getTeamErr, context.Team = getTeam(intKey, member, c, w, r)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
 			if (context.Team == nil || context.Team.Key == nil) && intKey == 0 {
@@ -459,7 +465,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 
 	return
 }
@@ -488,7 +494,7 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		//context.Member = getMemberFromUser(c, u, context, r, w)
+		//context.Member = getMemberFromUser(c, u, context, w, r)
 		context.LoggedIn = true
 
 		url, err := user.LogoutURL(c, returnUrl)
@@ -500,12 +506,12 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		member, _ := getMemberFromUser(c, u, r, w)
+		member, _ := getMemberFromUser(c, u, w, r)
 
 		memKey := r.FormValue("member")
 		if memKey != "" {
 			intKey, _ := strconv.ParseInt(memKey, 0, 0)
-			context.Member = getMemberByIntKey2(intKey, member, c, r, w)
+			context.Member = getMemberByIntKey2(intKey, member, c, w, r)
 		} else {
 			context.Member = member
 		}
@@ -514,10 +520,10 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func returnJSONorErrorToResponse(context interface{}, c appengine.Context, r *http.Request, w http.ResponseWriter) {
+func returnJSONorErrorToResponse(context interface{}, c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	jsonC := JSONContext{}
 	bArr, memberJSONerr := json.Marshal(context)
 	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
@@ -557,7 +563,7 @@ func returnJSONorErrorToResponse(context interface{}, c appengine.Context, r *ht
 	}
 }
 
-func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w http.ResponseWriter) (*Member, error) {
+func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*Member, error) {
 
 	var memberQ *datastore.Query
 	var member []Member
@@ -712,7 +718,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, r *http.Request, w htt
 	return mem, retErr
 }
 
-func getMemberByKey2(key string, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
+func getMemberByKey2(key string, c appengine.Context, w http.ResponseWriter, r *http.Request) *Member {
 	c.Debugf("Lookup Member by key: %s", key)
 
 	k := datastore.NewKey(c, "Member", key, 0, nil)
@@ -730,7 +736,7 @@ func lookupOthers(member *Member) bool {
 	return member.CanLookup
 }
 
-func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) *Member {
+func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) *Member {
 	allow := lookupOthers(currentMem)
 	c.Debugf("Lookup Member by key: %d, allowed to lookup? %s", key, allow)
 
@@ -749,7 +755,7 @@ func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, r *h
 	return retval
 }
 
-func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) (error, *Team) {
+func getTeam(teamID int64, member *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) (error, *Team) {
 	var team Team
 	if teamID != 0 {
 		teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
@@ -790,7 +796,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context, r *http.Request,
 	return nil, &team
 }
 
-func getMembersByTeam(teamID int64, member *Member, c appengine.Context, r *http.Request, w http.ResponseWriter) []Member {
+func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) []Member {
 	teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
 	teamQ := datastore.NewQuery("TeamMember").
 		Filter("TeamKey =", teamKey) //.Project("MemberKey")
@@ -875,7 +881,7 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
-		curMember, _ = getMemberFromUser(c, u, r, w)
+		curMember, _ = getMemberFromUser(c, u, w, r)
 	}
 	c.Debugf("Looking up allow for curMember")
 	allow := lookupOthers(curMember)
@@ -901,7 +907,7 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 		}{
 			saveMember,
 		}
-		returnJSONorErrorToResponse(context, c, r, w)
+		returnJSONorErrorToResponse(context, c, w, r)
 
 		return keyOut, mErr
 	} else {
@@ -913,7 +919,7 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 			true,
 			"Only OEM, Town, Officer can update a different Member's record",
 		}
-		returnJSONorErrorToResponse(context, c, r, w)
+		returnJSONorErrorToResponse(context, c, w, r)
 	}
 
 	return nil, nil
@@ -941,7 +947,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 
 	}
 
-	curMember, _ := getMemberFromUser(c, u, r, w)
+	curMember, _ := getMemberFromUser(c, u, w, r)
 	allow := lookupOthers(curMember)
 
 	if allow {
@@ -953,7 +959,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			c.Debugf("Saving Imported Member: %+v", saveMember)
 			tk := datastore.NewKey(c, "Team", "", importData.TeamID, nil)
 
-			teamErr, team := getTeam(tk.IntID(), curMember, c, r, w)
+			teamErr, team := getTeam(tk.IntID(), curMember, c, w, r)
 
 			if noErrMsg(teamErr, w, c, "Lookup team") {
 
@@ -994,7 +1000,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 		}{
 			true,
 		}
-		returnJSONorErrorToResponse(context, c, r, w)
+		returnJSONorErrorToResponse(context, c, w, r)
 	} else {
 		c.Errorf("Only OEM, Town, Officer can update a different Member's record: %+v, tried to save: %+v", curMember, saveMember)
 		context := struct {
@@ -1004,7 +1010,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			true,
 			"Only OEM, Town, Officer can update a different Member's record",
 		}
-		returnJSONorErrorToResponse(context, c, r, w)
+		returnJSONorErrorToResponse(context, c, w, r)
 	}
 }
 
@@ -1060,7 +1066,7 @@ func event(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func eventA(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -1118,7 +1124,7 @@ func eventA(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -1175,7 +1181,7 @@ func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
@@ -1186,7 +1192,7 @@ func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w 
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 		if member == nil {
-			member, _ = getMemberFromUser(c, u, r, w)
+			member, _ = getMemberFromUser(c, u, w, r)
 		}
 
 		err = datastore.Get(c, event.Key, event)
@@ -1251,7 +1257,7 @@ func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User,
 		me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
 
 		if member == nil {
-			member, _ = getMemberFromUser(c, u, r, w)
+			member, _ = getMemberFromUser(c, u, w, r)
 		}
 
 		err = datastore.Get(c, me.Key, me)
@@ -1267,7 +1273,6 @@ func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User,
 func (reminders *RemindersToSend) addFilters(query *datastore.Query) *datastore.Query {
 	if reminders != nil {
 		if reminders.All == false {
-			zeroDate := time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 			if reminders.Unsent {
 				query = query.Filter("FirstReminder =", zeroDate)
 			}
@@ -1293,7 +1298,7 @@ func (event *Event) responses(reminders *RemindersToSend, member *Member, c appe
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 		if member == nil {
-			member, _ = getMemberFromUser(c, u, r, w)
+			member, _ = getMemberFromUser(c, u, w, r)
 		}
 
 		query := datastore.NewQuery("MemberEvent").Filter("EventKey =", event.Key)
@@ -1351,7 +1356,7 @@ func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 				true,
 				"Only OEM, Town, Officer can update an Event",
 			}
-			returnJSONorErrorToResponse(context, c, r, w)
+			returnJSONorErrorToResponse(context, c, w, r)
 		}
 
 		if newEvent || 1 == 1 {
@@ -1367,7 +1372,7 @@ func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		jsonData.Event,
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func (event *Event) save(member *Member, team *Team, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
@@ -1378,7 +1383,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 	if member == nil {
-		member, _ = getMemberFromUser(c, u, r, w)
+		member, _ = getMemberFromUser(c, u, w, r)
 	}
 
 	if lookupOthers(member) {
@@ -1447,7 +1452,7 @@ func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 
 }
 
@@ -1462,7 +1467,7 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 	c.Infof("*Team.events %d", team.KeyID)
 
 	if member == nil {
-		member, _ = getMemberFromUser(c, u, r, w)
+		member, _ = getMemberFromUser(c, u, w, r)
 	}
 
 	if team.KeyID != 0 {
@@ -1621,7 +1626,7 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		}
 		postData.Response.LastResponded = time.Now()
 
-		mem, _ = getMemberFromUser(c, u, r, w)
+		mem, _ = getMemberFromUser(c, u, w, r)
 
 		postData.Response.MemberKey = mem.Key
 
@@ -1641,7 +1646,7 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func responsesCreate(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -1672,7 +1677,7 @@ func responsesCreate(c appengine.Context, w http.ResponseWriter, r *http.Request
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func responsesGenerate(event *Event, team *Team, u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -1684,7 +1689,7 @@ func responsesGenerate(event *Event, team *Team, u *user.User, c appengine.Conte
 			c.Errorf("Need to lookup Team")
 		}
 
-		mem, _ := getMemberFromUser(c, u, r, w)
+		mem, _ := getMemberFromUser(c, u, w, r)
 
 		if lookupOthers(mem) {
 			done := make(chan error)
@@ -1773,9 +1778,9 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	var context interface{}
 	var mem *Member
 	var postData struct {
-		Event Event
-
+		Event           Event
 		RemindersToSend RemindersToSend
+		Team            Team
 	}
 
 	c.Infof("remindersSend")
@@ -1788,14 +1793,53 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		mem, _ = getMemberFromUser(c, u, r, w)
+		mem, _ = getMemberFromUser(c, u, w, r)
 
-		responses, err := postData.Event.responses(&postData.RemindersToSend, mem, c, u, w, r)
+		var responses []*MemberEvent
+		var errChan = make(chan error)
+		go func() {
+			var err error
+			responses, err = postData.Event.responses(&postData.RemindersToSend, mem, c, u, w, r)
 
-		if noErrMsg(err, w, c, "Getting reminders that need to be sent") {
+			errChan <- err
+		}()
 
+		go func() {
+			var err error
+			err = postData.Event.lookup(mem, c, u, w, r)
+
+			errChan <- err
+		}()
+
+		var members []Member
+		go func() {
+			var err error
+			members = getMembersByTeam(postData.Team.KeyID, mem, c, w, r)
+
+			errChan <- err
+		}()
+
+		err1 := <-errChan
+		err2 := <-errChan
+		err3 := <-errChan
+
+		memberByKey := make(map[int64]Member)
+
+		for _, m := range members {
+			memberByKey[m.KeyID] = m
+		}
+
+		if noErrMsg(err1, w, c, "Getting reminders that need to be sent") &&
+			noErrMsg(err2, w, c, "Getting reminders that need to be sent") &&
+			noErrMsg(err3, w, c, "Getting reminders that need to be sent") {
 			for _, r := range responses {
-				c.Debugf("Would send reminder: %d, %s, %+v", r.FirstResponded, r.FirstResponded, r)
+				c.Debugf("Sending reminder: %d, %s, %+v", r.FirstResponded, r.FirstResponded, r)
+
+				responseMember := memberByKey[r.MemberKey.IntID()]
+
+				respond := postData.Event.Deployment || postData.Event.Exercise
+
+				delayEmailReminders2.Call(c, postData.Event, r, responseMember, respond, *mem)
 			}
 		}
 
@@ -1808,7 +1852,89 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 
 	}
 
-	returnJSONorErrorToResponse(context, c, r, w)
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func (event *Event) typeString() string {
+	retval := "Event"
+
+	if event.Deployment {
+		retval = "Deployment"
+	}
+
+	if event.Meeting {
+		if strings.Contains(strings.ToLower(event.Summary), "meeting") {
+			retval = ""
+		} else {
+			retval = "Meeting"
+		}
+	}
+
+	if event.Exercise {
+		retval = "Exercise"
+	}
+
+	return retval
+}
+
+const reminderEmailText = `
+%s
+
+Time:
+%s
+
+Please respond with your availability using this link: %s
+
+`
+
+func (event *Event) timeInfo() string {
+	const layout = "January 2, 2006 at 3:04pm"
+	return event.EventStart.Format(layout)
+}
+
+func (response *MemberEvent) getURL(c appengine.Context) string {
+	baseURL := appengine.DefaultVersionHostname(c)
+	return fmt.Sprintf("%s/response/%d", baseURL, response.KeyID)
+}
+
+func (response *MemberEvent) sentFirstReminder() bool {
+	return zeroDate.Equal(response.FirstReminder) == false
+}
+
+func (response *MemberEvent) save(c appengine.Context, member *Member) error {
+	response.Key = datastore.NewKey(c, "MemberEvent", "", response.KeyID, nil)
+	response.setAudits(member)
+
+	key, err := datastore.Put(c, response.Key, response)
+
+	response.setKey(key)
+
+	return err
+}
+
+func sendEmailReminders(c appengine.Context, event Event, memberEvent *MemberEvent, emailMember Member, pleaseRespond bool, curMember Member) {
+	msg := &mail.Message{
+		Sender:  "CERT Apps <mdragon+cert-apps@gmail.com>",
+		To:      []string{"mdragon+cert-apps-cc@gmail.com"},
+		Subject: "CERT " + event.typeString() + " - " + event.Summary + " - Please Respond",
+		Body:    fmt.Sprintf(reminderEmailText, event.Description, event.timeInfo(), memberEvent.getURL(c)),
+	}
+
+	if 1 == 2 || emailMember.Email == "mdragon@gmail.com" {
+		msg.To = []string{emailMember.Email, emailMember.Email2}
+		msg.Bcc = []string{"mdragon+cert-apps-cc@gmail.com"}
+	}
+
+	if err := mail.Send(c, msg); err != nil {
+		c.Errorf("Couldn't send email: %v, %+v", err, msg)
+	}
+
+	memberEvent.LastReminder = time.Now()
+	if memberEvent.sentFirstReminder() {
+		memberEvent.FirstReminder = memberEvent.LastReminder
+	}
+
+	memberEvent.save(c, &curMember)
 }
 
 func errorContextString(message string) ErrorContext {
