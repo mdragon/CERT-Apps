@@ -15,19 +15,19 @@ window.CERTApps = Ember.Application.create(
 
 CERTApps.Router.map(function() 
 {
-	this.resource('landing', { path: '/landing' });
+	this.resource('landing', { path: 'landing' });
 	this.resource('member', function()
 		{	
 			this.route('update');
 		});
 	this.resource('team', function()
 		{
-			this.resource("teamID", { path: '/:teamID' 	}, function()
+			this.resource("teamID", { path: ':teamID' 	}, function()
 			{
 				this.resource('event', function()
 				{
 					this.route("create", { path: '/' });
-					this.route("update", { path: '/:eventID' });
+					this.route("update", { path: ':eventID' });
 				});
 
 				this.resource("roster", function()
@@ -38,15 +38,20 @@ CERTApps.Router.map(function()
 				this.route('events');
 			});
 		});
-	this.resource('eventDetails', { path: '/event' }, function()
+	this.resource('eventDetails', { path: 'event' }, function()
 		{
-			this.resource('eventID', { path: '/:eventID' }, function()
+			this.resource('eventID', { path: ':eventID' }, function()
 				{
 					this.resource('response',  function()
 						{
-								this.route('/:responseID');
+								this.route('index', { path: ':responseID' });
 						});
 				});
+		});
+	this.resource('directResponse', { path: 'response'}, function()
+		{
+			this.route('index', { path: ':responseID' })
+
 		});
 	// this.resource('response', function()
 	// 	{
@@ -1756,24 +1761,66 @@ CERTApps.MemberEvent = CERTApps.TimesObject.extend(
 
 		var eventStart = ev.get('EventStart');
 		var startDB = this.dateBreakout(eventStart);
-		var arriveT = this.get('arriveTime');
-		arriveT = arriveT.substring(0,2) + ':' + arriveT.substring(2) + ':00';
-		var arriveStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', arriveT);
 
-		var eventFinish = ev.get('EventFinish');
-		var departT = this.get('departTime');
-		departT = departT.substring(0,2) + ':' + departT.substring(2) + ':00';
-		var departStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', departT);
+		if( this.get('Attending') )
+		{
+			var arriveT = this.get('arriveTime');
+			arriveT = arriveT.substring(0,2) + ':' + arriveT.substring(2) + ':00';
+			var arriveStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', arriveT);
 
-		this.set('Arrive', arriveStamp);
-		this.set('Depart', departStamp);
+			var eventFinish = ev.get('EventFinish');
+			var departT = this.get('departTime');
+			departT = departT.substring(0,2) + ':' + departT.substring(2) + ':00';
+			var departStamp = eventStart.replace(startDB.hours + ':' + startDB.minutes + ':00', departT);
 
+			this.set('Arrive', arriveStamp);
+			this.set('Depart', departStamp);
+		}
+		
 		console.groupEnd();
 	}
 });
 
 CERTApps.MemberEvent.reopenClass(
 {
+	lookup: function(responseID)
+	{
+		console.group("lookup");
+
+		var settings = 
+		{
+			url: '/response',
+			//type: 'json',
+			dataType: 'json',
+			method: 'get',
+			data: 
+			{
+				response: responseID || 0
+			}
+		};
+
+		console.log('get Response', settings)
+
+		var a = $.ajax(settings);
+
+		var t = a.then(function(data)
+		{
+			var dataObj = CERTApps.moveUpData(data);
+			var retval = { Response: CERTApps.MemberEvent.create(dataObj.Response) };
+
+			if( dataObj.Event )
+			{
+				retval.Event = CERTApps.Event.create(dataObj.Event);
+			}
+			
+			return retval;
+		});
+
+		console.groupEnd();
+
+		return t;
+	}, 
+
 	lookupByEvent: function(eventID)
 	{
 		console.group("lookupByEvent");
@@ -1996,7 +2043,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 	}
 });
 
-CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
+CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
@@ -2026,27 +2073,37 @@ CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 
 		console.log('params, args', params, arguments);
 
-		var e = this.modelFor('eventID');
-
-		if( ! e )
+		var a = null;
+		if( params.responseID )
 		{
-			log.warn('Doing bad things using transition to get eventID model because modelFor returned null');
+			console.log('looking up response for params', params);
+			a = CERTApps.MemberEvent.lookup(params.responseID);
+		} else {
+			// for when you haven't passed a responseID on the URL
+			
+			var e = this.modelFor('eventID');
+			if( ! e )
+			{
+				console.warn('Doing bad things using transition to get eventID model because modelFor returned null');
 
-			if( transition )
+				if( transition )
+				{
+					e = transition.resolvedModels.eventID;
+					console.log('got eventID from resolvedModels', e)
+				} else
+				{
+					console.warn('transition was null');
+				}
+			}
+
+			if( e )
 			{
-				e = transition.get('resolvedModels.eventID');
-			} else
-			{
-				log.warn('transition was null');
+				if( e.Event ) e = e.Event;
+				console.log('event, looking up response', e);
+
+				a = CERTApps.MemberEvent.lookupByEvent(e.KeyID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
 			}
 		}
-
-		if( e.Event ) e = e.Event;
-		console.log('e', e);
-
-
-		var a = CERTApps.MemberEvent.lookupByEvent(e.KeyID).then(function(data){ data = this.moveUpData(data); return data; }.bind(this));
-
 		console.groupEnd();
 
 		return a;
@@ -2081,7 +2138,7 @@ CERTApps.ResponseRoute = CERTApps.BaseRoute.extend(
 		var e = model;
 		if( model.Event ) e = model.Event;
 
-		var obj = { eventID: e.get('KeyID') };
+		var obj = { responseID: e.get('KeyID') };
 
 		console.groupEnd();
 
@@ -2260,4 +2317,43 @@ CERTApps.ResponseRadioButton = CERTApps.RadioButton.extend({
 
 		return true;
     },
+});
+
+CERTApps.DirectResponseIndexRoute = CERTApps.BaseRoute.extend(
+{
+	model: function(params, transition)
+	{
+		console.group('CERTApps.DirectResponseIndexRoute model');
+	
+		console.log('params', params);
+
+		var a = CERTApps.MemberEvent.lookup(params.responseID);
+
+		console.groupEnd()
+
+		return a;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.DirectResponseIndexRoute serialize');
+		
+		var params = {responseID: model.get('KeyID')};
+
+		console.log('params', params);
+
+		console.groupEnd()
+		
+		return param;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.DirectResponseIndexRoute setupController');
+
+		console.log('model', model);
+		this.transitionTo('response.:responseID', model.Event.KeyID, model.Response);
+
+		console.groupEnd();
+	}
 });

@@ -1131,54 +1131,67 @@ func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
-	var response *MemberEvent
+	response := new(MemberEvent)
+	var err error
 
-	c.Infof("response")
+	c.Infof("/response")
 
-	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&response)
+	//decoder := json.NewDecoder(r.Body)
+	//jsonDecodeErr := decoder.Decode(&response)
 
-	if jsonDecodeErr == io.EOF {
-		c.Infof("EOF, should it be?")
-	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
-		c.Infof("JSON response: %+v", response)
+	//if jsonDecodeErr == io.EOF {
+	//	c.Infof("EOF, should it be?")
+	//} else
+	//if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 
-		errc := make(chan error)
-		//lookupC := make(chan Event)
-		responseC := make(chan *MemberEvent)
+	responseKey := r.FormValue("response")
+	if responseKey != "" {
+		response.KeyID, err = strconv.ParseInt(responseKey, 0, 0)
+		if noErrMsg(err, w, c, "getting int for MemberEvent.KeyID") {
+			c.Infof("JSON response: %+v", response)
 
-		go func() {
-			lookupErr := response.lookup(mem, c, u, w, r)
-			if noErrMsg(lookupErr, w, c, "response.lookup") {
+			errC := make(chan error)
+			//lookupC := make(chan Event)
+			//responseC := make(chan *MemberEvent)
 
+			go func() {
+				lookupErr := response.lookup(mem, c, u, w, r)
+
+				errC <- lookupErr
+			}()
+
+			/*
+					go func() {
+						innerResp, errResp := event.responses(mem, c, u, w, r)
+
+						if checkErr(errResp, w, c, "Getting responses for event") {
+							c.Infof("No errors looking up responses")
+						}
+
+						responsesC <- innerResp
+						errc <- errResp
+					}()
+				event2 := <-lookupC
+			*/
+
+			err = <-errC
+
+			if noErrMsg(err, w, c, "response.lookup") {
+
+				event := new(Event)
+				event.KeyID = response.EventKey.IntID()
+
+				context = struct {
+					Response *MemberEvent
+					Event    *Event
+				}{
+					response,
+					event,
+				}
 			}
-			responseC <- response
-			errc <- lookupErr
-		}()
-
-		/*
-				go func() {
-					innerResp, errResp := event.responses(mem, c, u, w, r)
-
-					if checkErr(errResp, w, c, "Getting responses for event") {
-						c.Infof("No errors looking up responses")
-					}
-
-					responsesC <- innerResp
-					errc <- errResp
-				}()
-			event2 := <-lookupC
-		*/
-
-		response2 := <-responseC
-
-		context = struct {
-			Response *MemberEvent
-		}{
-			response2,
 		}
 	} else {
-
+		c.Warningf("/response called with no get ID value passed")
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
@@ -1250,21 +1263,30 @@ func (event *Event) checkMissingFields(c appengine.Context, err error) error {
 }
 
 func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
-	c.Infof("*MemberEvent.lookup %d", me.KeyID)
+	c.Infof("*MemberEvent.lookup")
 	var err error
 
-	if me.KeyID != 0 {
-		me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
+	if me != nil {
+		if me.KeyID != 0 {
+			if me.Key == nil {
+				me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
+				c.Debugf("me.Key from ID %d", me.KeyID)
+			} else {
+				c.Debugf("me.Key was already set %+v", me.Key)
+			}
 
-		if member == nil {
-			member, _ = getMemberFromUser(c, u, w, r)
+			if member == nil {
+				member, _ = getMemberFromUser(c, u, w, r)
+			}
+
+			err = datastore.Get(c, me.Key, me)
+
+			me.setKey(me.Key)
+		} else {
+			err = errors.New("Must pass an MemberEvent with a KeyID")
 		}
-
-		err = datastore.Get(c, me.Key, me)
-
-		me.setKey(me.Key)
 	} else {
-		err = errors.New("Must pass an MemberEvent with a KeyID")
+		err = errors.New("lookup Called on nil MemberEvent")
 	}
 
 	return err
@@ -1617,13 +1639,17 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
-		c.Infof("JSON from request: %+v", postData)
+		c.Infof("JSON from request: Response: %+v, Event: %+v", postData.Response, postData.Event)
 
-		if postData.Response.KeyID == 0 {
-			postData.Response.Key = datastore.NewKey(c, "MemberEvent", "", 0, nil)
-			postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
+		postData.Response.Key = datastore.NewKey(c, "MemberEvent", "", postData.Response.KeyID, nil)
+
+		c.Debugf("using MemberEvent KeyID: %d, Key: %+v", postData.Response.KeyID, postData.Response.Key)
+
+		if postData.Response.FirstReminder == zeroDate {
 			postData.Response.FirstResponded = time.Now()
 		}
+
+		postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
 		postData.Response.LastResponded = time.Now()
 
 		mem, _ = getMemberFromUser(c, u, w, r)
@@ -1894,7 +1920,12 @@ func (event *Event) timeInfo() string {
 
 func (response *MemberEvent) getURL(c appengine.Context) string {
 	baseURL := appengine.DefaultVersionHostname(c)
-	return fmt.Sprintf("%s/response/%d", baseURL, response.KeyID)
+
+	proto := "http"
+	if appengine.IsDevAppServer() == false {
+		proto = "https"
+	}
+	return fmt.Sprintf("%s://%s/response/%d", proto, baseURL, response.KeyID)
 }
 
 func (response *MemberEvent) sentFirstReminder() bool {
@@ -1925,16 +1956,18 @@ func sendEmailReminders(c appengine.Context, event Event, memberEvent *MemberEve
 		msg.Bcc = []string{"mdragon+cert-apps-cc@gmail.com"}
 	}
 
+	c.Debugf("Sending email: %+v", msg)
 	if err := mail.Send(c, msg); err != nil {
 		c.Errorf("Couldn't send email: %v, %+v", err, msg)
-	}
+	} else {
 
-	memberEvent.LastReminder = time.Now()
-	if memberEvent.sentFirstReminder() {
-		memberEvent.FirstReminder = memberEvent.LastReminder
-	}
+		memberEvent.LastReminder = time.Now()
+		if memberEvent.sentFirstReminder() {
+			memberEvent.FirstReminder = memberEvent.LastReminder
+		}
 
-	memberEvent.save(c, &curMember)
+		memberEvent.save(c, &curMember)
+	}
 }
 
 func errorContextString(message string) ErrorContext {
