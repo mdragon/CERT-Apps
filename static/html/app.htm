@@ -400,35 +400,35 @@
 {{log 'template eventID'}}
 {{log content}}
 	<div class="center-content">
-		<h3>{{content.Event.summary}}</h3>
-		{{content.Event.startDateBreakout.prettyDate}}*
-		{{content.Event.eventStartDate}}
+		<h3>{{content.summary}}</h3>
+		{{content.startDateBreakout.prettyDate}}*
+		{{content.eventStartDate}}
 
 		<p>
-			{{content.Event.Description}}
+			{{content.Description}}
 		</p>
 
 		{{outlet}}
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="response">
+<script type="text/x-handlebars" data-template-name="response/index">
 {{log "template response (under eventID)"}}
 {{log content}}
 
 	<h4>Please Respond With Your Availability</h4>
 	<form  class="form">
-		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="Yes"}} Yes</label><br/>
-		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="No"}} No</label><br/>
-		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.Response.value" value="Maybe"}} Maybe</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Yes"}} Yes</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="No"}} No</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Maybe"}} Maybe</label><br/>
 
 		<div class="details" style="display: none;">
-			<label>Arrive: {{input name="arriveTime" value=content.Response.arriveTime size=5}}
-			<lable>Depart: {{input name="departTime" value=content.Response.departTime size=5}}
+			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}
+			<lable>Depart: {{input name="departTime" value=content.departTime size=5}}
 		</div>
 
 		<div class="submit-response" style="display: none;">
-			<button {{action submitResponse content.Response}} class="button"><i class="fa fa-save"></i> Save</button>
+			<button {{action submitResponse content}} class="button"><i class="fa fa-save"></i> Save</button>
 		</div>
 		
 	</form>

@@ -1700,6 +1700,8 @@ CERTApps.MemberEvent = CERTApps.TimesObject.extend(
 	{
 		console.group('CERTApps.MemberEvent save')
 
+		console.log('Event, MemberEvent', ev, this)
+
 		this.parseInputs(ev);
 
 		var obj = 
@@ -1783,9 +1785,9 @@ CERTApps.MemberEvent = CERTApps.TimesObject.extend(
 
 CERTApps.MemberEvent.reopenClass(
 {
-	lookup: function(responseID)
+	lookup: function(responseID, ev)
 	{
-		console.group("lookup");
+		console.group("CERTApps.MemberEvent.lookup");
 
 		var settings = 
 		{
@@ -1808,11 +1810,21 @@ CERTApps.MemberEvent.reopenClass(
 			var dataObj = CERTApps.moveUpData(data);
 			var retval = { Response: CERTApps.MemberEvent.create(dataObj.Response) };
 
-			if( dataObj.Event )
+			if( ev )
 			{
-				retval.Event = CERTApps.Event.create(dataObj.Event);
+				console.log('using real Event from caller');
+				retval.Event = ev;
+			} else
+			{
+				if( dataObj.Event )
+				{
+					console.log('using stub Event with ID only from JSON response');
+					retval.Event = CERTApps.Event.create(dataObj.Event);
+				}
 			}
-			
+
+			console.log('CERTApps.MemberEvent.lookup returned', retval);
+				
 			return retval;
 		});
 
@@ -2069,19 +2081,22 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	model: function(params, transition)
 	{
-		console.group("CERTApps.EventIDResponseRoute model");
+		console.group('CERTApps.EventIDResponseRoute model');
 
 		console.log('params, args', params, arguments);
 
+		var e = this.modelFor('eventID');
+		if( e.Event ) e = e.Event;
 		var a = null;
 		if( params.responseID )
 		{
-			console.log('looking up response for params', params);
-			a = CERTApps.MemberEvent.lookup(params.responseID);
+			console.log('looking up response for params', params, e);
+			a = CERTApps.MemberEvent.lookup(params.responseID, e);
+
+			a.then(function(obj){ console.log('CERTApps.EventIDResponseRoute model returning', obj)});
 		} else {
 			// for when you haven't passed a responseID on the URL
 			
-			var e = this.modelFor('eventID');
 			if( ! e )
 			{
 				console.warn('Doing bad things using transition to get eventID model because modelFor returned null');
@@ -2115,13 +2130,21 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 		console.log('controller, model', controller, model);
 
 		//if( model.Event ) model = model.Event;
+		model = model || {};
 
-		if( ! model.Response ) model = {Response: CERTApps.MemberEvent.create()};
+		if( model.Response ) model = model.Response;
+		
+		if( Ember.typeOf(model) != 'instance' ) 
+		{
+			model = CERTApps.MemberEvent.create(model);
+		}
+
 		var ev = this.modelFor('eventID');
 		if( ev.Event ) ev = ev.Event;
 
-		model.Response.defaults(ev);
+		model.defaults(ev);
 
+		console.log('setting content', model);
 		controller.set('content', model);
 
 		console.groupEnd();
@@ -2139,6 +2162,8 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 		if( model.Event ) e = model.Event;
 
 		var obj = { responseID: e.get('KeyID') };
+
+		console.log('seralized to', obj);
 
 		console.groupEnd();
 
@@ -2232,9 +2257,9 @@ CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
 
 	model: function(params)
 	{
-		var m = CERTApps.Event.lookup(params.eventID);
+		var model = CERTApps.Event.lookup(params.eventID);
 
-		var model = m.then(
+/*		var model = m.then(
 		function(data)
 			{
 				console.log('m.then', data);
@@ -2246,7 +2271,7 @@ CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
 				return model;
 			}.bind(this)
 		);
-
+*/
 		return model;
 	},
 
@@ -2327,7 +2352,7 @@ CERTApps.DirectResponseIndexRoute = CERTApps.BaseRoute.extend(
 	
 		console.log('params', params);
 
-		var a = CERTApps.MemberEvent.lookup(params.responseID);
+		var a = CERTApps.MemberEvent.lookup(params.responseID, null);
 
 		console.groupEnd()
 
@@ -2352,7 +2377,7 @@ CERTApps.DirectResponseIndexRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.DirectResponseIndexRoute setupController');
 
 		console.log('model', model);
-		this.transitionTo('response.:responseID', model.Event.KeyID, model.Response);
+		this.transitionTo('response.index', model.Event.KeyID, model.Response);
 
 		console.groupEnd();
 	}
