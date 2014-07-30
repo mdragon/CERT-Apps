@@ -1627,8 +1627,8 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	var context interface{}
 	var mem *Member
 	var postData struct {
-		Event    *Event
 		Response *MemberEvent
+		Event    *Event
 	}
 
 	c.Infof("responseSave")
@@ -1845,9 +1845,12 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			errChan <- err
 		}()
 
-		err1 := <-errChan
-		err2 := <-errChan
-		err3 := <-errChan
+		var errOut error
+		for err := range errChan {
+			if checkErr(err, w, c, "Getting reminders that need to be sent") {
+				errOut = err
+			}
+		}
 
 		memberByKey := make(map[int64]Member)
 
@@ -1855,9 +1858,7 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			memberByKey[m.KeyID] = m
 		}
 
-		if noErrMsg(err1, w, c, "Getting reminders that need to be sent") &&
-			noErrMsg(err2, w, c, "Getting reminders that need to be sent") &&
-			noErrMsg(err3, w, c, "Getting reminders that need to be sent") {
+		if noErr(errOut, w, c) {
 			for _, r := range responses {
 				c.Debugf("Sending reminder: %d, %s, %+v", r.FirstResponded, r.FirstResponded, r)
 
