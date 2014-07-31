@@ -959,19 +959,40 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 		var es = this.get('EventStart');
 		var startDB = this.dateBreakout(es);
-		console.log('EventStart', es);
+		console.log('EventStart, startDB', es, startDB);
+
+		if( ! startDB.timestamp )
+		{
+			startDB = this.dateBreakout(new Date().toString());
+			console.log('overriding date breakout with now', startDB);
+		}
 
 		this.set('eventStartDate', startDB.prettyDate);
-		this.set('eventStartTime', startDB.prettyTime);
+
+		if( es )
+		{
+			this.set('eventStartTime', startDB.prettyTime);
+		}
 
 		var ef = this.get('EventFinish');
 		var finishDB = this.dateBreakout(ef);
+		console.log('EventFinish, finishDB', ef, finishDB);
+
+		if( ! finishDB.timestamp )
+		{
+			finishDB = this.dateBreakout(new Date().toString());
+			console.log('overriding date breakout with now', finishDB);
+		}
 
 		if( startDB.prettyDate !== finishDB.prettyDate )
 		{
 			this.set('eventFinishDate', finishDB.prettyDate);
 		}
-		this.set('eventFinishTime', finishDB.prettyTIme);
+
+		if( ef )
+		{
+			this.set('eventFinishTime', finishDB.prettyTIme);
+		}
 
 		this.set('startDateBreakout', startDB);
 		this.set('finishDateBreakout', finishDB);
