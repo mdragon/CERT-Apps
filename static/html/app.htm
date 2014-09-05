@@ -314,10 +314,10 @@
 					{{#each e in upcoming}}
 						<tr>
 							<td>
-								<i {{action userResponseForm e}} class="fa fa-reply action"></i>
+								<i {{action 'userResponseForm' e}} class="fa fa-reply action"></i>
 							</td>
 							<td>
-								<i {{action eventEdit e}} class="fa fa-pencil action"></i>
+								<i {{action 'eventEdit' e}} class="fa fa-pencil action"></i>
 							</td>
 							<td>
 								{{#if e.summary }}
@@ -503,6 +503,12 @@
 		<button {{action createMissing content}}><i class="fa fa-thumbs-o-up"></i> Create Missing Responses</button> 
 		<button {{action sendReminder content}}><i class="fa fa-envelope-o"></i> Send Reminder</button> 
 	</form>
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/training">
+	<div class="center-content">
+		<h4>Training</h4>
 	</div>
 </script>
 

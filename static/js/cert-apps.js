@@ -36,15 +36,15 @@ CERTApps.Router.map(function()
 				});
 
 				this.route('events');
+				});
 			});
-		});
 	this.resource('eventDetails', { path: 'event' }, function()
 		{
 			this.resource('eventID', { path: ':eventID' }, function()
 				{
 					this.resource('response',  function()
 						{
-								this.route('index', { path: ':responseID' });
+							this.route('index', { path: ':responseID' });
 						});
 				});
 		});
@@ -65,13 +65,13 @@ CERTApps.Router.map(function()
 
 CERTApps.moveUpData = function(data)
 {
-	console.log('moveUpData', data);
+//	console.log('moveUpData', data);
 
 	if( ! data.error )
 	{
 		if( data.data )
 		{
-			console.log('data has data');
+//			console.log('data has data');
 			data = data.data;
 			//return data.data;
 		}
@@ -138,7 +138,7 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 
 		console.log('model, controller, args', model, controller, arguments);
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.groupEnd();
 	}	
@@ -597,7 +597,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps RosterImportRoute setupController')
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
@@ -631,7 +631,7 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 	{
 		console.group('CERTApps RosterIndexRoute setupController')
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
@@ -1081,7 +1081,7 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 	filterSent: function(item, index, list)
 	{
-		console.log('filter item, index, list', item, index, list);
+		console.log('filter item, index, list', item, index);
 		var eItem = CERTApps.MemberEvent.create(item);
 		
 		return this.filterBySent(eItem, index, list, true);
@@ -1089,7 +1089,7 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 
 	filterUnSent: function(item, index, list)
 	{
-		console.log('filter item, index, list', item, index, list);
+		console.log('filter item, index, list', item, index);
 		var eItem = CERTApps.MemberEvent.create(item);
 		
 		return this.filterBySent(eItem, index, list, false);
@@ -1385,7 +1385,7 @@ CERTApps.EventRoute = Ember.Route.extend(
 		console.group('CERTApps.EventRoute setupController')
 
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
@@ -1399,7 +1399,7 @@ CERTApps.EventRoute = Ember.Route.extend(
 
 	//	console.log('model', model);
 		debugger;
-		var obj = { teamID: model.get('KeyID') };
+		var obj = { eventID: model.get('KeyID') };
 
 		console.groupEnd();
 
@@ -1420,6 +1420,8 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 
 		var eventModel = this.modelFor('event');
 
+		console.log('returning', eventModel);
+
 		console.groupEnd();
 
 		return eventModel;
@@ -1431,7 +1433,7 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 
 		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
@@ -1502,7 +1504,7 @@ CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
 	{
 		console.group('CERTApps.EventUpdateRoute setupController')
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		model.possibleEventTypes = Ember.A(["Deployment", "Exercise", "Meeting", "Training"]);
 
@@ -1602,13 +1604,13 @@ CERTApps.TeamIDRoute = CERTApps.BaseRoute.extend(
 */
 	serialize: function(model)
 	{
-		console.group("CERTApps.TeamIDRoute serialize");
+//		console.group("CERTApps.TeamIDRoute serialize");
 
 		//console.log('model', model);
 
 		var obj = { teamID: model.get('KeyID') };
 
-		console.groupEnd();
+//		console.groupEnd();
 
 		return obj;
 	}
@@ -1954,7 +1956,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 			function(obj)
 			{ 
 				obj = this.moveUpData(obj);
-				console.log('obj', obj);
+				//console.log('obj', obj);
 
 				var events = this.parseEventsData(obj);
 
@@ -1975,7 +1977,7 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 	{
 		console.group('CERTApps.TeamIDEventsRoute setupController')
 
-		controller.set('content', model);
+		controller.set('model', model);
 
 		console.log('controller, model', controller, model);
 		console.groupEnd();
@@ -2160,13 +2162,20 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 			model = CERTApps.MemberEvent.create(model);
 		}
 
-		var ev = this.modelFor('eventID');
-		if( ev.Event ) ev = ev.Event;
+		var ev = this.modelFor('event.ID');
 
-		model.defaults(ev);
+		if( ev )
+		{
+			if( ev.Event ) ev = ev.Event;
 
-		console.log('setting content', model);
-		controller.set('content', model);
+			model.defaults(ev);
+		} else
+		{
+			console.warn('ev was not found using modelFor eventID', ev)
+		}
+
+		console.log('setting model', model);
+		controller.set('model', model);
 
 		console.groupEnd();
 
@@ -2270,7 +2279,7 @@ CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
 {
 	afterModel: function(model)
 	{
-		console.log('afterModel', model, arguments)
+		console.log('CERTApps.EventIDRoute afterModel', model, arguments)
 		if( model.Event )
 		{
 		}
@@ -2296,16 +2305,23 @@ CERTApps.EventIDRoute = CERTApps.BaseRoute.extend(
 		return model;
 	},
 
+	setupController: function(controller, model, transition)
+	{
+		console.log('CERTApps.EventIDRoute setupController', controller, model, transition);
+
+		controller.set('model', model)
+	},
+
 	serialize: function(model)
 	{
 		console.group("CERTApps.EventIDRoute serialize");
 
-		console.log('model', model);
 		var m = model;
 		if( model.Event ) m = model.Event;
 
 		var obj = { eventID: m.get('KeyID') };
 
+		console.log('model, serialized', model, obj);
 		console.groupEnd();
 
 		return obj;
