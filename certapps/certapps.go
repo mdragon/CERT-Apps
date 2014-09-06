@@ -1,13 +1,13 @@
 package certapps
 
 import (
-	//	"bytes"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	//	"html/template"
 	"io"
-	//	"io/ioutil"
+	//"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -19,6 +19,7 @@ import (
 	"appengine/datastore"
 	"appengine/delay"
 	"appengine/mail"
+	"appengine/urlfetch"
 	"appengine/user"
 
 	"github.com/mjibson/appstats"
@@ -217,6 +218,7 @@ func init() {
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
 	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
+	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
 	http.Handle("/", appstats.NewHandler(root))
 }
 
@@ -1989,14 +1991,50 @@ func errorContextError(err error) ErrorContext {
 	return context
 }
 
-func locationLookup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func locationLookupHandler(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	address := r.FormValue("address")
+	if address == "" {
+		err := errors.New("Must pass address as query string param")
+		checkErr(err, w, c, "")
+	} else {
+		json := locationLookup(address, c, w)
 
-	url := "https://maps.googleapis.com/maps/api/geocode/json?key="
+		context := struct {
+			Json string
+		}{
+			json,
+		}
+		returnJSONorErrorToResponse(context, c, w, r)
+	}
+}
+
+func locationLookup(address string, c appengine.Context, w http.ResponseWriter) string {
+	apiURL := "https://maps.googleapis.com/maps/api/geocode/json"
 	key := "AIzaSyDKyDk-VkRFZIs27NAGmHEbrC17s7ylTYE"
-	address := "address=13%20sheridan%20ave,%2007052"
 
-	c.Debugf("url: %s, key: %s, address: %s", url, key, address)
+	v := url.Values{}
+	v.Set("key", key)
+	v.Add("address", address)
 
+	fullURL := fmt.Sprintf("%s?%s", apiURL, v.Encode())
+
+	c.Debugf("full: %s, url: %s, key: %s, address: %s", fullURL, apiURL, key, address)
+
+	client := urlfetch.Client(c)
+	resp, err := client.Get(fullURL)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return ""
+	}
+	c.Debugf("HTTP GET returned status %v", resp.Status)
+	c.Debugf("Header: %+v", resp.Header)
+
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(resp.Body)
+	json := buf.String()
+
+	return json
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
