@@ -6,6 +6,7 @@
 
 	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
 
 	<style type="text/css">
 		.nav
@@ -89,6 +90,12 @@
     	{
     		cursor: pointer;
     	}
+
+    	.map-canvas
+    	{
+    		/*width: 950px;*/
+    		height: 750px;
+    	}
 	</style>
 </head>
 <body>
@@ -112,8 +119,9 @@
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
 				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
-				Team {{#link-to 'roster.index' content.Team}}Roster {{/link-to}} | 
 			{{/if}}
+			Team {{#link-to 'roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'roster.map' content.Team}}Map{{/link-to}} |
+
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
 
 			{{#if content.Member.FirstName }}
@@ -143,6 +151,7 @@
 
 <script type="text/x-handlebars" data-template-name="roster/index">
 	<h3>{{content.Team.Name}} Roster</h3>
+
 	<table class="table table-responsive table-striped table-condensed table-bordered",>
 		<thead>
 			{{#if content.loggedInMember.CanLookup }}
@@ -183,25 +192,28 @@
 			{{/each}}
 		</tbody>
 	</table>
+
+	{{#link-to 'roster.import'}}Import Members{{/link-to}}
 </script>
 
 <script type="text/x-handlebars" data-template-name="roster/import">
+	{{log "roster/import"}}
+	{{log content}}
 	<h3>Import Member Data for {{content.Team.Name}}</h3>
 
-	{{textarea cols=180 rows=15 value=content.RawPasteDataForImport}}
+	{{textarea cols=180 rows=15 value=content.data.RawPasteDataForImport}}
 	<br/>
 	<button {{action 'parseInput' content}}><i class="fa fa-save"></i> Parse</button>
 
-	{{#if content.importCols}}
 	<table class="table table-striped table-condensed table-bordered importMapping">
 		<thead>
 			<tr>
 			<th></th>
 			<th></th>
-			{{#each col in content.importCols }}
+			{{#each col in content.data.importCols }}
 				<th {{bind-attr class=":import-column col.name" }}>
 					{{view CERTApps.ImportColumnSelect
-						content=content.memberFields
+						content=content.data.memberFields
 						prompt="Map to..."
 						class="import-column"
 						}}
@@ -210,11 +222,11 @@
 			</tr>
 		</thead>
 		<tbody>
-			{{#each row in content.ParsedColumnsForImport}}
+			{{#each row in content.data.ParsedColumnsForImport}}
 				<tr>
 					<td class="toggle-up-down">
-						<i {{ action toggleDown row content.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
-						<i {{ action toggleUp row content.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
+						<i {{ action toggleDown row content.data.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
+						<i {{ action toggleUp row content.data.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
 					</td>
 					<td>{{input type="checkbox" checked=row.selected}}</td>
 					{{#each col in row.cols}}
@@ -226,9 +238,16 @@
 	</table>
 
 	<button {{action 'save' content}}><i class="fa fa-save"></i> Save</button>
-
-	{{/if}}
 </script>
+
+<script type="text/x-handlebars" data-template-name="roster/map">
+	{{log "roster/import"}}
+	{{log content}}
+
+	<div class="map-canvas"></div>
+</script>
+
+    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/x-handlebars" data-template-name="member">
 	<div class="center-content">

@@ -1,13 +1,13 @@
 package certapps
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	//	"html/template"
 	"io"
 	//"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -65,6 +65,11 @@ type Location struct {
 	City  string
 	State string
 	Zip   string
+
+	Latitude        float64
+	Longitude       float64
+	PublicLatitude  float64
+	PublicLongitude float64
 }
 
 type Audit struct {
@@ -85,6 +90,8 @@ type Team struct {
 
 	MembersEmail  string
 	OfficersEmail string
+
+	GoogleAPIKey string
 
 	Audit
 }
@@ -196,6 +203,27 @@ type Reminder struct {
 	Audit
 }
 
+// API types
+
+type GoogleLocationResults struct {
+	Results []GoogleLocation
+	Status  string
+}
+
+type GoogleLocation struct {
+	Geometry          GoogleLocationGeometry
+	Formatted_address string
+}
+
+type GoogleLocationGeometry struct {
+	Location LatLong
+}
+
+type LatLong struct {
+	Lat float64
+	Lng float64
+}
+
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 var zeroDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -218,8 +246,35 @@ func init() {
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
 	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
+	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
+	http.Handle("/setup", appstats.NewHandler(initialSetup))
 	http.Handle("/", appstats.NewHandler(root))
+
+	rand.Seed(time.Now().UnixNano())
+}
+
+func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	member, errM := getMemberFromUser(c, u, w, r)
+
+	if noErrMsg(errM, w, c, "Loading member") {
+		errT, team := getTeam(0, member, c, w, r)
+
+		if noErrMsg(errT, w, c, "Loading team in initialSetup") {
+			//addErr := member.addToTeam(team.Key, c)
+
+			//checkErr(addErr, w, c, "Failed adding member to team")
+
+			if team.GoogleAPIKey == "" {
+				if team.Key == nil {
+					team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+				}
+				team.GoogleAPIKey = "xyz"
+				datastore.Put(c, team.Key, team)
+			}
+		}
+	}
 }
 
 func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -519,6 +574,8 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		}
 
 		lookupOthers(context.Member)
+
+		context.Member.setKey(context.Member.Key)
 	}
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
@@ -595,6 +652,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 			keys, err = memberQ.GetAll(c, &member)
 
 			if noErrMsg(err, w, c, "members for email") {
+				c.Infof("checking len(members)")
 				if len(member) == 0 {
 					c.Infof("existing Member not found for user.Email: %v, count:%d", u.Email, len(member))
 
@@ -827,11 +885,17 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 
 	memberErr := datastore.GetMulti(c, memberKeys, members)
 
-	checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+	c.Debugf("memberErr: %+v, %s", memberErr, memberErr.Error())
+	if memberErr.Error() != "datastore: no such entity" {
+		checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+	}
 
 	lookup := lookupOthers(member)
 	for idx := range members {
 		m := &members[idx]
+
+		m.setKey(memberKeys[idx])
+
 		if !lookup {
 			c.Infof("Doesn't have lookup rights, potentially resetting hidden email/cell")
 			if !m.ShowCell {
@@ -844,11 +908,15 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 				c.Debugf("Resetting Email")
 				m.Email = "good-try@example.com"
 			}
+			m.Email2 = "good-try@example.com"
 
 			m.Line1 = "123 My Street"
 			m.Line2 = "Apt 1"
 			m.City = "Anytown"
 			m.Zip = "11111"
+
+			m.Latitude = 0.0
+			m.Longitude = 0.0
 		} else {
 			c.Debugf("Has lookup rights, not resetting hidden email/cell")
 		}
@@ -879,6 +947,43 @@ func memberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	save(&saveMember, nil, c, u, w, r)
 }
 
+func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	c.Debugf("resaveMembers")
+
+	u := user.Current(c)
+	var curMember *Member
+
+	if curMember == nil {
+		c.Debugf("Looking up curMember because it is nil")
+		curMember, _ = getMemberFromUser(c, u, w, r)
+	}
+
+	teamKey := r.FormValue("team")
+	if teamKey == "" {
+		teamKey = "0"
+	}
+
+	intKey, _ := strconv.ParseInt(teamKey, 0, 0)
+
+	if intKey > 0 {
+		var getTeamErr error
+		var team *Team
+		getTeamErr, team = getTeam(intKey, curMember, c, w, r)
+
+		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
+			members := getMembersByTeam(team.Key.IntID(), curMember, c, w, r)
+
+			var mem *Member
+			for idx := range members {
+				mem = &members[idx]
+
+				_, err := save(mem, curMember, c, u, w, r)
+				checkErr(err, w, c, fmt.Sprintf("Re-Saving member %+v", mem))
+			}
+		}
+	}
+}
+
 func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
 
 	if curMember == nil {
@@ -888,21 +993,25 @@ func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.Us
 	c.Debugf("Looking up allow for curMember")
 	allow := lookupOthers(curMember)
 
-	var saveMemberKey *datastore.Key
+	c.Debugf("Will Save Member to Key: %d", saveMember.KeyID)
+	saveMember.Key = datastore.NewKey(c, "Member", "", saveMember.KeyID, nil)
 
-	if saveMember.Key != nil {
-		saveMemberKey = saveMember.Key
-	} else {
-		saveMember.Key = datastore.NewKey(c, "Member", "", 0, nil)
-	}
+	curMember.setKey(curMember.Key)
 
-	c.Debugf("Checking Keys || allow: %s", allow)
-	if curMember.Key == saveMemberKey || allow {
+	c.Debugf("Checking Keys || allow: %s, %d == %d?", allow, curMember.KeyID, saveMember.KeyID)
+	if curMember.KeyID == saveMember.KeyID || allow {
+
+		saveMember.locationGeocode(c, w, r)
+
+		c.Debugf("saveMember.Location after geocode: %+v", saveMember.Location)
+
 		saveMember.setAudits(curMember)
 
 		keyOut, mErr := datastore.Put(c, saveMember.Key, saveMember)
 
 		checkErr(mErr, w, c, "Failed to update Member for memberSave: ")
+		c.Debugf("Setting saveMember KeyID to keyOut: %+v, %d", keyOut, keyOut.IntID())
+		saveMember.setKey(keyOut)
 
 		context := struct {
 			Member *Member
@@ -977,22 +1086,12 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 					saveMember.Zip = team.Zip
 				}
 
-				saveMember.Active = true
+				saveMember.Enabled = true
 
-				mKeyOut, mErr := save(&saveMember, curMember, c, u, w, r)
+				_, mErr := save(&saveMember, curMember, c, u, w, r)
 
 				if noErrMsg(mErr, w, c, "Save member in import") {
-					tm := &TeamMember{
-						TeamKey:   tk,
-						MemberKey: mKeyOut,
-					}
-
-					tm.setAudits(curMember)
-
-					tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
-					_, tmErr := datastore.Put(c, tm.Key, tm)
-
-					checkErr(tmErr, w, c, "Creating TeamMember record for member: ")
+					saveMember.addToTeam(tk, c)
 				}
 			}
 		}
@@ -1014,6 +1113,20 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 		}
 		returnJSONorErrorToResponse(context, c, w, r)
 	}
+}
+
+func (m *Member) addToTeam(teamKey *datastore.Key, c appengine.Context) error {
+	tm := &TeamMember{
+		TeamKey:   teamKey,
+		MemberKey: m.Key,
+	}
+
+	tm.setAudits(m)
+
+	tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
+	_, tmErr := datastore.Put(c, tm.Key, tm)
+
+	return tmErr
 }
 
 func (a *Audit) setAudits(m *Member) {
@@ -1997,44 +2110,130 @@ func locationLookupHandler(c appengine.Context, w http.ResponseWriter, r *http.R
 		err := errors.New("Must pass address as query string param")
 		checkErr(err, w, c, "")
 	} else {
-		json := locationLookup(address, c, w)
+		gl, err := geocode(address, c, w, r)
 
-		context := struct {
-			Json string
-		}{
-			json,
+		if noErrMsg(err, w, c, "Geocode of address failed") {
+			c.Infof("GoogleLocation %+v", gl)
+
+			context := struct {
+				Location *GoogleLocationResults
+			}{
+				gl,
+			}
+			returnJSONorErrorToResponse(context, c, w, r)
 		}
-		returnJSONorErrorToResponse(context, c, w, r)
 	}
 }
 
-func locationLookup(address string, c appengine.Context, w http.ResponseWriter) string {
-	apiURL := "https://maps.googleapis.com/maps/api/geocode/json"
-	key := "AIzaSyDKyDk-VkRFZIs27NAGmHEbrC17s7ylTYE"
+func getGoogleAPIKey(c appengine.Context, w http.ResponseWriter, r *http.Request) (string, error) {
+	u := user.Current(c)
+	mem, _ := getMemberFromUser(c, u, w, r)
 
-	v := url.Values{}
-	v.Set("key", key)
-	v.Add("address", address)
+	teamErr, team := getTeam(0, mem, c, w, r)
 
-	fullURL := fmt.Sprintf("%s?%s", apiURL, v.Encode())
-
-	c.Debugf("full: %s, url: %s, key: %s, address: %s", fullURL, apiURL, key, address)
-
-	client := urlfetch.Client(c)
-	resp, err := client.Get(fullURL)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return ""
+	if teamErr != nil {
+		return "", teamErr
 	}
-	c.Debugf("HTTP GET returned status %v", resp.Status)
-	c.Debugf("Header: %+v", resp.Header)
 
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(resp.Body)
-	json := buf.String()
+	key := team.GoogleAPIKey
 
-	return json
+	c.Debugf("Found GoogleAPIKey %+v", team)
+
+	return key, nil
+}
+
+func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http.Request) (*GoogleLocationResults, error) {
+	apiURL := "https://maps.googleapis.com/maps/api/geocode/json"
+	key, keyErr := getGoogleAPIKey(c, w, r)
+
+	if keyErr == nil {
+		v := url.Values{}
+		v.Set("key", key)
+		v.Add("address", address)
+
+		fullURL := fmt.Sprintf("%s?%s", apiURL, v.Encode())
+
+		c.Debugf("full: %s, url: %s, key: %s, address: %s", fullURL, apiURL, key, address)
+
+		client := urlfetch.Client(c)
+		resp, err := client.Get(fullURL)
+
+		if err != nil {
+			return nil, err
+		}
+		c.Debugf("HTTP GET returned status %v, for url %s", resp.Status, fullURL)
+		//c.Debugf("Header: %+v", resp.Header)
+
+		var results GoogleLocationResults
+
+		decoder := json.NewDecoder(resp.Body)
+
+		jsonDecodeErr := decoder.Decode(&results)
+		resp.Body.Close()
+
+		if jsonDecodeErr != nil {
+			return nil, jsonDecodeErr
+		}
+
+		c.Infof("json results %+v", results)
+
+		return &results, nil
+	} else {
+		return nil, keyErr
+	}
+}
+
+func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	m.Longitude = 0
+	m.Latitude = 0
+	m.PublicLatitude = 0
+	m.PublicLongitude = 0
+
+	if m.Line1 != "" {
+		m.Location.geocode(c, w, r)
+	}
+
+	c.Debugf("m.Location after geocode: %+v", m.Location)
+}
+
+func (l *Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
+	address := fmt.Sprintf("%s, %s, %s", l.Line1, l.City, l.Zip)
+
+	googleLoc, err := geocode(address, c, w, r)
+
+	if err == nil {
+		l.Latitude = googleLoc.Results[0].Geometry.Location.Lat
+		l.Longitude = googleLoc.Results[0].Geometry.Location.Lng
+
+		l.PublicLatitude = fudgeGPS(l.Latitude, c)
+		l.PublicLongitude = fudgeGPS(l.Longitude, c)
+	}
+
+	c.Debugf("Location after geocode: %+v", l)
+
+	return err
+}
+
+func fudgeGPS(in float64, c appengine.Context) float64 {
+	alter := rand.Float64() / 1000
+	plusMinus := rand.Float32()
+
+	abs := 1.0
+	if plusMinus > 0.5 {
+		abs = -1.0
+	}
+
+	if alter < 0.0001 {
+		alter = 0.0001
+	}
+
+	alter = alter * abs
+
+	out := in + alter
+
+	c.Debugf("alter %f, abs %f, out %f, in %f", alter, abs, out, in)
+
+	return out
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {

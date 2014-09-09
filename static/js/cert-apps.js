@@ -33,6 +33,7 @@ CERTApps.Router.map(function()
 				this.resource("roster", function()
 				{
 					this.route('import');
+					this.route('map');
 				});
 
 				this.route('events');
@@ -342,6 +343,7 @@ CERTApps.BaseObject = Ember.Object.extend(
 		console.log('this', JSON.stringify(this));
 		console.log('obj', JSON.stringify(obj));
 
+		console.log('setting KeyID', this.get('KeyID'), obj.KeyID);
 		this.set('KeyID', obj.KeyID);
 
 		console.groupEnd();
@@ -412,7 +414,7 @@ CERTApps.Roster.reopenClass(
 		console.group('CERTApps.Roster.saveImport');
 
 		var mapping = toImport.mapping;
-		var data = toImport.ParsedColumnsForImport;
+		var data = toImport.data.ParsedColumnsForImport;
 		var teamID = toImport.Team.KeyID;
 
 		console.log('mapping', mapping);
@@ -526,13 +528,21 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			content = Ember.Object.create(content);
 			console.log('content', content);
 
-			var parsed = CERTApps.Roster.parseInput(content.RawPasteDataForImport);
+			var parsed = CERTApps.Roster.parseInput(content.data.RawPasteDataForImport);
 
-			content.set('data.ParsedColumnsForImport', parsed);
+			var parsedCols = content.get('data.ParsedColumnsForImport')
+			parsed.forEach( function(item) {
+				parsedCols.pushObject(item);
+			});
 
 			if( parsed.length > 0 )
 			{
-				content.set('data.importCols', parsed[0].cols);
+
+				var importCols = content.get('data.importCols');
+
+				parsed[0].cols.forEach( function(item) {
+					importCols.pushObject(item);
+				});
 			}
 			
 			console.groupEnd();
@@ -545,7 +555,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 			content = Ember.Object.create(content);
 			console.log('content', content);
 
-			CERTApps.Roster.saveImport(content.data);
+			CERTApps.Roster.saveImport(content);
 
 			console.groupEnd();
 
@@ -585,12 +595,21 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 
 		teamModel.loggedInMember = appModel.Member;
 
-		teamModel.memberFields = teamModel.loggedInMember.getFields();
+		var model = {
+			Team: teamModel,
+			data: 
+			{
+				importCols: Ember.A([]),
+				ParsedColumnsForImport: Ember.A([]),
+				RawPasteDataForImport: "",
+				memberFields: teamModel.loggedInMember.getFields()
+			}
+		}		
 
-		console.log('teamModel', teamModel);
+		console.log('model', model);
 		console.groupEnd();
 
-		return teamModel;
+		return model;
 	},
 
 	setupController: function(controller, model)
@@ -674,7 +693,11 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		console.log('save member request', settings)
 
 		var a = $.ajax(settings);
-		a.then(function(obj){ this.sync(obj) }.bind(this));
+		a.then(function(obj){ 
+			obj = this.moveUpData(obj);
+
+			this.sync(obj.Member) 
+		}.bind(this));
 
 		console.groupEnd();
 	},
@@ -1446,6 +1469,63 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 CERTApps.EventCreateView = Ember.View.extend(
 {
 	templateName: 'event/update'
+});
+
+CERTApps.RosterMapView = Ember.View.extend(
+{
+	didInsertElement: function()	
+	{
+		console.group('CERTApps.RosterMap didInsertElement');
+		console.log('arguments', arguments);
+		console.log('this', this);
+
+        var myLatLng = new google.maps.LatLng(40.795, -74.28);
+        var mapOptions = {
+          zoom: 13,
+          center: myLatLng,
+          minZoom: 13,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+
+        var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
+        var map = new google.maps.Map(mapCanvas, mapOptions);
+
+        this.controller.model.Members.forEach( function(item)
+        {
+        	if( item.PublicLatitude != 0 )
+        	{
+	        	var pos = {lat: item.PublicLatitude, lng: item.PublicLongitude};
+
+	        	if( item.Latitude != 0 )
+	        	{
+		        	pos = {lat: item.Latitude, lng: item.Longitude};
+	        	}
+
+	        	console.log('putting item on map', pos, item);
+
+				var beachMarker = new google.maps.Marker({
+					position: pos,
+					map: map,
+					animation: google.maps.Animation.DROP,
+					title: item.KeyID.toString(),
+					icon: 'http://www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png'
+				});
+			}
+        });
+
+        console.groupEnd();
+    }
+});
+
+CERTApps.RosterMapRouter = CERTApps.BaseRoute.extend(
+{
+	setupController: function(controller, model)
+	{
+		console.group("CERTApps.RosterMapRouter");
+
+		console.groupEnd();
+	}
+
 });
 
 CERTApps.EventUpdateRoute = CERTApps.BaseRoute.extend(
