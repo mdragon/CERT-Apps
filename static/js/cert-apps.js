@@ -59,6 +59,7 @@ CERTApps.Router.map(function()
 		});
 	this.route('training', function()
 		{
+			this.route("list");
 			this.route("tcreate");
 			this.route("tupdate", { path: ':trainingID' });
 		});
@@ -2686,6 +2687,61 @@ CERTApps.Training.reopenClass(
 
 		return p2;
 	},
+
+	getAll: function()
+	{
+		console.group("CERTApps.Training getAll");
+		console.log('loading Training', this);
+
+		var settings = 
+		{
+			url: '/trainings',
+			type: 'json',
+			dataType: 'json',
+			method: "GET"
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var p = a.then(function(data)
+		{ 
+			var obj = CERTApps.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		p2 = p.then(function(data)
+		{
+			var list = Ember.A([]);
+
+			if( data.Trainings )
+			{
+				for( var x = data.Trainings.length - 1; x >= 0; x-- )
+				{
+					t = data.Trainings[x];
+					tObj = CERTApps.Training.create(t);
+
+					list.pushObject(tObj);
+				}
+			} else
+			{
+				console.warn("Data returned by server did not have Trainings value", data);
+			}
+
+			console.log("CERTApps.Training load.then returning", t);
+
+			return list;
+		}.bind(this),
+		function(xhr)
+		{
+			console.error(xhr);
+		}.bind(this));
+
+		console.groupEnd();
+
+		return p2;
+	}
 });
 
 CERTApps.TrainingTcreateRoute = CERTApps.BaseRoute.extend(
@@ -2776,6 +2832,54 @@ CERTApps.TrainingTupdateRoute = CERTApps.BaseRoute.extend(
 		console.groupEnd();
 	}
 });
+
+CERTApps.TrainingListRoute = CERTApps.BaseRoute.extend(
+{
+	model: function(params, transition)
+	{
+		console.group('CERTApps.TrainingUpdateRoute model');
+	
+		console.log('params, transition', params, transition);
+
+		var t = CERTApps.Training.getAll();
+
+		t.then(function(obj)
+		{
+			console.log('CERTApps.TrainingUpdateRoute model.then', obj);
+
+			return obj;
+		});
+
+		console.groupEnd()
+
+		return t;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.TrainingUpdateRoute serialize');
+		
+		var params = {responseID: model.get('KeyID')};
+
+		console.log('params', params);
+
+		console.groupEnd()
+		
+		return param;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.TrainingUpdateRoute setupController');
+
+		console.log('controller, model', controller, model);
+
+		controller.set('model', model);
+
+		console.groupEnd();
+	}
+});
+
 
 CERTApps.TrainingTcreateView = Ember.View.extend(
 {

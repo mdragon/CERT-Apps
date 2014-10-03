@@ -218,16 +218,16 @@ type TrainingClass struct {
 	Audit
 }
 
-type TrainingClassContent struct {
-	TrainingClassKey *datastore.Key
-	TrainingTopicKey *datastore.Key
-}
-
 type TrainingTopic struct {
 	Name        string `json:"name"`
 	TrainingKey *datastore.Key
 
 	Audit
+}
+
+type TrainingClassContent struct {
+	TrainingClassKey *datastore.Key
+	TrainingTopicKey *datastore.Key
 }
 
 type MemberTrainingTopic struct {
@@ -2352,10 +2352,38 @@ func trainingsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	context = struct {
-		Whee *Member
-	}{
-		mem,
+	var results []*Training
+
+	var keys []*datastore.Key
+	var err error
+
+	if mem != nil {
+
+		query := datastore.NewQuery("Training").Filter("Deleted =", false)
+
+		keys, err = query.GetAll(c, &results)
+
+		for idx, _ := range results {
+			e := results[idx]
+			key := keys[idx]
+
+			e.setKey(key)
+		}
+
+		if noErrMsg(err, w, c, "GetAll Trainings") {
+			context = struct {
+				Trainings []*Training
+			}{
+				results,
+			}
+
+		}
+	} else {
+		context = struct {
+			NotLoggedIn bool
+		}{
+			false,
+		}
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
