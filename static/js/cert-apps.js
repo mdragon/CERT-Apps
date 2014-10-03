@@ -7,11 +7,14 @@ window.CERTApps = Ember.Application.create(
 		// step made while transitioning into a route, including
 		// `beforeModel`, `model`, and `afterModel` hooks, and
 		// information about redirects and aborted transitions
-		LOG_TRANSITIONS_INTERNAL: true,
-
+//		LOG_TRANSITIONS_INTERNAL: true,
+	
 		LOG_VIEW_LOOKUPS: true,
 		LOG_ACTIVE_GENERATION: true
 	});
+
+//Ember.LOG_BINDINGS = true;
+
 
 CERTApps.Router.map(function() 
 {
@@ -54,6 +57,12 @@ CERTApps.Router.map(function()
 			this.route('index', { path: ':responseID' })
 
 		});
+	this.route('training', function()
+		{
+			this.route("tcreate");
+			this.route("tupdate", { path: ':trainingID' });
+		});
+
 	// this.resource('response', function()
 	// 	{
 	// 			this.route('responseID', { path: '/:responseID' }	);
@@ -66,11 +75,11 @@ CERTApps.Router.map(function()
 
 CERTApps.moveUpData = function(data)
 {
-//	console.log('moveUpData', data);
+	console.log('moveUpData', data);
 
 	if( ! data.error )
 	{
-		if( data.data )
+		if( data.data !== undefined )
 		{
 //			console.log('data has data');
 			data = data.data;
@@ -338,14 +347,29 @@ CERTApps.BaseObject = Ember.Object.extend(
 
 	sync: function(obj)
 	{
-		console.group("CERTApps.BaseOjbect sync");
+		console.group("CERTApps.BaseObject sync");
 
-		console.log('this', JSON.stringify(this));
-		console.log('obj', JSON.stringify(obj));
+		if( obj )
+		{
+			obj = this.moveUpData(obj);
 
-		console.log('setting KeyID', this.get('KeyID'), obj.KeyID);
-		this.set('KeyID', obj.KeyID);
+			if( obj )
+			{
+				console.log('this', JSON.stringify(this));
+				console.log('obj', JSON.stringify(obj));
 
+				console.log('setting KeyID', this.get('KeyID'), obj.KeyID);
+				this.set('KeyID', obj.KeyID);
+			} else
+			{
+				console.warn("obj passed to sync had a data value that was null or undefined");
+			}
+		}
+		else
+		{
+			console.warn("obj passed to sync was null or undefined");
+		}
+		
 		console.groupEnd();
 	},
 
@@ -2498,4 +2522,262 @@ CERTApps.DirectResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd();
 	}
+});
+
+CERTApps.TrainingRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
+		saveEvent: function(training)
+		{
+			console.group("CERTApps.TrainingRoute.actions saveEvent");
+
+			console.log('training', training);
+
+			training.save();
+
+			console.groupEnd();
+		}
+	},
+
+	model: function(params, transition)
+	{
+		console.group('CERTApps.TrainingRoute model');
+	
+		console.log('params, transition', params, transition);
+
+		console.groupEnd()
+
+		return null;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.TrainingRoute serialize');
+		
+		var params = {responseID: model.get('KeyID')};
+
+		console.log('params', params);
+
+		console.groupEnd()
+		
+		return param;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.TrainingRoute setupController');
+
+		console.log('controller, model', controller, model);
+
+		controller.set('model', model);
+
+		console.groupEnd();
+	}
+});
+
+CERTApps.Training = CERTApps.BaseObject.extend(
+{
+	keyID: null,
+	name: null,
+	monthsValid: null,
+
+	init: function()
+	{
+		console.log('CERTApps.Training init');
+	},
+
+	save: function()
+	{
+		console.group("CERTApps.Training save");
+		console.log('saving Training', this);
+
+		var settings = 
+		{
+			url: '/training/save',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify({ Training: this })
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(data)
+		{ 
+			var obj = this.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		t.then(function(data)
+		{
+			console.log('syncing with', data)
+			this.sync(data);
+		}.bind(this));
+
+		console.groupEnd();
+	},
+
+	monthsValidString: function(key, value, previousValue) 
+	{
+		console.log('monthsValidString', arguments);
+		if( arguments.length > 1 )
+		{
+			var intVal = parseInt(value);
+
+			console.log('value, intVal', value, intVal);
+
+			this.set('monthsValid', intVal);
+		}
+
+		return this.get('monthsValid');
+	}.property('monthsValid')
+});
+
+CERTApps.Training.reopenClass(
+{
+	load: function(id)
+	{
+		console.group("CERTApps.Training load");
+		console.log('loading Training', this);
+
+		var settings = 
+		{
+			url: '/training',
+			type: 'json',
+			dataType: 'json',
+			method: "GET",
+			data: { id: id }
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var p = a.then(function(data)
+		{ 
+			var obj = CERTApps.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		p2 = p.then(function(data)
+		{
+			var t = null;
+
+			if( data.Training )
+			{
+				t = CERTApps.Training.create(data.Training);
+			} else
+			{
+				console.warn("Data returned by server did not have Training value", data);
+			}
+
+			console.log("CERTApps.Training load.then returning", t);
+
+			return t;
+		}.bind(this),
+		function(xhr)
+		{
+			console.error(xhr);
+		}.bind(this));
+
+		console.groupEnd();
+
+		return p2;
+	},
+});
+
+CERTApps.TrainingTcreateRoute = CERTApps.BaseRoute.extend(
+{
+	model: function(params, transition)
+	{
+		console.group('CERTApps.TrainingCreateRoute model');
+	
+		console.log('params, transition', params, transition);
+
+		var t = CERTApps.Training.create();
+
+		console.log('returning', t);
+
+		console.groupEnd()
+
+		return t;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.TrainingCreateRoute serialize');
+		
+		var params = {responseID: model.get('KeyID')};
+
+		console.log('params', params);
+
+		console.groupEnd()
+		
+		return param;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.TrainingCreateRoute setupController');
+
+		console.log('controller, model', controller, model);
+
+		controller.set('model', model);
+
+		console.groupEnd();
+	}
+});
+
+CERTApps.TrainingTupdateRoute = CERTApps.BaseRoute.extend(
+{
+	model: function(params, transition)
+	{
+		console.group('CERTApps.TrainingUpdateRoute model');
+	
+		console.log('params, transition', params, transition);
+
+		var t = CERTApps.Training.load(params.trainingID);
+
+		t.then(function(obj)
+		{
+			console.log('CERTApps.TrainingUpdateRoute model.then', obj);
+
+			return obj;
+		});
+
+		console.groupEnd()
+
+		return t;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.TrainingUpdateRoute serialize');
+		
+		var params = {responseID: model.get('KeyID')};
+
+		console.log('params', params);
+
+		console.groupEnd()
+		
+		return param;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.TrainingUpdateRoute setupController');
+
+		console.log('controller, model', controller, model);
+
+		controller.set('model', model);
+
+		console.groupEnd();
+	}
+});
+
+CERTApps.TrainingTcreateView = Ember.View.extend(
+{
+	templateName: 'training/tupdate'
 });

@@ -118,6 +118,7 @@
 
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
+				{{#link-to 'training'}}Training{{/link-to}} - {{#link-to 'training.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
 			Team {{#link-to 'roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'roster.map' content.Team}}Map{{/link-to}} |
@@ -525,10 +526,18 @@
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="team/id/training">
+<script type="text/x-handlebars" data-template-name="training">
 	<div class="center-content">
 		<h4>Training</h4>
+		{{outlet}}
 	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="training/tupdate">
+	{{input value=content.name placeholder="Name" size="50"}}<br/>
+	Valid for {{input value=content.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
+	
+	<button {{action 'saveEvent' content}}><i class="fa fa-save"></i> Save</button>
 </script>
 
 <script type="text/x-handlebars" data-template-name="landing">

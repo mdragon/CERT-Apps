@@ -203,6 +203,40 @@ type Reminder struct {
 	Audit
 }
 
+type Training struct {
+	Name        string `json:"name"`
+	MonthsValid int64  `json:"monthsValid"`
+
+	Audit
+}
+
+type TrainingClass struct {
+	Name string `json:"name"`
+
+	Location
+
+	Audit
+}
+
+type TrainingClassContent struct {
+	TrainingClassKey *datastore.Key
+	TrainingTopicKey *datastore.Key
+}
+
+type TrainingTopic struct {
+	Name        string `json:"name"`
+	TrainingKey *datastore.Key
+
+	Audit
+}
+
+type MemberTrainingTopic struct {
+	TrainigTopicKey *datastore.Key
+	MemberKey       *datastore.Key
+
+	Audit
+}
+
 // API types
 
 type GoogleLocationResults struct {
@@ -223,6 +257,8 @@ type LatLong struct {
 	Lat float64
 	Lng float64
 }
+
+// end types
 
 var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
 var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
@@ -245,6 +281,9 @@ func init() {
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
+	http.Handle("/training", appstats.NewHandler(trainingGet))
+	http.Handle("/training/save", appstats.NewHandler(trainingSave))
+	http.Handle("/trainings", appstats.NewHandler(trainingsGet))
 	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
 	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
@@ -2236,11 +2275,128 @@ func fudgeGPS(in float64, c appengine.Context) float64 {
 	return out
 }
 
+func trainingSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var postData struct {
+		Training *Training
+	}
+
+	c.Infof("trainingSave")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		mem, _ = getMemberFromUser(c, u, w, r)
+
+		saveErr := postData.Training.save(mem, c)
+
+		if noErrMsg(saveErr, w, c, "Saving Training") {
+			context = struct {
+				Training *Training
+			}{
+				postData.Training,
+			}
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func trainingGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	training := new(Training)
+
+	key := r.FormValue("id")
+
+	if key == "" {
+		key = "0"
+	}
+
+	id, _ := strconv.ParseInt(key, 0, 0)
+
+	c.Infof("trainingGet %d", id)
+
+	mem, _ = getMemberFromUser(c, u, w, r)
+
+	err := training.lookup(id, mem, c)
+
+	if noErrMsg(err, w, c, "Training lookup") {
+
+		context = struct {
+			Training *Training
+		}{
+			training,
+		}
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func trainingsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+
+	c.Infof("trainingsGet")
+
+	mem, _ = getMemberFromUser(c, u, w, r)
+
+	context = struct {
+		Whee *Member
+	}{
+		mem,
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func (t *Training) save(member *Member, c appengine.Context) error {
+	tKey := t.Key
+	if tKey == nil {
+		tKey = datastore.NewKey(c, "Training", "", t.KeyID, nil)
+	}
+
+	t.setAudits(member)
+
+	outKey, putErr := datastore.Put(c, tKey, t)
+
+	if noErrMsg(putErr, nil, c, "Put Training") {
+		t.setKey(outKey)
+	}
+
+	return putErr
+}
+
+func (t *Training) lookup(id int64, member *Member, c appengine.Context) error {
+	t.Key = datastore.NewKey(c, "Training", "", id, nil)
+
+	err := datastore.Get(c, t.Key, t)
+
+	if noErrMsg(err, nil, c, fmt.Sprintf("Getting Training %d", id)) {
+		t.setKey(t.Key)
+	}
+
+	return err
+}
+
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
 	retval := false
 	if err != nil {
 		c.Errorf("While attempting: %v Error: %+v", msg, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if w != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		retval = true
 	} else {
 		c.Debugf("no error from %v", msg)
