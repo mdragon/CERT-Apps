@@ -2529,13 +2529,22 @@ CERTApps.TrainingRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
-		saveEvent: function(training)
+		saveA: function(training)
 		{
-			console.group("CERTApps.TrainingRoute.actions saveEvent");
+			console.group("CERTApps.TrainingRoute actions.saveA");
 
 			console.log('training', training);
 
-			training.save();
+			var p = training.save();
+
+			p.then(
+				function()
+				{
+					console.log("trainsitioning to training.tupdate with", training);
+					this.transitionTo('training.tupdate', training);
+				}.bind(this)
+			);
+
 
 			console.groupEnd();
 		}
@@ -2588,8 +2597,10 @@ CERTApps.Training = CERTApps.BaseObject.extend(
 		console.log('CERTApps.Training init');
 	},
 
-	save: function()
+	save: function(noTransition)
 	{
+		if( ! noTransition ) noTransition = false;
+
 		console.group("CERTApps.Training save");
 		console.log('saving Training', this);
 
@@ -2611,18 +2622,31 @@ CERTApps.Training = CERTApps.BaseObject.extend(
 			return obj;
 		}.bind(this));
 
-		t.then(function(data)
+		var p = t.then(function(data)
 		{
-			console.log('syncing with', data)
-			this.sync(data);
+
+			if( data.Training )
+			{
+				console.log('syncing with', data.Training);
+				this.sync(data.Training);
+			} else
+			{
+				console.warn("Cannot sync when there's no Training", data);
+			}
+
+			console.log('this after sync', this);
+
+			return this;
 		}.bind(this));
 
 		console.groupEnd();
+
+		return p;
 	},
 
 	monthsValidString: function(key, value, previousValue) 
 	{
-		console.log('monthsValidString', arguments);
+		// console.log('monthsValidString', arguments);
 		if( arguments.length > 1 )
 		{
 			var intVal = parseInt(value);
@@ -2771,7 +2795,7 @@ CERTApps.TrainingTcreateRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd()
 		
-		return param;
+		return params;
 	},
 
 	setupController: function(controller, model)
@@ -2812,13 +2836,13 @@ CERTApps.TrainingTupdateRoute = CERTApps.BaseRoute.extend(
 	{
 		console.group('CERTApps.TrainingUpdateRoute serialize');
 		
-		var params = {responseID: model.get('KeyID')};
+		var params = {trainingID: model.get('KeyID')};
 
 		console.log('params', params);
 
 		console.groupEnd()
 		
-		return param;
+		return params;
 	},
 
 	setupController: function(controller, model)
@@ -2835,6 +2859,29 @@ CERTApps.TrainingTupdateRoute = CERTApps.BaseRoute.extend(
 
 CERTApps.TrainingListRoute = CERTApps.BaseRoute.extend(
 {
+	actions:
+	{
+		editA: function(training)
+		{
+			console.group("CERTApps.TrainingListRoute actions.editA");
+
+			console.log("training", training);
+
+			this.transitionTo("training.tupdate", training);
+
+			console.groupEnd();
+		}, 
+
+		createA: function()
+		{
+			console.groupCollapsed("CERTApps.TrainingListRoute actions.createA");
+
+			this.transitionTo("training.tcreate");
+
+			console.groupEnd();
+		}
+	},
+
 	model: function(params, transition)
 	{
 		console.group('CERTApps.TrainingUpdateRoute model');
@@ -2865,7 +2912,7 @@ CERTApps.TrainingListRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd()
 		
-		return param;
+		return params;
 	},
 
 	setupController: function(controller, model)

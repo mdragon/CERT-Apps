@@ -537,21 +537,21 @@
 	{{input value=content.name placeholder="Name" size="50"}}<br/>
 	Valid for {{input value=content.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
 	
-	<button {{action 'saveEvent' content}}><i class="fa fa-save"></i> Save</button>
+	<button {{action 'saveA' content}}><i class="fa fa-save"></i> Save</button>
 </script>
 
 
 <script type="text/x-handlebars" data-template-name="training/list">
 	<table class="table table-condensed table-striped">
 		<thead>
-			<th></th><th>Name</th><th>Renewal Months</th>
+			<th><i {{action 'createA' c}} class="fa fa-plus action"></i></th><th>Name</th><th>Renewal Months</th>
 		</thead>
 		<tbody>
-		{{#each content}}
+		{{#each c in content}}
 			<tr>
-				<td><i {{action 'editEvent' e}} class="fa fa-pencil action"></i></td>
-				<td>{{name}}</td>
-				<td>{{monthsValid}}</td>
+				<td><i {{action 'editA' c}} class="fa fa-pencil action"></i></td>
+				<td>{{c.name}}</td>
+				<td>{{c.monthsValid}}</td>
 			</tr>
 		{{/each}}
 		<tbody>

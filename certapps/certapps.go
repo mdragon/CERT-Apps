@@ -2297,6 +2297,8 @@ func trainingSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		saveErr := postData.Training.save(mem, c)
 
+		c.Debugf("Training after save: %+v", postData.Training)
+
 		if noErrMsg(saveErr, w, c, "Saving Training") {
 			context = struct {
 				Training *Training
@@ -2400,7 +2402,10 @@ func (t *Training) save(member *Member, c appengine.Context) error {
 	outKey, putErr := datastore.Put(c, tKey, t)
 
 	if noErrMsg(putErr, nil, c, "Put Training") {
+		c.Debugf("Training Key after Put: %d, %d", tKey.IntID(), outKey.IntID())
 		t.setKey(outKey)
+
+		c.Debugf("Training after Put: %+v", t)
 	}
 
 	return putErr
