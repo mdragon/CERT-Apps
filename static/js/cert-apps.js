@@ -2540,8 +2540,9 @@ CERTApps.TrainingRoute = CERTApps.BaseRoute.extend(
 			p.then(
 				function()
 				{
-					console.log("trainsitioning to training.tupdate with", training);
-					this.transitionTo('training.tupdate', training);
+					console.log("trainsitioning after saving training", training);
+					this.transitionTo('training.list', {queryParams: {last: training.KeyID}});
+					//this.transitionTo('training.list');
 				}.bind(this)
 			);
 
@@ -2591,7 +2592,8 @@ CERTApps.Training = CERTApps.BaseObject.extend(
 	keyID: null,
 	name: null,
 	monthsValid: null,
-
+	isLastEdited: null,
+	
 	init: function()
 	{
 		console.log('CERTApps.Training init');
@@ -2857,6 +2859,12 @@ CERTApps.TrainingTupdateRoute = CERTApps.BaseRoute.extend(
 	}
 });
 
+CERTApps.TrainingListController = Ember.Controller.extend(
+{
+	queryParams: ['last'],
+	last: null
+});
+
 CERTApps.TrainingListRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
@@ -2920,6 +2928,27 @@ CERTApps.TrainingListRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.TrainingUpdateRoute setupController');
 
 		console.log('controller, model', controller, model);
+
+		var lastID = 0;
+		if( controller.last && controller.last.length > 0 )
+		{
+			lastID = parseInt(controller.last);
+		}
+
+		for( var x = model.length - 1; x >= 0; x-- )
+		{
+			var o = model[x];
+
+			console.log("o.KeyID, lastID, controller.last", o.KeyID, lastID, controller.last);
+			if( o.KeyID === lastID )
+			{
+				o.set('isLastEdited', true);
+			} else
+			{
+				o.set('isLastEdited', false);
+			}
+			console.log("isLastEdited", o.get("isLastEdited"));
+		}
 
 		controller.set('model', model);
 

@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link href="//netdna.bootstrapcdn.com/font-awesome/4.1.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
 
 	<style type="text/css">
@@ -544,14 +544,20 @@
 <script type="text/x-handlebars" data-template-name="training/list">
 	<table class="table table-condensed table-striped">
 		<thead>
-			<th><i {{action 'createA' c}} class="fa fa-plus action"></i></th><th>Name</th><th>Renewal Months</th>
+			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+			<th>Name</th><th>Renewal Months</th>
 		</thead>
 		<tbody>
 		{{#each c in content}}
-			<tr>
-				<td><i {{action 'editA' c}} class="fa fa-pencil action"></i></td>
+			<tr {{bind-attr class="c.isLastEdited:success"}}>
+				<td>
+					<i {{action "editA" c}} class="fa fa-pencil action"></i>
+				</td>
 				<td>{{c.name}}</td>
 				<td>{{c.monthsValid}}</td>
+				<td>
+					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
+				</td>
 			</tr>
 		{{/each}}
 		<tbody>
