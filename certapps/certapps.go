@@ -299,7 +299,12 @@ var zeroDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 var delayEmailReminders2 = delay.Func("sendEmailReminders2", sendEmailReminders)
 
 func init() {
+	http.Handle("/api/trainingTopic/save", appstats.NewHandler(apiTrainingTopicSave))
+
 	http.Handle("/audit", appstats.NewHandler(audit))
+	http.Handle("/certification", appstats.NewHandler(certificationGet))
+	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
+	http.Handle("/certifications/all", appstats.NewHandler(certificationsGetAll))
 	http.Handle("/eventA", appstats.NewHandler(eventA))
 	http.Handle("/event", appstats.NewHandler(event))
 	http.Handle("/event/reminders/send", appstats.NewHandler(remindersSend))
@@ -313,9 +318,6 @@ func init() {
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
-	http.Handle("/certification", appstats.NewHandler(certificationGet))
-	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
-	http.Handle("/certifications", appstats.NewHandler(certificationsGet))
 	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
 	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
@@ -2349,7 +2351,6 @@ func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Reques
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
-	certification := new(Certification)
 
 	key := r.FormValue("id")
 
@@ -2363,21 +2364,17 @@ func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Reques
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	err := certification.lookup(id, mem, c)
+	results, err := getCertAndTopics(c, id, mem)
 
 	if noErrMsg(err, w, c, "Certification lookup") {
 
-		context = struct {
-			Certification *Certification
-		}{
-			certification,
-		}
+		context = results
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func certificationsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func certificationsGetAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
@@ -2386,76 +2383,9 @@ func certificationsGet(c appengine.Context, w http.ResponseWriter, r *http.Reque
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	var results []*CertificationAndTopics
-
-	var keys []*datastore.Key
-	var err error
-
 	if mem != nil {
 
-		errC := make(chan error)
-		topicC := make(chan []*TrainingTopic)
-		certC := make(chan []*Certification)
-
-		go func() {
-			query := datastore.NewQuery("Certification").Filter("Deleted =", false)
-
-			var lookupResults []*Certification
-			keys, err = query.GetAll(c, &lookupResults)
-
-			for idx, _ := range lookupResults {
-				e := lookupResults[idx]
-				key := keys[idx]
-
-				e.setKey(key)
-			}
-			certC <- lookupResults
-			errC <- err
-		}()
-
-		certs := <-certC
-
-		go func() {
-			query := datastore.NewQuery("TrainingTopic").Filter("Deleted =", false)
-
-			var lookupResults []*TrainingTopic
-			keys, err = query.GetAll(c, &lookupResults)
-
-			for idx, _ := range lookupResults {
-				e := lookupResults[idx]
-				key := keys[idx]
-
-				e.setKey(key)
-			}
-			topicC <- lookupResults
-			errC <- err
-		}()
-
-		topics := <-topicC
-
-		err1 := <-errC
-		err2 := <-errC
-
-		certsByID := make(map[int64]CertificationAndTopics)
-
-		for idx, _ := range certs {
-			cert := certs[idx]
-
-			candt := CertificationAndTopics{
-				Certification: cert,
-			}
-
-			results = append(results, &candt)
-
-			certsByID[cert.KeyID] = candt
-		}
-
-		for idx, _ := range topics {
-			topic := topics[idx]
-
-			candt := certsByID[topic.CertificationKey.IntID()]
-			candt.Topics = append(candt.Topics, topic)
-		}
+		results, err1, err2 := getAllCertsAndTopics(c)
 
 		if noErrMsg(err1, w, c, "GetAll Certifications") {
 			if noErrMsg(err2, w, c, "GetAll Certifications") {
@@ -2475,6 +2405,154 @@ func certificationsGet(c appengine.Context, w http.ResponseWriter, r *http.Reque
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func getAllCertsAndTopics(c appengine.Context) ([]*CertificationAndTopics, error, error) {
+	errC := make(chan error)
+	topicC := make(chan []*TrainingTopic)
+	certC := make(chan []*Certification)
+
+	go func() {
+		query := datastore.NewQuery("Certification").Filter("Deleted =", false)
+
+		var lookupResults []*Certification
+		keys, err := query.GetAll(c, &lookupResults)
+
+		for idx, _ := range lookupResults {
+			e := lookupResults[idx]
+			key := keys[idx]
+
+			c.Debugf("found Certification %d, %d, %d", idx, e.KeyID, key.IntID())
+
+			e.setKey(key)
+		}
+		certC <- lookupResults
+		errC <- err
+	}()
+
+	certs := <-certC
+
+	go func() {
+		query := datastore.NewQuery("TrainingTopic").Filter("Deleted =", false)
+
+		var lookupResults []*TrainingTopic
+		keys, err := query.GetAll(c, &lookupResults)
+
+		for idx, _ := range lookupResults {
+			e := lookupResults[idx]
+			key := keys[idx]
+
+			c.Debugf("found TrainingTopic %d, %d, %d", idx, e.KeyID, key.IntID())
+			c.Debugf("\t for cert %d", e.CertificationKey.IntID())
+
+			e.setKey(key)
+		}
+		topicC <- lookupResults
+		errC <- err
+	}()
+
+	topics := <-topicC
+
+	err1 := <-errC
+	err2 := <-errC
+
+	return processCertsAndTopics(c, certs, topics), err1, err2
+}
+
+func getCertAndTopics(c appengine.Context, id int64, member *Member) (*CertificationAndTopics, error) {
+	errC := make(chan error)
+	topicC := make(chan []*TrainingTopic)
+	certC := make(chan []*Certification)
+
+	certKey := datastore.NewKey(c, "Certification", "", id, nil)
+
+	go func() {
+		cert := new(Certification)
+
+		err := cert.lookup(id, member, c)
+
+		certC <- []*Certification{cert}
+		errC <- err
+	}()
+
+	certs := <-certC
+
+	go func() {
+		query := datastore.NewQuery("TrainingTopic").Filter("Deleted =", false).Filter("CertificationKey = ", certKey)
+
+		var lookupResults []*TrainingTopic
+		keys, err := query.GetAll(c, &lookupResults)
+
+		for idx, _ := range lookupResults {
+			e := lookupResults[idx]
+			key := keys[idx]
+
+			c.Debugf("found TrainingTopic %d, %d, %d", idx, e.KeyID, key.IntID())
+			c.Debugf("\t for cert %d", e.CertificationKey.IntID())
+
+			e.setKey(key)
+		}
+		topicC <- lookupResults
+		errC <- err
+	}()
+
+	topics := <-topicC
+
+	err1 := <-errC
+	err2 := <-errC
+
+	if noErrMsg(err1, nil, c, "getCertAndTopics 1") {
+		if noErrMsg(err2, nil, c, "getCertAndTopics 2") {
+			results := processCertsAndTopics(c, certs, topics)
+			if len(results) != 1 {
+				err := errors.New(fmt.Sprintf("Expected 1 CertificationAndTopics object, but found: %d", len(results)))
+
+				return nil, err
+			}
+
+			return results[0], nil
+		} else {
+			return nil, err2
+		}
+	}
+
+	return nil, err1
+}
+
+func processCertsAndTopics(c appengine.Context, certs []*Certification, topics []*TrainingTopic) []*CertificationAndTopics {
+	var results []*CertificationAndTopics
+
+	certsByID := make(map[int64]*CertificationAndTopics)
+
+	for idx, _ := range certs {
+		cert := certs[idx]
+
+		candt := CertificationAndTopics{
+			Certification: cert,
+			Topics:        make([]*TrainingTopic, 0),
+		}
+
+		results = append(results, &candt)
+
+		certsByID[cert.KeyID] = &candt
+	}
+
+	for idx, _ := range topics {
+		topic := topics[idx]
+
+		c.Debugf("matching TrainingTopic %d, %d", idx, topic.KeyID)
+		c.Debugf("\t for cert %d", topic.CertificationKey.IntID())
+
+		candt := certsByID[topic.CertificationKey.IntID()]
+
+		c.Debugf("\t for candt %d, %d", candt.Certification.KeyID)
+
+		candt.Topics = append(candt.Topics, topic)
+
+		c.Debugf("\t after append %d, %+v", len(candt.Topics), topic)
+	}
+
+	return results
 }
 
 func (t *Certification) save(member *Member, c appengine.Context) error {
@@ -2507,6 +2585,58 @@ func (t *Certification) lookup(id int64, member *Member, c appengine.Context) er
 	}
 
 	return err
+}
+
+func apiTrainingTopicSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var postData struct {
+		TrainingTopic *TrainingTopic
+		Certification *Certification
+	}
+
+	c.Infof("apiTrainingTopicSave")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		mem, _ = getMemberFromUser(c, u, w, r)
+
+		certKey := datastore.NewKey(c, "Certification", "", postData.Certification.KeyID, nil)
+		postData.TrainingTopic.CertificationKey = certKey
+		saveErr := postData.TrainingTopic.save(mem, c)
+
+		if noErrMsg(saveErr, w, c, "Saving Certification") {
+			context = postData
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func (t *TrainingTopic) save(member *Member, c appengine.Context) error {
+	tKey := t.Key
+	if tKey == nil {
+		tKey = datastore.NewKey(c, "TrainingTopic", "", t.KeyID, nil)
+	}
+
+	t.setAudits(member)
+
+	outKey, putErr := datastore.Put(c, tKey, t)
+
+	if noErrMsg(putErr, nil, c, "Put TrainingTopic") {
+		t.setKey(outKey)
+	}
+
+	return putErr
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {

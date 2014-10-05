@@ -569,21 +569,21 @@
 			{{/if}}
 
 			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
-			<button {{action 'saveTopicA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
 			<h4>Offerings</h4>
-			{{#if topics }}
+			{{#if offierings }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<th>Name</th><th>Date</th><th>Location</th>
 					</thead>
 					<tbody>
-					{{#each t in topics}}
+					{{#each o in offerings}}
 						<tr>
-							<td>{{t.name}}</td>
-							<td>{{t.scheduled}}</td>
-							<td>{{t.shortLocation}}</td>
+							<td>{{o.name}}</td>
+							<td>{{o.scheduled}}</td>
+							<td>{{o.shortLocation}}</td>
 						</tr>
 					{{/each}}
 					</tbody>

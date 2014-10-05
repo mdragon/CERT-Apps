@@ -2552,19 +2552,26 @@ CERTApps.CertificationRoute = CERTApps.BaseRoute.extend(
 			console.groupEnd();
 		},
 
-		saveTopicA: function(topic, certification)
+		saveTopicA: function(newTopic, model)
 		{
 			console.group("CERTApps.certificationRoute actions.saveTopicA");
 
-			console.log('topic, certification', topic, certification);
+			console.log('newTopic, certification', newTopic, model);
 
-			var p = topic.save(certification.KeyID);
+			var p = newTopic.save(model.certification.KeyID);
 
 			p.then(
 				function(obj)
-				{
-					console.log("trainsitioning after saving certification", certification);
-					this.transitionTo({queryParams: {lastTopic: obj.KeyID}});
+				{					
+					var topic = CERTApps.TrainingTopic.create(obj);
+
+					model.topics.pushObject(topic)
+
+					newTopic.reset();
+
+					console.log("transitioning after saving topic", topic);
+
+					this.transitionTo({queryParams: {lastTopic: topic.get('KeyID')}});
 					//this.transitionTo('certification.list');
 				}.bind(this)
 			);
@@ -2745,13 +2752,16 @@ CERTApps.Certification.reopenClass(
 		{
 			obj.topics = Ember.A([]);
 
-			data.Topics.forEach(item)
+			data.Topics.forEach( function(item)
 			{
-				 var tt = CERTApps.TrainingTopic.create(data.item);
-				 console.log('adding', tt);
+				if( item )
+				{
+					var tt = CERTApps.TrainingTopic.create(item);
+					console.log('adding', tt);
 
-				 obj.topics.pushObject(tt);
-			}
+					obj.topics.pushObject(tt);
+				}
+			});
 		} else
 		{
 			console.info("Data returned by server did not have TrainingTopic value");
@@ -2775,7 +2785,7 @@ CERTApps.Certification.reopenClass(
 
 		var settings = 
 		{
-			url: '/certifications',
+			url: '/certifications/all',
 			type: 'json',
 			dataType: 'json',
 			method: "GET"
@@ -3020,11 +3030,11 @@ CERTApps.CertificationTcreateView = Ember.View.extend(
 	templateName: 'Certification/tupdate'
 });
 
-CERTApps.CertificationTopicRoute = CERTApps.BaseRoute.extend(
+CERTApps.CertificationTupdateIndexRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
-		editA: function(certification)
+/*		editA: function(certification)
 		{
 			console.group("CERTApps.CertificationTopicRoute actions.editA");
 
@@ -3043,29 +3053,20 @@ CERTApps.CertificationTopicRoute = CERTApps.BaseRoute.extend(
 
 			console.groupEnd();
 		}
-	},
+*/	},
 	
-	renderTemplate: function() 
-	{
-		this.render({ outlet: 'topics' });
-	},
-
 	model: function(params, transition)
 	{
-		console.group('CERTApps.CertificationTopicRoute model');
+		console.group('CERTApps.CertificationTupdateIndexRoute model');
 	
 		console.log('params, transition', params, transition);
 
-		var certification = this.modelFor("certification");
+		var certification = this.modelFor("certificationTupdate");
 
-		var t = CERTApps.TrainingTopic.getAll(certification.KeyID);
+		console.log("ceritification", certification);
 
-		t.then(function(obj)
-		{
-			console.log('CERTApps.CertificationTopicRoute model.then', obj);
-
-			return obj;
-		});
+		//TODO load Offerings here, unless Offierings shouldn't go here
+		var t = null; //CERTApps.TrainingTopic.getAll(certification.KeyID);
 
 		console.groupEnd()
 
@@ -3092,7 +3093,7 @@ CERTApps.CertificationTopicRoute = CERTApps.BaseRoute.extend(
 		console.log('controller, model', controller, model);
 
 		var lastID = 0;
-		if( controller.last && controller.last.length > 0 )
+/*		if( controller.last && controller.last.length > 0 )
 		{
 			lastID = parseInt(controller.last);
 		}
@@ -3110,7 +3111,7 @@ CERTApps.CertificationTopicRoute = CERTApps.BaseRoute.extend(
 				o.set('isLastEdited', false);
 			}
 			console.log("isLastEdited", o.get("isLastEdited"));
-		}
+		}*/
 
 		controller.set('model', model);
 
@@ -3137,7 +3138,7 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 
 		var settings = 
 		{
-			url: '/trainingTopic/save',
+			url: '/api/trainingTopic/save',
 			type: 'json',
 			dataType: 'json',
 			data: JSON.stringify({ TrainingTopic: this, Certification: { KeyID: certificationID } })
@@ -3173,6 +3174,12 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 		console.groupEnd();
 
 		return p;
+	},
+
+	reset: function()
+	{
+		this.set("name", "");
+		this.set("KeyID", 0);
 	}
 });
 
@@ -3283,4 +3290,10 @@ CERTApps.TrainingTopic.reopenClass(
 
 		return p2;
 	}
+});
+
+CERTApps.CertificationTupdateIndexController = Ember.Controller.extend(
+{
+	queryParams: ['lastTopic'],
+	lastTopic: null
 });
