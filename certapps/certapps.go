@@ -203,15 +203,19 @@ type Reminder struct {
 	Audit
 }
 
-type Training struct {
+type Certification struct {
 	Name        string `json:"name"`
 	MonthsValid int64  `json:"monthsValid"`
 
 	Audit
 }
 
-type TrainingClass struct {
-	Name string `json:"name"`
+type CertificationClass struct {
+	CertificationKey *datastore.Key
+
+	Name      string    `json:"name"`
+	Scheduled time.Time `json:"scheduled"`
+	Cancelled bool      `json:"cancelled"`
 
 	Location
 
@@ -219,22 +223,50 @@ type TrainingClass struct {
 }
 
 type TrainingTopic struct {
-	Name        string `json:"name"`
-	TrainingKey *datastore.Key
+	CertificationKey *datastore.Key
+
+	Name string `json:"name"`
 
 	Audit
 }
 
-type TrainingClassContent struct {
-	TrainingClassKey *datastore.Key
-	TrainingTopicKey *datastore.Key
-}
-
-type MemberTrainingTopic struct {
-	TrainigTopicKey *datastore.Key
-	MemberKey       *datastore.Key
+type CertificationClassContent struct {
+	CertificationClassKey *datastore.Key
+	TrainingTopicKey      *datastore.Key
 
 	Audit
+}
+
+type MemberClassContent struct {
+	CertificationClassContentKey *datastore.Key
+	MemberKey                    *datastore.Key
+
+	Attended bool
+
+	Audit
+}
+
+type MemberCertification struct {
+	CertificationKey *datastore.Key
+	MemberKey        *datastore.Key
+
+	Effective time.Time
+
+	Audit
+}
+
+type TeamCertification struct {
+	TeamKey          *datastore.Key
+	CertificationKey *datastore.Key
+	Abbr             string
+	Hidden           bool
+
+	Audit
+}
+
+type CertificationAndTopics struct {
+	Certification *Certification
+	Topics        []*TrainingTopic
 }
 
 // API types
@@ -281,9 +313,9 @@ func init() {
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
-	http.Handle("/training", appstats.NewHandler(trainingGet))
-	http.Handle("/training/save", appstats.NewHandler(trainingSave))
-	http.Handle("/trainings", appstats.NewHandler(trainingsGet))
+	http.Handle("/certification", appstats.NewHandler(certificationGet))
+	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
+	http.Handle("/certifications", appstats.NewHandler(certificationsGet))
 	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
 	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
@@ -2275,15 +2307,15 @@ func fudgeGPS(in float64, c appengine.Context) float64 {
 	return out
 }
 
-func trainingSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func certificationSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
 	var postData struct {
-		Training *Training
+		Certification *Certification
 	}
 
-	c.Infof("trainingSave")
+	c.Infof("certificationSave")
 
 	decoder := json.NewDecoder(r.Body)
 	jsonDecodeErr := decoder.Decode(&postData)
@@ -2295,15 +2327,15 @@ func trainingSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		mem, _ = getMemberFromUser(c, u, w, r)
 
-		saveErr := postData.Training.save(mem, c)
+		saveErr := postData.Certification.save(mem, c)
 
-		c.Debugf("Training after save: %+v", postData.Training)
+		c.Debugf("Certification after save: %+v", postData.Certification)
 
-		if noErrMsg(saveErr, w, c, "Saving Training") {
+		if noErrMsg(saveErr, w, c, "Saving Certification") {
 			context = struct {
-				Training *Training
+				Certification *Certification
 			}{
-				postData.Training,
+				postData.Certification,
 			}
 		}
 	} else {
@@ -2313,11 +2345,11 @@ func trainingSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func trainingGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
-	training := new(Training)
+	certification := new(Certification)
 
 	key := r.FormValue("id")
 
@@ -2327,58 +2359,112 @@ func trainingGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(key, 0, 0)
 
-	c.Infof("trainingGet %d", id)
+	c.Infof("certificationGet %d", id)
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	err := training.lookup(id, mem, c)
+	err := certification.lookup(id, mem, c)
 
-	if noErrMsg(err, w, c, "Training lookup") {
+	if noErrMsg(err, w, c, "Certification lookup") {
 
 		context = struct {
-			Training *Training
+			Certification *Certification
 		}{
-			training,
+			certification,
 		}
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func trainingsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func certificationsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
 
-	c.Infof("trainingsGet")
+	c.Infof("certificationsGet")
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	var results []*Training
+	var results []*CertificationAndTopics
 
 	var keys []*datastore.Key
 	var err error
 
 	if mem != nil {
 
-		query := datastore.NewQuery("Training").Filter("Deleted =", false)
+		errC := make(chan error)
+		topicC := make(chan []*TrainingTopic)
+		certC := make(chan []*Certification)
 
-		keys, err = query.GetAll(c, &results)
+		go func() {
+			query := datastore.NewQuery("Certification").Filter("Deleted =", false)
 
-		for idx, _ := range results {
-			e := results[idx]
-			key := keys[idx]
+			var lookupResults []*Certification
+			keys, err = query.GetAll(c, &lookupResults)
 
-			e.setKey(key)
-		}
+			for idx, _ := range lookupResults {
+				e := lookupResults[idx]
+				key := keys[idx]
 
-		if noErrMsg(err, w, c, "GetAll Trainings") {
-			context = struct {
-				Trainings []*Training
-			}{
-				results,
+				e.setKey(key)
+			}
+			certC <- lookupResults
+			errC <- err
+		}()
+
+		certs := <-certC
+
+		go func() {
+			query := datastore.NewQuery("TrainingTopic").Filter("Deleted =", false)
+
+			var lookupResults []*TrainingTopic
+			keys, err = query.GetAll(c, &lookupResults)
+
+			for idx, _ := range lookupResults {
+				e := lookupResults[idx]
+				key := keys[idx]
+
+				e.setKey(key)
+			}
+			topicC <- lookupResults
+			errC <- err
+		}()
+
+		topics := <-topicC
+
+		err1 := <-errC
+		err2 := <-errC
+
+		certsByID := make(map[int64]CertificationAndTopics)
+
+		for idx, _ := range certs {
+			cert := certs[idx]
+
+			candt := CertificationAndTopics{
+				Certification: cert,
 			}
 
+			results = append(results, &candt)
+
+			certsByID[cert.KeyID] = candt
+		}
+
+		for idx, _ := range topics {
+			topic := topics[idx]
+
+			candt := certsByID[topic.CertificationKey.IntID()]
+			candt.Topics = append(candt.Topics, topic)
+		}
+
+		if noErrMsg(err1, w, c, "GetAll Certifications") {
+			if noErrMsg(err2, w, c, "GetAll Certifications") {
+				context = struct {
+					Certifications []*CertificationAndTopics
+				}{
+					results,
+				}
+			}
 		}
 	} else {
 		context = struct {
@@ -2391,32 +2477,32 @@ func trainingsGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (t *Training) save(member *Member, c appengine.Context) error {
+func (t *Certification) save(member *Member, c appengine.Context) error {
 	tKey := t.Key
 	if tKey == nil {
-		tKey = datastore.NewKey(c, "Training", "", t.KeyID, nil)
+		tKey = datastore.NewKey(c, "Certification", "", t.KeyID, nil)
 	}
 
 	t.setAudits(member)
 
 	outKey, putErr := datastore.Put(c, tKey, t)
 
-	if noErrMsg(putErr, nil, c, "Put Training") {
-		c.Debugf("Training Key after Put: %d, %d", tKey.IntID(), outKey.IntID())
+	if noErrMsg(putErr, nil, c, "Put Certification") {
+		c.Debugf("Certification Key after Put: %d, %d", tKey.IntID(), outKey.IntID())
 		t.setKey(outKey)
 
-		c.Debugf("Training after Put: %+v", t)
+		c.Debugf("Certification after Put: %+v", t)
 	}
 
 	return putErr
 }
 
-func (t *Training) lookup(id int64, member *Member, c appengine.Context) error {
-	t.Key = datastore.NewKey(c, "Training", "", id, nil)
+func (t *Certification) lookup(id int64, member *Member, c appengine.Context) error {
+	t.Key = datastore.NewKey(c, "Certification", "", id, nil)
 
 	err := datastore.Get(c, t.Key, t)
 
-	if noErrMsg(err, nil, c, fmt.Sprintf("Getting Training %d", id)) {
+	if noErrMsg(err, nil, c, fmt.Sprintf("Getting Certification %d", id)) {
 		t.setKey(t.Key)
 	}
 

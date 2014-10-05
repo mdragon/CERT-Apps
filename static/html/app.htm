@@ -96,6 +96,16 @@
     		/*width: 950px;*/
     		height: 750px;
     	}
+
+    	.space-left
+    	{
+    		margin-left: 10px;
+    	}
+
+    	.space-right
+    	{
+    		margin-right: 10px;
+    	}
 	</style>
 </head>
 <body>
@@ -118,7 +128,7 @@
 
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
-				{{#link-to 'training.list'}}Training{{/link-to}} - {{#link-to 'training.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
 			Team {{#link-to 'roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'roster.map' content.Team}}Map{{/link-to}} |
@@ -526,22 +536,77 @@
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="training">
+<script type="text/x-handlebars" data-template-name="certification">
 	<div class="center-content">
-		<h4>Training</h4>
+		<h4>Certifications</h4>
 		{{outlet}}
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="training/tupdate">
-	{{input value=content.name placeholder="Name" size="50"}}<br/>
-	Valid for {{input value=content.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
-	
+<script type="text/x-handlebars" data-template-name="certification/tupdate">
+	{{input value=certification.name placeholder="Name" size="50"}}<br/>
+	Valid for {{input value=certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
 	<button {{action 'saveA' content}}><i class="fa fa-save"></i> Save</button>
+
+	<div class="">
+		<div class="pull-left space-right" style="clear: left;">
+			<h4>Topics</h4>
+			{{#if topics }}
+				<table class="table table-condensed table-striped table-responsive">
+					<thead>
+						<th>Name</th>
+					</thead>
+					<tbody>
+					{{#each t in topics}}
+						<tr>
+							<td>{{t.name}}</td>
+						</tr>
+					{{/each}}
+					</tbody>
+				</table>
+			{{else}}
+				No Topics yet, start by adding one below <br/>
+			{{/if}}
+
+			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
+			<button {{action 'saveTopicA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+		</div>
+		<div class="pull-left" style="clear: right;">
+			<h4>Offerings</h4>
+			{{#if topics }}
+				<table class="table table-condensed table-striped table-responsive">
+					<thead>
+						<th>Name</th><th>Date</th><th>Location</th>
+					</thead>
+					<tbody>
+					{{#each t in topics}}
+						<tr>
+							<td>{{t.name}}</td>
+							<td>{{t.scheduled}}</td>
+							<td>{{t.shortLocation}}</td>
+						</tr>
+					{{/each}}
+					</tbody>
+				</table>
+			{{else}}
+				No Offerings yet, start by adding one below <br/>
+			{{/if}}
+
+			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
+			{{input type="date" value=newOffering.scheduled placeholder="Date" size="10"}}<br/>
+
+			<button {{action 'saveA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+		</div>
+		<div class="clearfix"></div>
+	</div>
+	
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/topic">
 </script>
 
 
-<script type="text/x-handlebars" data-template-name="training/list">
+<script type="text/x-handlebars" data-template-name="certification/list">
 	<table class="table table-condensed table-striped">
 		<thead>
 			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
@@ -549,12 +614,12 @@
 		</thead>
 		<tbody>
 		{{#each c in content}}
-			<tr {{bind-attr class="c.isLastEdited:success"}}>
+			<tr {{bind-attr class="c.certification.isLastEdited:success"}}>
 				<td>
 					<i {{action "editA" c}} class="fa fa-pencil action"></i>
 				</td>
-				<td>{{c.name}}</td>
-				<td>{{c.monthsValid}}</td>
+				<td>{{c.certification.name}}</td>
+				<td>{{c.certification.monthsValid}}</td>
 				<td>
 					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
 				</td>
