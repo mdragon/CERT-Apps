@@ -2738,7 +2738,7 @@ CERTApps.Certification.reopenClass(
 
 	parseJSON: function(data)
 	{
-		var obj = {};
+		var obj = CERTApps.CertsTopicsOfferings.create();
 
 		if( data.Certification )
 		{
@@ -2832,6 +2832,47 @@ CERTApps.Certification.reopenClass(
 		console.groupEnd();
 
 		return p2;
+	}
+});
+
+CERTApps.CertsTopicsOfferings = CERTApps.BaseObject.extend(
+{
+	topics: null,
+	certification: null,
+	offerings: null,
+
+	init: function()
+	{
+		topics = Ember.A([]);
+	},
+
+	sortedTopics: function()
+	{
+		var list = this.get("topics").sort(this.sortAsc.bind("name"));
+
+		console.log("sortedTopics", list);
+
+		return list;
+	}.property('topics.@each'),
+
+	sortAsc: function(a, b)
+	{
+		if( a.get(this) > b.get(this) )
+		{
+			return 1;
+		}
+
+		return -1;
+	},
+
+	sortDesc: function(a, b)
+	{
+		if( a.get(this) < b.get(this) )
+		{
+			return 1;
+		}
+
+		return -1;
 	}
 });
 
