@@ -59,7 +59,6 @@ CERTApps.Router.map(function()
 	this.resource('directResponse', { path: 'response'}, function()
 		{
 			this.route('index', { path: ':responseID' })
-
 		});
 	this.route("certification", function()
 		{
@@ -67,6 +66,11 @@ CERTApps.Router.map(function()
 			this.route("tcreate");
 			this.route("tupdate", { path: ":certificationID" }, function()
 				{
+				});
+			this.route("class", function()
+				{
+					this.route("tcreate");
+					this.route("tupdate", { path: ":classID" });
 				});
 		});
 
@@ -1467,11 +1471,6 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 		return;		
 	}
 
-});
-
-CERTApps.EventCreateView = Ember.View.extend(
-{
-	templateName: 'event/update'
 });
 
 CERTApps.RosterMapView = Ember.View.extend(
@@ -2965,14 +2964,14 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 
 	model: function(params, transition)
 	{
-		console.group('CERTApps.CertificationUpdateRoute model');
+		console.group('CERTApps.CertificationListRoute model');
 		console.log('params, transition', params, transition);
 
 		var t = CERTApps.Certification.getAll();
 
 		t.then(function(obj)
 		{
-			console.log('CERTApps.CertificationUpdateRoute model.then', obj);
+			console.log('CERTApps.CertificationListRoute model.then', obj);
 
 			return obj;
 		});
@@ -2984,7 +2983,7 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 
 	serialize: function(model)
 	{
-		console.group('CERTApps.CertificationUpdateRoute serialize');
+		console.group('CERTApps.CertificationListRoute serialize');
 		
 		var params = {certificationID: model.get('KeyID')};
 
@@ -2996,7 +2995,7 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps.CertificationUpdateRoute setupController');
+		console.group('CERTApps.CertificationListRoute setupController');
 		console.log('controller, model', controller, model);
 
 		var lastID = 0;
@@ -3024,11 +3023,6 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd();
 	}
-});
-
-CERTApps.CertificationTcreateView = Ember.View.extend(
-{
-	templateName: 'Certification/tupdate'
 });
 
 CERTApps.CertificationTupdateIndexRoute = CERTApps.BaseRoute.extend(
@@ -3092,25 +3086,6 @@ CERTApps.CertificationTupdateIndexRoute = CERTApps.BaseRoute.extend(
 		console.log('controller, model', controller, model);
 
 		var lastID = 0;
-/*		if( controller.last && controller.last.length > 0 )
-		{
-			lastID = parseInt(controller.last);
-		}
-
-		for( var x = model.length - 1; x >= 0; x-- )
-		{
-			var o = model[x];
-
-			console.log("o.KeyID, lastID, controller.last", o.KeyID, lastID, controller.last);
-			if( o.KeyID === lastID )
-			{
-				o.set('isLastEdited', true);
-			} else
-			{
-				o.set('isLastEdited', false);
-			}
-			console.log("isLastEdited", o.get("isLastEdited"));
-		}*/
 
 		controller.set('model', model);
 
@@ -3291,8 +3266,270 @@ CERTApps.TrainingTopic.reopenClass(
 	}
 });
 
+CERTApps.CertificationClassIndexRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
+		editA: function(cClass)
+		{
+			console.group("CERTApps.CertificationClassIndexRoute actions.editA");
+
+			console.log("cClass", cClass);
+
+			this.transitionTo("certification.class.tupdate", cClass);
+
+			console.groupEnd();
+		}, 
+
+		createA: function()
+		{
+			console.groupCollapsed("CERTApps.CertificationClassIndexRoute actions.createA");
+
+			this.transitionTo("certification.class.tcreate");
+
+			console.groupEnd();
+		}
+	},
+	
+	model: function(params, transition)
+	{
+		console.group('CERTApps.CertificationClassIndexRoute model');
+		console.log('params, transition', params, transition);
+
+		//var certification = this.modelFor("certificationTupdate");
+
+		//console.log("ceritification", certification);
+
+		//TODO load Offerings here, unless Offierings shouldn't go here
+		var t = null; //CERTApps.TrainingTopic.getAll(certification.KeyID);
+
+		console.groupEnd()
+
+		return t;
+	},
+
+	serialize: function(model)
+	{
+		console.group('CERTApps.CertificationTopicRoute serialize');
+		
+		var params = {certificationID: model.get('KeyID')};
+
+		console.log('params', params);
+		console.groupEnd()
+		
+		return params;
+	},
+
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.CertificationUpdateRoute setupController');
+
+		console.log('controller, model', controller, model);
+
+		var lastID = 0;
+
+		controller.set('model', model);
+
+		console.groupEnd();
+	}
+});
+
+CERTApps.CertificationClass = CERTApps.BaseObject.extend(
+{
+	keyID: null,
+	name: null,
+	monthsValid: null,
+	isLastEdited: null,
+	
+	init: function()
+	{
+		console.log('CERTApps.TrainingTopic init');
+	},
+
+	save: function(certificationID)
+	{
+		console.group("CERTApps.TrainingTopic save");
+		console.log('saving TrainingTopic', this);
+
+		var settings = 
+		{
+			url: '/api/trainingTopic/save',
+			type: 'json',
+			dataType: 'json',
+			data: JSON.stringify({ TrainingTopic: this, Certification: { KeyID: certificationID } })
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var t = a.then(function(data)
+		{ 
+			var obj = this.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		var p = t.then(function(data)
+		{
+
+			if( data.TrainingTopic )
+			{
+				console.log('syncing with', data.TrainingTopic);
+				this.sync(data.TrainingTopic);
+			} else
+			{
+				console.warn("Cannot sync when there's no TrainingTopic", data);
+			}
+
+			console.log('this after sync', this);
+
+			return this;
+		}.bind(this));
+
+		console.groupEnd();
+
+		return p;
+	},
+
+	reset: function()
+	{
+		this.set("name", "");
+		this.set("KeyID", 0);
+	}
+});
+
+CERTApps.CertificationClass.reopenClass(
+{
+	load: function(id)
+	{
+		console.group("CERTApps.CertificationClass load");
+		console.log('loading CertificationClass', this);
+
+		var settings = 
+		{
+			url: '/certificationClass',
+			type: 'json',
+			dataType: 'json',
+			method: "GET",
+			data: { id: id }
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var p = a.then(function(data)
+		{ 
+			var obj = CERTApps.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		p2 = p.then(function(data)
+		{
+			var t = null;
+
+			if( data.CertificationClass )
+			{
+				t = CERTApps.CertificationClass.create(data.CertificationClass);
+			} else
+			{
+				console.warn("Data returned by server did not have CertificationClass value", data);
+			}
+
+			console.log("CERTApps.CertificationClass load.then returning", t);
+
+			return t;
+		}.bind(this),
+		function(xhr)
+		{
+			console.error(xhr);
+		}.bind(this));
+
+		console.groupEnd();
+
+		return p2;
+	},
+
+	getAll: function(id)
+	{
+		console.group("CERTApps.CertificationClass getAll");
+		console.log('loading CertificationClass', this);
+
+		var settings = 
+		{
+			url: '/certificationClasses',
+			type: 'json',
+			dataType: 'json',
+			method: "GET",
+			data: {certificationsID: id}
+		};
+
+		console.log('requesting', settings)
+
+		var a = $.ajax(settings);
+		var p = a.then(function(data)
+		{ 
+			var obj = CERTApps.moveUpData(data); 
+
+			return obj;
+		}.bind(this));
+
+		p2 = p.then(function(data)
+		{
+			var list = Ember.A([]);
+
+			if( data.CertificationClass )
+			{
+				for( var x = data.CertificationClass.length - 1; x >= 0; x-- )
+				{
+					t = data.CertificationClass[x];
+					tObj = CERTApps.CertificationClass.create(t);
+
+					list.pushObject(tObj);
+				}
+			} else
+			{
+				console.warn("Data returned by server did not have CertificationClass value", data);
+			}
+
+			console.log("CERTApps.CertificationClass load.then returning", list);
+
+			return list;
+		}.bind(this),
+		function(xhr)
+		{
+			console.error(xhr);
+		}.bind(this));
+
+		console.groupEnd();
+
+		return p2;
+	}
+});
+
+CERTApps.CertificationClassIndexController = Ember.Controller.extend(
+{
+	queryParams: ['lastClass'],
+	lastClass: null
+});
+
 CERTApps.CertificationTupdateIndexController = Ember.Controller.extend(
 {
 	queryParams: ['lastTopic'],
 	lastTopic: null
+});
+
+CERTApps.EventCreateView = Ember.View.extend(
+{
+	templateName: 'event/update'
+});
+
+CERTApps.CertificationTcreateView = Ember.View.extend(
+{
+	templateName: 'certification/tupdate'
+});
+
+CERTApps.CertificationClassTcreateView = Ember.View.extend(
+{
+	templateName: 'certification/class/tupdate'
 });

@@ -129,6 +129,7 @@
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
 			Team {{#link-to 'roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'roster.map' content.Team}}Map{{/link-to}} |
@@ -538,7 +539,6 @@
 
 <script type="text/x-handlebars" data-template-name="certification">
 	<div class="center-content">
-		<h4>Certifications</h4>
 		{{outlet}}
 	</div>
 </script>
@@ -605,8 +605,9 @@
 <script type="text/x-handlebars" data-template-name="certification/topic">
 </script>
 
-
 <script type="text/x-handlebars" data-template-name="certification/list">
+	<h4>Certifications</h4>
+
 	<table class="table table-condensed table-striped">
 		<thead>
 			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
@@ -627,6 +628,69 @@
 		{{/each}}
 		<tbody>
 	</table>
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/class">
+{{outlet}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/class/index">
+	<h4>Certification Classes</h4>
+
+	<table class="table table-condensed table-striped">
+		<thead>
+			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+			<th>Name</th><th>Scheduled</th><th>Location</th>
+		</thead>
+		<tbody>
+		{{#each c in classes}}
+			<tr {{bind-attr class="c.isLastEdited:success"}}>
+				<td>
+					<i {{action "editA" c}} class="fa fa-pencil action"></i>
+				</td>
+				<td>{{c.name}}</td>
+				<td>{{c.displayDate}}</td>
+				<td>{{c.shortLocation}}</td>
+				<td>
+					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
+				</td>
+			</tr>
+		{{/each}}
+		<tbody>
+	</table>
+</script>
+
+
+<script type="text/x-handlebars" data-template-name="certification/class/tupdate">
+	<h4>Certification Class</h4>
+
+	{{input value=cClass.name placeholder="Name" size="50"}}<br/>
+	{{input type="date" value=cClass.scheduled placeholder="Date" size="10"}}<br/>
+
+	<button {{action 'saveA' cClass}}><i class="fa fa-save"></i> Save</button>
+
+	<div class="">
+		<h4>Attendees</h4>
+		{{#if topics }}
+			<table class="table table-condensed table-striped table-responsive">
+				<thead>
+					<th>Name</th>
+				</thead>
+				<tbody>
+				{{#each t in sortedTopics}}
+					<tr>
+						<td>{{t.name}}</td>
+					</tr>
+				{{/each}}
+				</tbody>
+			</table>
+		{{else}}
+			No Attendees yet, add one below<br/>
+		{{/if}}
+
+		{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
+		<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
+	</div>
 </script>
 
 <script type="text/x-handlebars" data-template-name="landing">
