@@ -1,4 +1,5 @@
-Ember.RSVP.configure('onerror', function(error) {
+Ember.RSVP.on('error', function(error) {
+	console.error("RSVP error");
 	Ember.Logger.assert(false, error);
 });
 
