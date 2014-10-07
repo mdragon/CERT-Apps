@@ -1,3 +1,7 @@
+Ember.RSVP.configure('onerror', function(error) {
+	Ember.Logger.assert(false, error);
+});
+
 window.CERTApps = Ember.Application.create(
 	{
 		// Basic logging, e.g. "Transitioned into 'post'"
@@ -106,7 +110,6 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.ApplicationRouter model");
-
 		console.log('params, args', params, arguments);
 
 		var settings = 
@@ -148,7 +151,6 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 	setupController: function(controller, model)
 	{
 		console.group("CERTApps.ApplicationRouter setupController");
-
 		console.log('model, controller, args', model, controller, arguments);
 
 		controller.set('model', model);
@@ -167,18 +169,14 @@ CERTApps.LandingRoute = Ember.Route.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.LandingRouter model");
-
 		console.log('params, args', params, arguments);
-
 		console.groupEnd();
 	},
 
 	setupController: function(controller, model)
 	{
 		console.group("CERTApps.LandingRouter setupController");
-
 		console.log('model, controller, args', model, controller, arguments);
-
 		console.groupEnd();
 	}	
 
@@ -189,9 +187,7 @@ CERTApps.LandingController = Ember.Controller.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.LandingController model");
-
 		console.log('params, args', params, arguments);
-
 		console.groupEnd();
 	}	
 });
@@ -202,7 +198,6 @@ CERTApps.MemberRoute = Ember.Route.extend(
 	{
 		saveContact: function(member)
 		{
-
 			console.group('CERTApps.MemberRoute actions.saveContact');
 			console.log('member, args', member, arguments);
 
@@ -215,7 +210,6 @@ CERTApps.MemberRoute = Ember.Route.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.MemberRoute model");
-
 		console.log('params, args', params, arguments);
 
 		var appModel = this.modelFor('application');
@@ -223,7 +217,6 @@ CERTApps.MemberRoute = Ember.Route.extend(
 		var model = appModel.Member;
 
 		console.log('appModel, model', appModel, model);
-
 		console.groupEnd();
 
 		return model;
@@ -232,9 +225,7 @@ CERTApps.MemberRoute = Ember.Route.extend(
 	setupController: function(controller, model)
 	{
 		console.group("CERTApps.MemberRoute setupController");
-
 		console.log('model, controller, args', model, controller, arguments);
-
 		console.groupEnd();
 	}	
 
@@ -250,7 +241,6 @@ CERTApps.TeamRoute = Ember.Route.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.TeamRoute model");
-
 		console.log('params, args', params, arguments);
 
 		var appModel = this.modelFor('application');
@@ -287,7 +277,6 @@ CERTApps.RosterRoute = CERTApps.BaseRoute.extend(
 	model: function(params)
 	{
 		console.group("CERTApps.RosterRoute model");
-
 		console.log('params, args', params, arguments);
 
 		var team = this.modelFor('team');
@@ -430,7 +419,6 @@ CERTApps.Roster.reopenClass(
 		}
 
 		console.log('toImport', toImport);
-
 		console.groupEnd();
 
 		return toImport;
@@ -591,7 +579,6 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 		toggleUp: function(row, imports)
 		{
 			console.group('CERTApps RosterImportRoute actions toggleUp');
-
 			//console.log('row, imports', row, imports);
 
 			CERTApps.Roster.toggle(row, imports, true);
@@ -603,7 +590,6 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 		toggleDown: function(row, imports)
 		{
 			console.group('CERTApps RosterImportRoute actions toggleUp');
-
 			//console.log('row, imports', row, imports);
 
 			CERTApps.Roster.toggle(row, imports, false);
@@ -705,7 +691,6 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	save: function()
 	{
 		console.group("CERTApps.Member save")
-		
 		console.log('saving', this);
 
 		var settings = 
@@ -787,7 +772,6 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		fields.sort();
 
 		console.log('fields', JSON.stringify(fields));
-
 		console.groupEnd();
 
 		return fields;
@@ -813,7 +797,6 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 			var pieces = date.split('/');
 			var dateParsed = '20' + pieces[2] + '-' + pieces[0] + '-' + pieces[1];
 			console.log('formatted date', dateParsed);
-
 
 			var timeParsed = time;
 			if( timeParsed && timeParsed.length == 4 )
@@ -880,10 +863,9 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 		var strDate = this.get('EventStart');
 		var date = new Date(strDate);
 
-		console.log('strDate, date', strDate, date);
-
 		this.set('startTimestamp', date.getTime());
 
+		console.log('strDate, date', strDate, date);
 		console.groupEnd();
 	},
 
@@ -1267,16 +1249,10 @@ CERTApps.Event.reopenClass(
 	}
 });
 
-
-Ember.RSVP.configure('onerror', function(error) {
-	Ember.Logger.assert(false, error);
-});
-
 CERTApps.ImportColumnSelect = Ember.Select.extend({
 	change: function (ev) 
 	{
 		console.group('CERTApps.ImportColumnSelect change')
-		
 		console.log('this, ev, args', this, ev, arguments);
 		
 		var element = $('#' + this.elementId);
@@ -2876,13 +2852,11 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 	model: function(params, transition)
 	{
 		console.group('CERTApps.CertificationCreateRoute model');
-	
 		console.log('params, transition', params, transition);
 
 		var t = CERTApps.Certification.create();
 
 		console.log('returning', t);
-
 		console.groupEnd()
 
 		return t;
@@ -2895,7 +2869,6 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 		var params = {responseID: model.get('KeyID')};
 
 		console.log('params', params);
-
 		console.groupEnd()
 		
 		return params;
@@ -2904,7 +2877,6 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 	setupController: function(controller, model)
 	{
 		console.group('CERTApps.CertificationCreateRoute setupController');
-
 		console.log('controller, model', controller, model);
 
 		model.newTopic = CERTApps.TrainingTopic.create();
@@ -2920,7 +2892,6 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 	model: function(params, transition)
 	{
 		console.group('CERTApps.CertificationUpdateRoute model');
-	
 		console.log('params, transition', params, transition);
 
 		var t = CERTApps.Certification.load(params.certificationID);
@@ -2944,7 +2915,6 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 		var params = {certificationID: model.certification.get('KeyID')};
 
 		console.log('params', params);
-
 		console.groupEnd()
 		
 		return params;
@@ -2953,7 +2923,6 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 	setupController: function(controller, model)
 	{
 		console.group('CERTApps.CertificationUpdateRoute setupController');
-
 		console.log('controller, model', controller, model);
 
 		model.newTopic = CERTApps.TrainingTopic.create();
@@ -2977,7 +2946,6 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 		editA: function(certification)
 		{
 			console.group("CERTApps.CertificationListRoute actions.editA");
-
 			console.log("certification", certification);
 
 			this.transitionTo("certification.tupdate", certification);
@@ -2998,7 +2966,6 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 	model: function(params, transition)
 	{
 		console.group('CERTApps.CertificationUpdateRoute model');
-	
 		console.log('params, transition', params, transition);
 
 		var t = CERTApps.Certification.getAll();
@@ -3022,7 +2989,6 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 		var params = {certificationID: model.get('KeyID')};
 
 		console.log('params', params);
-
 		console.groupEnd()
 		
 		return params;
@@ -3031,7 +2997,6 @@ CERTApps.CertificationListRoute = CERTApps.BaseRoute.extend(
 	setupController: function(controller, model)
 	{
 		console.group('CERTApps.CertificationUpdateRoute setupController');
-
 		console.log('controller, model', controller, model);
 
 		var lastID = 0;
@@ -3094,7 +3059,6 @@ CERTApps.CertificationTupdateIndexRoute = CERTApps.BaseRoute.extend(
 	model: function(params, transition)
 	{
 		console.group('CERTApps.CertificationTupdateIndexRoute model');
-	
 		console.log('params, transition', params, transition);
 
 		var certification = this.modelFor("certificationTupdate");
@@ -3116,7 +3080,6 @@ CERTApps.CertificationTupdateIndexRoute = CERTApps.BaseRoute.extend(
 		var params = {certificationID: model.get('KeyID')};
 
 		console.log('params', params);
-
 		console.groupEnd()
 		
 		return params;
