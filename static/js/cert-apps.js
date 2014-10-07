@@ -2848,16 +2848,16 @@ CERTApps.CertsTopicsOfferings = CERTApps.BaseObject.extend(
 
 	sortedTopics: function()
 	{
-		var list = this.get("topics").sort(this.sortAsc.bind("name"));
+		var list = this.get("topics").sort(this.sortAsc.bind(this, "name"));
 
 		console.log("sortedTopics", list);
 
 		return list;
 	}.property('topics.@each'),
 
-	sortAsc: function(a, b)
+	sortAsc: function(field, a, b)
 	{
-		if( a.get(this) > b.get(this) )
+		if( a.get(field) > b.get(field) )
 		{
 			return 1;
 		}
@@ -2865,14 +2865,9 @@ CERTApps.CertsTopicsOfferings = CERTApps.BaseObject.extend(
 		return -1;
 	},
 
-	sortDesc: function(a, b)
+	sortDesc: function(field, a, b)
 	{
-		if( a.get(this) < b.get(this) )
-		{
-			return 1;
-		}
-
-		return -1;
+		return -this.sortAsc(field, a, b);
 	}
 });
 
