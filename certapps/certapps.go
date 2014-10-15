@@ -212,6 +212,7 @@ type Certification struct {
 
 type CertificationClass struct {
 	CertificationKey *datastore.Key
+	TeamKey          *datastore.Key
 
 	Name      string    `json:"name"`
 	Scheduled time.Time `json:"scheduled"`
@@ -227,19 +228,15 @@ type TrainingTopic struct {
 
 	Name string `json:"name"`
 
-	Audit
-}
-
-type CertificationClassContent struct {
-	CertificationClassKey *datastore.Key
-	TrainingTopicKey      *datastore.Key
+	EffectiveDate time.Time `json:"effectiveDate"`
+	SunsetDate    time.Time `json:"sunsetDate"`
 
 	Audit
 }
 
 type MemberClassContent struct {
-	CertificationClassContentKey *datastore.Key
-	MemberKey                    *datastore.Key
+	TrainingTopicKey *datastore.Key
+	MemberKey        *datastore.Key
 
 	Attended bool
 
