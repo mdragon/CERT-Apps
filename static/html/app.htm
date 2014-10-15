@@ -569,6 +569,7 @@
 			{{/if}}
 
 			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
+			<label>Effective Date: {{input type="date" value=newTopic.effectiveDate}}</label><br/>
 			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
@@ -688,8 +689,8 @@
 			No Attendees yet, add one below<br/>
 		{{/if}}
 
-		{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
-		<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
+		{{input value=newAttendee.name placeholder="Name" size="30"}}<br/>
+		<button {{action 'saveTopicA' newAttendee content }}><i class="fa fa-save"></i> Add</button>
 	</div>
 </script>
 
