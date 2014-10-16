@@ -71,7 +71,7 @@ CERTApps.Router.map(function()
 			this.route("class", function()
 				{
 					this.route("tcreate");
-					this.route("tupdate", { path: ":classID" });
+					this.route("tupdate", { path: ":cClassID" });
 				});
 		});
 
@@ -143,9 +143,18 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 
 			var model = CERTApps.AppModel.create(obj);
 
-			CERTApps.Team.lookup().then(function(team){ console.log('model resolved for team', team); model.set('Team', team); console.log('after set model', model); });
+			var p = CERTApps.Team.lookup().then(
+				function(team)
+				{ 
+					console.log('model resolved for team', team); 
+					model.set('Team', team); 
+					console.log('after set model', model); 
 
-			return model; 
+					return model
+				}
+			);
+
+			return p; 
 		}.bind(this));
 
 		console.groupEnd();
@@ -3308,7 +3317,7 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 
 			console.log("cClass", cClass);
 
-			this.transitionTo("certification.class.tupdate", cClass);
+			this.transitionTo("certification.class.tupdate", {cClass: cClass});
 
 			console.groupEnd();
 		}, 
@@ -3331,16 +3340,23 @@ CERTApps.CertificationClassIndexRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.CertificationClassIndexRoute model');
 		console.log('params, transition', params, transition);
 
-		//var certification = this.modelFor("certificationTupdate");
+		var app = this.modelFor("application");
+		var team = app.get("Team");
 
-		//console.log("ceritification", certification);
+		var p = CERTApps.CertificationClass.getAll(team.get("KeyID"));
 
-		//TODO load Offerings here, unless Offierings shouldn't go here
-		var t = null; //CERTApps.TrainingTopic.getAll(certification.KeyID);
+		var p2 = p.then( function(obj)
+		{
+			var model =  {cClasses: obj};
+
+			console.log('model', model);
+
+			return model;
+		});
 
 		console.groupEnd()
 
-		return t;
+		return p2;
 	},
 
 	serialize: function(model)
@@ -3391,18 +3407,17 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		{
 			var t = CERTApps.ajax({
 				url: '/api/certificationClass/save',
-				data: JSON.stringify({ CertificationClass: this, Team: { KeyID: teamID } })
+				data: { CClass: this, Team: { KeyID: teamID } }
 			});
 			p = t.then(function(data)
 			{
-
-				if( data.CertificationClass )
+				if( data.CClass )
 				{
-					console.log('syncing with', data.CertificationClass);
-					this.sync(data.CertificationClass);
+					console.log('syncing with', data.CClass);
+					this.sync(data.CClass);
 				} else
 				{
-					console.warn("Cannot sync when there's no CertificationClass", data);
+					console.warn("Cannot sync when there's no CClass", data);
 				}
 
 				console.log('this after sync', this);
@@ -3425,21 +3440,30 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 	}
 });
 
-CERTApps.ajax = function(settings)
+CERTApps.ajax = function(options)
 {
 	var t = null;
-	
-	if( settings.url )
+
+	if( options.url )
 	{
-		settings = $.extend(settings,
+		options.dataType = options.dataType || "json";
+		options.type = options.type || "post";
+		options.cache = options.cache || false;
+
+		if( options.data )
 		{
-			type: 'json',
-			dataType: 'json',
-		});
+			if( options.type.toLowerCase() == "post" )
+			{
+				if( $.isPlainObject(options.data))
+				{
+					options.data = JSON.stringify(options.data);
+				}
+			}
+		}
 
-		console.log('requesting', settings)
+		console.log('requesting', options)
 
-		var a = $.ajax(settings);
+		var a = $.ajax(options);
 		 t = a.then(function(data)
 		{ 
 			var obj = this.moveUpData(data); 
@@ -3517,46 +3541,33 @@ CERTApps.CertificationClass.reopenClass(
 		return p2;
 	},
 
-	getAll: function(id)
+	getAll: function(teamID)
 	{
 		console.group("CERTApps.CertificationClass getAll");
-		console.log('loading CertificationClass', this);
+		console.log("loading CertificationClass", this);
 
-		var settings = 
-		{
-			url: '/certificationClasses',
-			type: 'json',
-			dataType: 'json',
-			method: "GET",
-			data: {certificationsID: id}
-		};
-
-		console.log('requesting', settings)
-
-		var a = $.ajax(settings);
-		var p = a.then(function(data)
-		{ 
-			var obj = CERTApps.moveUpData(data); 
-
-			return obj;
-		}.bind(this));
+		var p = CERTApps.ajax({
+			type: "get",
+			url: "/api/certificationClass/all",
+			data: {teamID: teamID}
+		});
 
 		p2 = p.then(function(data)
 		{
 			var list = Ember.A([]);
 
-			if( data.CertificationClass )
+			if( data.CClasses )
 			{
-				for( var x = data.CertificationClass.length - 1; x >= 0; x-- )
+				for( var x = data.CClasses.length - 1; x >= 0; x-- )
 				{
-					t = data.CertificationClass[x];
+					t = data.CClasses[x];
 					tObj = CERTApps.CertificationClass.create(t);
 
 					list.pushObject(tObj);
 				}
 			} else
 			{
-				console.warn("Data returned by server did not have CertificationClass value", data);
+				console.warn("Data returned by server did not have CClasses value", data);
 			}
 
 			console.log("CERTApps.CertificationClass load.then returning", list);
@@ -3648,6 +3659,6 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd()
 		
-		return param;
+		return params;
 	},
 });

@@ -40,6 +40,8 @@ type AuthContext struct {
 type MainAppContext struct {
 	Member *Member
 	Team   *Team
+	//User   *user.User
+
 	AuthContext
 }
 
@@ -297,11 +299,14 @@ var delayEmailReminders2 = delay.Func("sendEmailReminders2", sendEmailReminders)
 
 func init() {
 	http.Handle("/api/trainingTopic/save", appstats.NewHandler(apiTrainingTopicSave))
+	http.Handle("/api/certificationClass", appstats.NewHandler(apiCertificationClassGet))
+	http.Handle("/api/certificationClass/all", appstats.NewHandler(apiCertificationClassGetAll))
+	http.Handle("/api/certificationClass/save", appstats.NewHandler(apiCertificationClassSave))
 
 	http.Handle("/audit", appstats.NewHandler(audit))
 	http.Handle("/certification", appstats.NewHandler(certificationGet))
-	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
 	http.Handle("/certifications/all", appstats.NewHandler(certificationsGetAll))
+	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
 	http.Handle("/eventA", appstats.NewHandler(eventA))
 	http.Handle("/event", appstats.NewHandler(event))
 	http.Handle("/event/reminders/send", appstats.NewHandler(remindersSend))
@@ -443,6 +448,8 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 func auth(c appengine.Context, w http.ResponseWriter, r *http.Request) (appengine.Context, *user.User, MainAppContext) {
 	u := user.Current(c)
+	// context.User = u
+	// c.Debugf("context.User %+v", context.User)
 
 	var context MainAppContext
 
@@ -656,15 +663,15 @@ func returnJSONorErrorToResponse(context interface{}, c appengine.Context, w htt
 	jsonC := JSONContext{}
 	bArr, memberJSONerr := json.Marshal(context)
 	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-		c.Debugf("getting length")
+		//c.Debugf("getting length")
 		//n := bytes.Index(bArr, []byte{0})
 		n := len(bArr)
 
 		if n > 0 {
-			c.Debugf("getting string for: %d bytes", n)
+			//c.Debugf("getting string for: %d bytes", n)
 			jsonC.Data = string(bArr[:n])
 
-			c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
+			//c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
 			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
 		} else {
 			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
@@ -1014,7 +1021,7 @@ func memberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	save(&saveMember, nil, c, u, w, r)
+	saveMem(&saveMember, nil, c, u, w, r)
 }
 
 func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -1047,14 +1054,14 @@ func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			for idx := range members {
 				mem = &members[idx]
 
-				_, err := save(mem, curMember, c, u, w, r)
+				_, err := saveMem(mem, curMember, c, u, w, r)
 				checkErr(err, w, c, fmt.Sprintf("Re-Saving member %+v", mem))
 			}
 		}
 	}
 }
 
-func save(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
+func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
@@ -1158,7 +1165,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 
 				saveMember.Enabled = true
 
-				_, mErr := save(&saveMember, curMember, c, u, w, r)
+				_, mErr := saveMem(&saveMember, curMember, c, u, w, r)
 
 				if noErrMsg(mErr, w, c, "Save member in import") {
 					saveMember.addToTeam(tk, c)
@@ -2636,6 +2643,159 @@ func (t *TrainingTopic) save(member *Member, c appengine.Context) error {
 	return putErr
 }
 
+func (obj *CertificationClass) save(member *Member, c appengine.Context) error {
+	objType := "CertificationClass"
+
+	objKey := obj.Key
+	if objKey == nil {
+		objKey = datastore.NewKey(c, objType, "", obj.KeyID, nil)
+	}
+
+	obj.setAudits(member)
+
+	outKey, putErr := datastore.Put(c, objKey, obj)
+
+	if noErrMsg(putErr, nil, c, "Put "+objType) {
+		c.Debugf("Key after Put: %d, %d", objKey.IntID(), outKey.IntID())
+		obj.setKey(outKey)
+
+		c.Debugf("after Put: %+v", obj)
+	}
+
+	return putErr
+}
+
+func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
+	t.Key = datastore.NewKey(c, "Certification", "", id, nil)
+
+	err := datastore.Get(c, t.Key, t)
+
+	if noErrMsg(err, nil, c, fmt.Sprintf("Getting Certification %d", id)) {
+		t.setKey(t.Key)
+	}
+
+	return err
+}
+
+func apiCertificationClassSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+	var postData struct {
+		CClass *CertificationClass
+		Team   *Team
+	}
+
+	c.Infof("certificationClassSave")
+
+	// err := parseJSON(postData, r, c)
+	// if noErrMsg(err, w, c, "Parsing JSON") {
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		mem, _ = getMemberFromUser(c, u, w, r)
+
+		teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
+		postData.CClass.TeamKey = teamKey
+
+		saveErr := postData.CClass.save(mem, c)
+
+		c.Debugf("CertificationClass after save: %+v", postData.CClass)
+
+		if noErrMsg(saveErr, w, c, "Saving Certification") {
+			context = struct {
+				CClass *CertificationClass
+			}{
+				postData.CClass,
+			}
+		}
+	} else {
+
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func apiCertificationClassGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+
+	id := parseIntIDVal(r)
+
+	c.Infof("certificationClassGet %d", id)
+
+	mem, _ = getMemberFromUser(c, u, w, r)
+
+	results, err := getCertAndTopics(c, id, mem)
+
+	if noErrMsg(err, w, c, "Certification lookup") {
+
+		context = results
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+	var mem *Member
+
+	id := parseIntFormVal("teamID", r)
+
+	c.Infof("certificationClassGetAll, id: %d", id)
+
+	if id != 0 {
+		mem, _ = getMemberFromUser(c, u, w, r)
+
+		if mem != nil {
+			var results []*CertificationClass
+			var teamKey = datastore.NewKey(c, "Team", "", id, nil)
+
+			query := datastore.NewQuery("CertificationClass").Filter("TeamKey =", teamKey)
+
+			keys, err := query.GetAll(c, &results)
+
+			if noErrMsg(err, w, c, "Getting All CertificationClasses for Team") {
+				for idx, _ := range results {
+					e := results[idx]
+					key := keys[idx]
+
+					e.setKey(key)
+				}
+			}
+
+			context = struct {
+				CClasses []*CertificationClass
+			}{
+				results,
+			}
+		} else {
+			context = struct {
+				NotLoggedIn bool
+			}{
+				false,
+			}
+		}
+	} else {
+		context = struct {
+			Error   bool
+			Message string
+		}{
+			true,
+			"Must pass teamID",
+		}
+	}
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
 	retval := false
 	if err != nil {
@@ -2660,4 +2820,42 @@ func noErrMsg(err error, w http.ResponseWriter, c appengine.Context, msg string)
 	retval := checkErr(err, w, c, msg)
 
 	return !retval
+}
+
+func parseIntFormVal(field string, r *http.Request) int64 {
+	key := r.FormValue(field)
+
+	if key == "" {
+		key = "0"
+	}
+
+	id, _ := strconv.ParseInt(key, 0, 0)
+
+	return id
+}
+
+func parseIntIDVal(r *http.Request) int64 {
+	key := r.FormValue("id")
+
+	if key == "" {
+		key = "0"
+	}
+
+	id, _ := strconv.ParseInt(key, 0, 0)
+
+	return id
+}
+
+func parseJSON(object interface{}, r *http.Request, c appengine.Context) error {
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&object)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
+		c.Infof("JSON from request: %+v", object)
+	}
+
+	return jsonDecodeErr
 }

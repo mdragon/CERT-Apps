@@ -644,7 +644,7 @@
 			<th>Name</th><th>Scheduled</th><th>Location</th>
 		</thead>
 		<tbody>
-		{{#each c in classes}}
+		{{#each c in content.cClasses}}
 			<tr {{bind-attr class="c.isLastEdited:success"}}>
 				<td>
 					<i {{action "editA" c}} class="fa fa-pencil action"></i>
