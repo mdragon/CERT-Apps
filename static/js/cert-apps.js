@@ -379,6 +379,37 @@ CERTApps.BaseObject = Ember.Object.extend(
 		console.groupEnd();
 	},
 
+	trimAll: function()
+	{
+		Ember.keys(this).forEach( function(prop)
+		{
+			//console.log(prop, 'checking hasOwn prop')
+			if( this.hasOwnProperty(prop) )
+			{
+				//console.log(prop, 'checking type prop', $.type(this[prop]))
+
+				if( $.type(this[prop]) === $.type("") )
+				{
+					var val = this.get(prop);
+
+					var trimVal = $.trim(val);
+
+					//console.log(prop, "checking trimmed vs not", "*" + trimVal + "*", "*" + val + "*");
+
+					if( val !== trimVal )
+					{
+					//	console.log(prop, 'set trimmed', trimVal);
+
+						this.set(prop, trimVal);
+					} else
+					{
+					//	console.log(prop, 'already trimmed');
+					}
+				}
+			}
+		}.bind(this)
+		);
+	}
 });
 
 CERTApps.AppModel = CERTApps.BaseObject.extend(
@@ -424,7 +455,7 @@ CERTApps.Roster.reopenClass(
 
 			for( var y = 0; y < colsLen; y++ )
 			{
-				obj.cols.pushObject({name: '_c' + y.toString(), value: cols[y]});
+				obj.cols.pushObject({name: '_c' + y.toString(), value: $.trim(cols[y])});
 			}
 
 			//console.debug('obj', JSON.stringify(obj));
@@ -705,6 +736,9 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	save: function()
 	{
 		console.group("CERTApps.Member save")
+
+		this.trimAll();
+
 		console.log('saving', this);
 
 		var settings = 
