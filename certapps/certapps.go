@@ -303,6 +303,8 @@ func init() {
 	http.Handle("/api/certificationClass/all", appstats.NewHandler(apiCertificationClassGetAll))
 	http.Handle("/api/certificationClass/save", appstats.NewHandler(apiCertificationClassSave))
 
+	http.Handle("/filterTest", appstats.NewHandler(filterTest))
+
 	http.Handle("/audit", appstats.NewHandler(audit))
 	http.Handle("/certification", appstats.NewHandler(certificationGet))
 	http.Handle("/certifications/all", appstats.NewHandler(certificationsGetAll))
@@ -2793,6 +2795,34 @@ func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *
 			"Must pass teamID",
 		}
 	}
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func filterTest(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	var member []*Member
+	var context interface{}
+
+	memberQ := datastore.NewQuery("Member").Filter("LastName >=", " C").Filter("LastName <", " D")
+
+	c.Infof("Got membersQ and members for calling GetAll")
+	keys, err := memberQ.GetAll(c, &member)
+
+	for idx, _ := range member {
+		m := member[idx]
+		k := keys[idx]
+		m.setKey(k)
+	}
+
+	c.Infof("after GetAll")
+
+	if noErrMsg(err, w, c, "GetAll") {
+		context = struct {
+			Members []*Member
+		}{
+			member,
+		}
+	}
+
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
