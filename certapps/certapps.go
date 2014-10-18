@@ -2668,11 +2668,11 @@ func (obj *CertificationClass) save(member *Member, c appengine.Context) error {
 }
 
 func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
-	t.Key = datastore.NewKey(c, "Certification", "", id, nil)
+	t.Key = datastore.NewKey(c, "CertificationClass", "", id, nil)
 
 	err := datastore.Get(c, t.Key, t)
 
-	if noErrMsg(err, nil, c, fmt.Sprintf("Getting Certification %d", id)) {
+	if noErrMsg(err, nil, c, fmt.Sprintf("Getting CertificationClass %d", id)) {
 		t.setKey(t.Key)
 	}
 
@@ -2735,11 +2735,15 @@ func apiCertificationClassGet(c appengine.Context, w http.ResponseWriter, r *htt
 
 	mem, _ = getMemberFromUser(c, u, w, r)
 
-	results, err := getCertAndTopics(c, id, mem)
+	cClass := new(CertificationClass)
+	err := cClass.lookup(id, mem, c)
 
 	if noErrMsg(err, w, c, "Certification lookup") {
-
-		context = results
+		context = struct {
+			CertificationClass *CertificationClass
+		}{
+			cClass,
+		}
 	}
 
 	returnJSONorErrorToResponse(context, c, w, r)

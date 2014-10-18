@@ -3530,25 +3530,14 @@ CERTApps.CertificationClass.reopenClass(
 		console.group("CERTApps.CertificationClass load");
 		console.log('loading CertificationClass', this);
 
-		var settings = 
-		{
-			url: '/certificationClass',
-			type: 'json',
-			dataType: 'json',
-			method: "GET",
-			data: { id: id }
-		};
-
-		console.log('requesting', settings)
-
-		var a = $.ajax(settings);
-		var p = a.then(function(data)
-		{ 
-			var obj = CERTApps.moveUpData(data); 
-
-			return obj;
-		}.bind(this));
-
+		var p = CERTApps.ajax( 
+			{
+				type: "get",
+				data: { id: id },
+				url: '/api/certificationClass'
+			}
+		);
+		
 		p2 = p.then(function(data)
 		{
 			var t = null;
@@ -3670,7 +3659,7 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 
 		var p = CERTApps.CertificationClass.load(params.cClassID);
 		
-		p.then( function(obj)
+		var p2 = p.then( function(obj)
 		{
 			var model = { cClass: obj };
 
@@ -3680,7 +3669,7 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 
 		console.groupEnd();
 
-		return p;
+		return p2;
 	},
 
 	serialize: function(model)
