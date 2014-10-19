@@ -3363,7 +3363,19 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			this.transitionTo("certification.class.tcreate");
 
 			console.groupEnd();
+		},
+
+		addAttendeeA: function(attendee, cClass, attendees)
+		{
+			console.group("CERTApps.CertificationClassRoute actions.addAttendeeA");
+
+			console.log("attendee, cClass", attendee, cClass);
+
+			var p = attendee.search();
+
+			console.groupEnd();
 		}
+
 	},
 });
 
@@ -3666,7 +3678,7 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 		
 		var p2 = p.then( function(obj)
 		{
-			var model = { cClass: obj };
+			var model = { cClass: obj, newAttendee: CERTApps.Attendee.create() };
 
 			console.log('CERTApps.CertificationClassTupdateRoute.model, params', model, params)
 			return model;
@@ -3690,3 +3702,122 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 		return params;
 	},
 });
+
+CERTApps.Attendee = CERTApps.BaseObject.extend(
+{	
+	init: function()
+	{
+		console.log('CERTApps.Attendee init');
+	},
+
+	reset: function()
+	{
+		this.set("search", "");
+		this.set("KeyID", 0);
+	},
+
+	search: function()
+	{
+		console.group("CERTApps.Attendee search");
+		var rawValue = this.get("search");
+
+		console.log("rawValue", rawValue);
+
+		var values = getSearchValue(rawValue);
+
+		console.groupEnd();
+	},
+
+	getSearchValues: function(rawValue)
+	{
+		console.group("CERTApps.Attendee getSerachValues");
+
+		var values = {};
+
+		values.phone = this.getPhone(rawValue);
+		if( ! values.phone ) 
+		{
+			values.nameOrEmail = this.getNameOrEmail(rawValue);
+		}
+
+		console.log("values", values);
+		console.groupEnd();
+
+		return values;
+	},
+
+	getPhone: function(rawValue)
+	{
+		console.group("CERTApps.Attendee getPhone");
+		console.log("rawValue", rawValue);
+
+		var phone = null;
+		var numbersOnly = Ember.A([]);
+		var notAPhone = false;
+
+		for( var x = rawValue.length - 1; x >=0; x-- )
+		{
+			var item  = rawValue[x];
+			console.log("for rawValue", item);
+
+			if( 
+				item !== "-"
+				&& item !== " "
+				&& item !== "("
+				&& item !== ")"
+			) {
+				if( Ember.$.isNumeric(item) )
+				{
+					console.log("number", item);
+					numbersOnly.unshift(item);
+				} else {
+					console.log("not a number, dash, (), or space, returning", item);
+					notAPhone = true;
+					return;
+				}
+			} else
+			{
+				console.log("phone number piece, but not number", item);
+			}
+		}
+
+		console.log("notAPhone", notAPhone);
+		if( notAPhone == false )
+		{
+			phone = numbersOnly.join("");
+		}
+
+		console.log('returning', phone);
+
+		console.groupEnd();
+
+		return phone;
+	},
+
+	getNameOrEmail: function(rawValue)
+	{
+		console.group("CERTApps.Attendee getNameOrEmail");
+		console.log("rawValue", rawValue);
+
+		var nameOrEmail = null;
+		
+		// should we chop off the last char to make > search work, or should we just use >
+		// if( rawValue.length > 1 )
+		// {
+		// 	nameOrEmail = rawValue.substring(0, rawValue.length - 1);
+		// } else
+		// {
+		// 	nameOrEmail = rawvalue;
+		// }
+
+		nameOrEmail = rawValue;
+
+		console.log('returning', nameOrEmail);
+
+		console.groupEnd();
+
+		return nameOrEmail;
+	}
+
+
+});	

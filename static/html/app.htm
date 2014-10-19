@@ -694,8 +694,8 @@
 			<br/>
 		{{/if}}
 
-		{{input value=newAttendee.name placeholder="Name" size="30" disabled=cClass.classNotSaved}}<br/>
-		<button {{action 'saveTopicA' newAttendee content disabled=cClass.classNotSaved}}><i class="fa fa-save"></i> Add</button>
+		{{input value=newAttendee.search placeholder="Name, Email, PHone" size="30" disabled=cClass.classNotSaved}}<br/>
+		<button {{action 'addAttendeeA' newAttendee cClass disabled=cClass.classNotSaved}}><i class="fa fa-save"></i> Add</button>
 	</div>
 </script>
 
