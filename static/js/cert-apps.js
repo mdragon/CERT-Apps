@@ -3471,7 +3471,12 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 	{
 		this.set("name", "");
 		this.set("KeyID", 0);
-	}
+	},
+
+	classNotSaved: function()
+	{
+		return ! (this.get("KeyID") && this.get("KeyID") > 0);
+	}.property("KeyID")
 });
 
 CERTApps.ajax = function(options)

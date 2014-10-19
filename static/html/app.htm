@@ -686,11 +686,16 @@
 				</tbody>
 			</table>
 		{{else}}
-			No Attendees yet, add one below<br/>
+			{{#if cClass.classNotSaved}}
+				Save the Class to enable addingd Attendees.
+			{{else}}
+				No Attendees yet, add one below
+			{{/if}}
+			<br/>
 		{{/if}}
 
-		{{input value=newAttendee.name placeholder="Name" size="30"}}<br/>
-		<button {{action 'saveTopicA' newAttendee content }}><i class="fa fa-save"></i> Add</button>
+		{{input value=newAttendee.name placeholder="Name" size="30" disabled=cClass.classNotSaved}}<br/>
+		<button {{action 'saveTopicA' newAttendee content disabled=cClass.classNotSaved}}><i class="fa fa-save"></i> Add</button>
 	</div>
 </script>
 
