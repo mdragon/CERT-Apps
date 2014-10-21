@@ -3725,7 +3725,21 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 
 		var values = getSearchValue(rawValue);
 
+		var p = CERTApps.ajax({
+			url: "/api/member/search",
+			values: values
+		});
+	
 		console.groupEnd();
+
+		p.then(
+			function(obj)
+			{
+				console.log("api/member/search.then obj", obj)
+			}
+			);
+
+		return p;
 	},
 
 	getSearchValues: function(rawValue)
