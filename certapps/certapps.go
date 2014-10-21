@@ -303,7 +303,7 @@ func init() {
 	http.Handle("/api/certificationClass/all", appstats.NewHandler(apiCertificationClassGetAll))
 	http.Handle("/api/certificationClass/save", appstats.NewHandler(apiCertificationClassSave))
 
-	http.Handle("/filterTest", appstats.NewHandler(filterTest))
+	http.Handle("/api/member/search", appstats.NewHandler(apiMemberSearch))
 
 	http.Handle("/audit", appstats.NewHandler(audit))
 	http.Handle("/certification", appstats.NewHandler(certificationGet))
@@ -2802,32 +2802,126 @@ func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func filterTest(c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	var member []*Member
+func apiMemberSearch(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	var context interface{}
+	queries := 0
+	var members []*Member
+	membersChan := make(chan []*Member)
 
-	memberQ := datastore.NewQuery("Member").Filter("LastName >=", " C").Filter("LastName <", " D")
+	postData := struct {
+		Phone       string
+		NameOrEmail string
+	}{}
+
+	c.Infof("apiMemberSearch")
+
+	decoder := json.NewDecoder(r.Body)
+	jsonDecodeErr := decoder.Decode(&postData)
+
+	if jsonDecodeErr == io.EOF {
+		c.Infof("EOF, should it be?")
+	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
+		c.Infof("JSON from request: %+v", postData)
+
+		if postData.Phone == "" {
+			queries += 3
+			memberFirstNameQuery(postData.NameOrEmail, false, c)
+			memberLastNameQuery(postData.NameOrEmail, false, c)
+			memberEmailQuery(postData.NameOrEmail, false, c)
+		} else {
+			queries++
+			go func() {
+				members, err := memberPhoneQuery(postData.Phone, false, c)
+
+				if err == nil {
+					membersChan <- members
+				} else {
+					c.Errorf("%+v", err)
+				}
+			}()
+		}
+
+		for queries > 0 {
+			select {
+			case newMembers := <-membersChan:
+				for idx, _ := range newMembers {
+					m := newMembers[idx]
+					members = append(members, m)
+				}
+			}
+			queries--
+		}
+
+		c.Infof("after Member query(s)")
+		// if noErrMsg(err, w, c, "GetAll") {
+		context = struct {
+			Members []*Member
+		}{
+			members,
+		}
+	} // else jsonDecodeErr
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
+func memberFirstNameQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
+	c.Infof("Member First Name Query: %s", value)
+
+	return nil, nil
+}
+
+func memberLastNameQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
+	c.Infof("Member Last Name Query: %s", value)
+
+	return nil, nil
+}
+
+func memberEmailQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
+	c.Infof("Member Email Query: %s", value)
+
+	return nil, nil
+}
+
+func memberPhoneQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
+	c.Infof("Member Phone Query: %s", value)
+
+	mems, err := memberQuery("Cell", value, equality, c)
+	return mems, err
+}
+
+func memberQuery(field string, value string, equality bool, c appengine.Context) ([]*Member, error) {
+	var members []*Member
+
+	greaterThanSign := ""
+
+	if equality == false {
+		greaterThanSign = ">"
+	}
+
+	greaterThanEqual := fmt.Sprintf("%s %s=", field, greaterThanSign)
+	lessThan := fmt.Sprintf("%s < ", field)
+
+	// higest unicode value from here: http://stackoverflow.com/questions/47786/google-app-engine-is-it-possible-to-do-a-gql-like-query
+	valueNext := value[:len(value)-1] + "\ufffd"
+
+	memberQ := datastore.NewQuery("Member").Filter(greaterThanEqual, value)
+
+	c.Debugf("Filter 1: %s, %s", greaterThanEqual, value)
+	if equality == false {
+		memberQ.Filter(lessThan, valueNext)
+		c.Debugf("Filter 2: %s, %s", lessThan, valueNext)
+	}
 
 	c.Infof("Got membersQ and members for calling GetAll")
-	keys, err := memberQ.GetAll(c, &member)
+	keys, err := memberQ.GetAll(c, &members)
 
-	for idx, _ := range member {
-		m := member[idx]
+	for idx, _ := range members {
+		m := members[idx]
 		k := keys[idx]
 		m.setKey(k)
 	}
 
-	c.Infof("after GetAll")
-
-	if noErrMsg(err, w, c, "GetAll") {
-		context = struct {
-			Members []*Member
-		}{
-			member,
-		}
-	}
-
-	returnJSONorErrorToResponse(context, c, w, r)
+	return members, err
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
