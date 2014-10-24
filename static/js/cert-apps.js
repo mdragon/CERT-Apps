@@ -482,6 +482,13 @@ CERTApps.Roster.reopenClass(
 
 		var members = this.parseMembers(mapping, data);
 
+		members.forEacH(function(item)
+		{
+			item.set("cellFormatted", item.get("Cell"));
+
+			console.log("fixed cell", item);
+		});
+
 		this.saveMembers(members, teamID);
 	},
 
@@ -777,7 +784,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	
 		//console.log('CellDisplay', this.get('ShowCell'), this.get('loggedInMember.CanLookup'), retval, this.get('loggedInMember'));
 		
-		return this.get('ShowCell') || this.get('loggedInMember');
+		return retval;
 	}.property('ShowCell', 'loggedInMember'),
 
 	line2Display: function()
@@ -823,7 +830,35 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		console.groupEnd();
 
 		return fields;
-	}
+	},
+
+	cellFormatted: function(key, value, priorValue)
+	{
+		// setter
+		if (arguments.length > 1) 
+		{
+			var cleanPhone = value.replace(/\-|\(|\)|\s/g, "");
+
+			console.log('phone, cleanPhone', phone, cleanPhone)
+
+			this.set('cell', cleanPhone);
+		}
+
+		// getter
+		var phone = this.get("Cell");
+		var out = null;
+
+		if( phone )
+		{
+			var first = phone.substring(0,3);
+			var second = phone.substring(3,6);
+			var third = phone.substring(6,10);
+
+			out = first + "-" + second + "-" + third;
+		} 
+
+		return out;
+	}.property("Cell")
 });
 
 CERTApps.TimesObject = CERTApps.BaseObject.extend(
@@ -3407,7 +3442,7 @@ CERTApps.CertificationClassIndexRoute = CERTApps.BaseRoute.extend(
 
 	serialize: function(model)
 	{
-		console.group('CERTApps.CertificationTopicRoute serialize');
+		console.group('CERTApps.CertificationClassIndexRoute serialize');
 		
 		var params = {certificationID: model.get('KeyID')};
 
@@ -3419,7 +3454,7 @@ CERTApps.CertificationClassIndexRoute = CERTApps.BaseRoute.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps.CertificationUpdateRoute setupController');
+		console.group('CERTApps.CertificationClassIndexRoute setupController');
 
 		console.log('controller, model', controller, model);
 
@@ -3705,9 +3740,14 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 
 CERTApps.Attendee = CERTApps.BaseObject.extend(
 {	
+	searchValue: null,
+	potentialMatches: null,
+
 	init: function()
 	{
 		console.log('CERTApps.Attendee init');
+
+		potentialMatches = Ember.A([]);
 	},
 
 	reset: function()
@@ -3719,15 +3759,15 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 	search: function()
 	{
 		console.group("CERTApps.Attendee search");
-		var rawValue = this.get("search");
+		var rawValue = this.get("searchValue");
 
 		console.log("rawValue", rawValue);
 
-		var values = getSearchValue(rawValue);
+		var values = this.getSearchValues(rawValue);
 
 		var p = CERTApps.ajax({
 			url: "/api/member/search",
-			values: values
+			data: values
 		});
 	
 		console.groupEnd();
@@ -3735,8 +3775,12 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 		p.then(
 			function(obj)
 			{
-				console.log("api/member/search.then obj", obj)
-			}
+				obj.forEach(function(item)
+				{
+
+				});
+			}.bind(this),
+			CERTApps.ajaxError.bind(this)
 			);
 
 		return p;

@@ -322,7 +322,7 @@ func init() {
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
-	http.Handle("/fix/events/without/team", appstats.NewHandler(fixData))
+	http.Handle("/fix/teamMembers/without/Memeber", appstats.NewHandler(fixData))
 	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
 	http.Handle("/setup", appstats.NewHandler(initialSetup))
@@ -332,40 +332,81 @@ func init() {
 }
 
 func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	var context interface{}
+
 	u := user.Current(c)
-	member, errM := getMemberFromUser(c, u, w, r)
 
-	if noErrMsg(errM, w, c, "Loading member") {
-		errT, team := getTeam(0, member, c, w, r)
+	if u.Admin {
+		member, errM := getMemberFromUser(c, u, w, r)
 
-		if noErrMsg(errT, w, c, "Loading team in initialSetup") {
-			//addErr := member.addToTeam(team.Key, c)
+		if noErrMsg(errM, w, c, "Loading member") {
+			errT, team := getTeam(0, member, c, w, r)
 
-			//checkErr(addErr, w, c, "Failed adding member to team")
+			if noErrMsg(errT, w, c, "Loading team in initialSetup") {
+				//addErr := member.addToTeam(team.Key, c)
 
-			if team.GoogleAPIKey == "" {
-				if team.Key == nil {
-					team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+				if team == nil {
+					// TODO setup the team
 				}
-				team.GoogleAPIKey = "xyz"
-				datastore.Put(c, team.Key, team)
+
+				var tmRecords []*TeamMember
+				tmQuery := datastore.NewQuery("TeamMember").Filter("TeamKey = ", team.Key).Filter("MemberKey = ", member.Key).KeysOnly()
+
+				var tmErr error
+				//var keys []*datastore.Key
+
+				c.Infof("calling tmQuery.GetAll")
+				_, tmErr = tmQuery.GetAll(c, &tmRecords)
+
+				if noErrMsg(tmErr, w, c, fmt.Sprintf("looking for TeamMember for team: %+v, Member: %+v", team.Key, member.Key)) {
+					if len(tmRecords) == 0 {
+
+						tm := TeamMember{MemberKey: member.Key, TeamKey: team.Key}
+						tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
+						tm.setAudits(member)
+
+						tm.Key, tmErr = datastore.Put(c, tm.Key, &tm)
+
+						if noErrMsg(tmErr, w, c, fmt.Sprintf("Saving TeamMember record, team: %+v, Member: %+v", team.Key, member.Key)) {
+
+						}
+					}
+				}
+
+				//checkErr(addErr, w, c, "Failed adding member to team")
+				if team != nil {
+					if team.GoogleAPIKey == "" {
+						if team.Key == nil {
+							team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+						}
+						team.GoogleAPIKey = "xyz"
+						datastore.Put(c, team.Key, team)
+					}
+				}
 			}
 		}
+		context = struct {
+			DidSomeStuff bool
+		}{true}
+	} else {
+		context = struct {
+			MustLoginAsAdmin bool
+		}{true}
 	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	//u := user.Current(c)
 
 	var query *datastore.Query
-	var results []*Event
+	var results []*TeamMember
 
 	var keys []*datastore.Key
 	var err error
-	var teamKey = datastore.NewKey(c, "Team", "", 6067380039974912, nil)
-	var wrongKey = datastore.NewKey(c, "Event", "", 6067380039974912, nil)
 
-	query = datastore.NewQuery("Event").Filter("TeamKey =", wrongKey)
+	query = datastore.NewQuery("TeamMember")
 
 	c.Infof("calling GetAll")
 	keys, err = query.GetAll(c, &results)
@@ -375,11 +416,9 @@ func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 			e := results[idx]
 			key := keys[idx]
 
-			e.TeamKey = teamKey
-
-			c.Infof("fix team key for id %d, event %+v", key.IntID(), e)
-
-			datastore.Put(c, key, e)
+			if e.MemberKey.IntID() != 5045143463788544 {
+				datastore.Delete(c, key)
+			}
 		}
 	}
 
@@ -746,7 +785,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 
 							m := &Member{
 								Person: Person{
-									FirstName: "",
+									FirstName: u.Email,
 									LastName:  "",
 									Email:     u.Email,
 									Cell:      "",
@@ -772,6 +811,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 
 							c.Infof("Putting Member: %v", mKey)
 							outMKey, mErr := datastore.Put(c, mKey, m)
+							m.setKey(outMKey)
 
 							if noErrMsg(mErr, w, c, "Trying to put Member") {
 
@@ -2908,11 +2948,11 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 
 	c.Debugf("Filter 1: %s, %s", greaterThanEqual, value)
 	if equality == false {
-		memberQ.Filter(lessThan, valueNext)
+		memberQ = memberQ.Filter(lessThan, valueNext)
 		c.Debugf("Filter 2: %s, %s", lessThan, valueNext)
 	}
 
-	c.Infof("Got membersQ and members for calling GetAll")
+	c.Infof("Got membersQ and members for calling GetAll: %+v", memberQ)
 	keys, err := memberQ.GetAll(c, &members)
 
 	for idx, _ := range members {
