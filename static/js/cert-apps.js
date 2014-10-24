@@ -835,20 +835,21 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	cellFormatted: function(key, value, priorValue)
 	{
 		// setter
+		var phone = this.get("Cell") ;
+
 		if (arguments.length > 1) 
 		{
 			var cleanPhone = value.replace(/\-|\(|\)|\s/g, "");
 
-			console.log('phone, cleanPhone', phone, cleanPhone)
+			this.set('Cell', cleanPhone);
 
-			this.set('cell', cleanPhone);
+			phone = cleanPhone;
 		}
 
 		// getter
-		var phone = this.get("Cell");
 		var out = null;
 
-		if( phone )
+		if( phone && phone.length >= 10 )
 		{
 			var first = phone.substring(0,3);
 			var second = phone.substring(3,6);
@@ -857,8 +858,40 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 			out = first + "-" + second + "-" + third;
 		} 
 
+		console.log('out, HomePhone, cleanPhone', out, phone, cleanPhone)
+
 		return out;
-	}.property("Cell")
+	}.property("Cell"),
+
+	homePhoneFormatted: function(key, value, priorValue)
+	{
+		var phone = this.get("HomePhone");
+		// setter
+		if (arguments.length > 1) 
+		{
+			var cleanPhone = value.replace(/\-|\(|\)|\s/g, "");
+
+			this.set('HomePhone', cleanPhone);
+
+			phone = cleanPhone;
+		}
+
+		// getter
+		var out = null;
+
+		if( phone && phone.length >= 10 )
+		{
+			var first = phone.substring(0,3);
+			var second = phone.substring(3,6);
+			var third = phone.substring(6,10);
+
+			out = first + "-" + second + "-" + third;
+		} 
+
+		console.log('out, HomePhone, cleanPhone', out, phone, cleanPhone)
+
+		return out;
+	}.property("HomePhone"),
 });
 
 CERTApps.TimesObject = CERTApps.BaseObject.extend(
