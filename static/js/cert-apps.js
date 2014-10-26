@@ -442,25 +442,31 @@ CERTApps.Roster.reopenClass(
 		for( var x = 0; x < lineLen; x++ )
 		{
 			var line = lines[x];
-			console.log('line', x, '\t\t', line);
 
-			var cols = line.split(delimiter);
-			var colsLen = cols.length;
-
-			var obj = Ember.Object.create({
-				selected: true,
-				cols: Ember.A([]),
-				idx: x
-			});
-
-			for( var y = 0; y < colsLen; y++ )
+			if( line && Ember.$.trim(line).length > 0 )
 			{
-				obj.cols.pushObject({name: '_c' + y.toString(), value: $.trim(cols[y])});
+				var cols = line.split(delimiter);
+				var colsLen = cols.length;
+
+				console.log('line', x,'cols', colsLen, '\t\t', line);
+				if( colsLen > 0 )
+				{
+					var obj = Ember.Object.create({
+						selected: true,
+						cols: Ember.A([]),
+						idx: x
+					});
+
+					for( var y = 0; y < colsLen; y++ )
+					{
+						obj.cols.pushObject({name: '_c' + y.toString(), value: $.trim(cols[y])});
+					}
+
+					//console.debug('obj', JSON.stringify(obj));
+
+					toImport.pushObject(obj);
+				}
 			}
-
-			//console.debug('obj', JSON.stringify(obj));
-
-			toImport.pushObject(obj);
 		}
 
 		console.log('toImport', toImport);
@@ -482,19 +488,17 @@ CERTApps.Roster.reopenClass(
 
 		var members = this.parseMembers(mapping, data);
 
-		members.forEacH(function(item)
-		{
-			item.set("cellFormatted", item.get("Cell"));
-
-			console.log("fixed cell", item);
-		});
-
 		this.saveMembers(members, teamID);
 	},
 
 	parseMembers: function(mapping, data)
 	{
 		console.group("CERTApps.Roster.parseMembers");
+
+		var translateColumn = {
+			Cell: "cellFormatted",
+			HomePhone: "homePhoneFormatted"
+		};
 
 		var members = Ember.A([]);
 		var dataLen = data.length;
@@ -504,17 +508,18 @@ CERTApps.Roster.reopenClass(
 
 			if( row.selected )
 			{
-
 				var m = CERTApps.Member.create();
 				for( var c = mapping.length - 1; c >= 0; c-- )
 				{
 					var col = mapping[c];
 					var val = row.cols[c].value;
-					//console.log('r, c, col, val', r, c, col, val);
+					console.log('r, c, col, val', r, c, col, val);
 
 					if( col != undefined )
 					{
-						m.set(col, val);
+						var transCol = translateColumn[col] || col;
+
+						m.set(transCol, val);
 					}
 				}
 
@@ -839,7 +844,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 		if (arguments.length > 1) 
 		{
-			var cleanPhone = value.replace(/\-|\(|\)|\s/g, "");
+			var cleanPhone = this.getCleanPhone(value);
 
 			this.set('Cell', cleanPhone);
 
@@ -869,7 +874,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		// setter
 		if (arguments.length > 1) 
 		{
-			var cleanPhone = value.replace(/\-|\(|\)|\s/g, "");
+			var cleanPhone = this.getCleanPhone(value);
 
 			this.set('HomePhone', cleanPhone);
 
@@ -892,6 +897,15 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 		return out;
 	}.property("HomePhone"),
+
+	getCleanPhone: function(value)
+	{
+		var cleanPhone = null;
+
+		if( value )	cleanPhone = value.replace(/\-|\(|\)|\s|\./g, "");
+
+		return cleanPhone;
+	}
 });
 
 CERTApps.TimesObject = CERTApps.BaseObject.extend(
@@ -921,9 +935,7 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 				console.log('formatted time', timeParsed);
 			}		
 
-			var dateObj = new Date();
-			offsetHours = dateObj.getTimezoneOffset()/60;
-			retval = dateParsed + 'T' + timeParsed + '-0' + offsetHours + ':00';
+			retval = CERTApps.getDateAndTimeFormatted(dateParsed, timeParsed);
 		}
 		return retval;
 	},
@@ -3439,7 +3451,49 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 
 			console.log("attendee, cClass", attendee, cClass);
 
-			var p = attendee.search();
+			var trackA = CERTApps.Attendee.create(attendee);
+
+			cClass.attendees.pushObject(trackA);
+
+			var p = trackA.search();
+
+			p.then(function(data)
+			{
+
+			},
+			function(xhr, status, message)
+			{
+				// remove it?
+				console.log("search.then arguments", arguments);
+
+				if( Ember.$.isPlainObject(xhr) )
+				{
+
+				} else
+				{
+					if( typeof(xhr) === "string" )
+					{
+						var msg = xhr;
+
+						if( msg === "No search value passed")
+						{
+							for( var x = cClass.attendees.length - 1; x >= 0; x --)
+							{
+								var a = cClass.attendees[x];
+
+								a.unselect();
+								if( Ember.$.trim(a.get("searchValue") === "" ))
+								{
+									cClass.attendees.removeAt(x);
+								}
+							}
+							return true;
+						}
+					}
+				}
+			}.bind(this));
+
+			attendee.reset();
 
 			console.groupEnd();
 		}
@@ -3505,16 +3559,23 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 	name: null,
 	monthsValid: null,
 	isLastEdited: null,
+
+	attendees: null,
 	
 	init: function()
 	{
 		console.log('CERTApps.CertificationClass init');
+
+		this.set("attendees", Ember.A([]));
 	},
 
 	save: function(teamID)
 	{
 		console.group("CERTApps.CertificationClass save");
 		console.log('for teamID, saving CertificationClass', teamID, this);
+
+		var scheduled = this.get("scheduled")
+		if(  scheduled && Ember.$.trim(scheduled) == "" ) this.set("scheduled", null);
 
 		var p = null;
 		if( teamID )
@@ -3556,8 +3617,67 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 	classNotSaved: function()
 	{
 		return ! (this.get("KeyID") && this.get("KeyID") > 0);
-	}.property("KeyID")
+	}.property("KeyID"),
+
+	scheduledDateOnly: function(key, value, prior)
+	{
+		// setter
+		if( arguments.length > 1 )
+		{
+			var dateVal = CERTApps.getDateAndTimeFormatted(value, "00:00:00");
+			this.set("scheduled", dateVal);
+		}
+
+		//getter
+
+		var scheduled = this.get("scheduled");
+
+		if(scheduled) 
+		{
+			var date = new Date(Date.parse(scheduled));
+
+			scheduled = CERTApps.getZeroPaddedDate(date);
+		}
+
+		return scheduled;
+
+	}.property("scheduled")
 });
+
+CERTApps.getZeroPaddedDate = function(date)
+{
+	var retval = date.getFullYear() + "-";
+	var month = (date.getMonth()+1) + ""
+	var dateNum = date.getDate() + "";
+
+	if( month.length = 1)
+	{
+		month = "0" + month;
+	}
+	if( dateNum.length = 1)
+	{
+		dateNum = "0" + dateNum;
+	}
+
+	retval += month + "-" + dateNum;
+
+	return retval;
+}
+
+CERTApps.getDateAndTimeFormatted = function(datePart, timePart)
+{
+	var toParse = datePart;
+	if( timePart ) 
+	{
+		toParse += "T" + timePart;
+	}
+
+	var dateObj = new Date(Date.parse(toParse));
+	var offsetHours = dateObj.getTimezoneOffset()/60;
+	var retval = datePart + 'T' + timePart + '-0' + offsetHours + ':00';
+
+	return retval;
+};
 
 CERTApps.ajax = function(options)
 {
@@ -3599,9 +3719,14 @@ CERTApps.ajax = function(options)
 	return t;
 };
 
+CERTApps.ajaxError = function(xhr, status, msg)
+{
+	console.error("AJAX error", status, msg, xhr, this);
+}
+
 CERTApps.rejectRSVP = function(message)
 {
-	var p = new RSVP.Promise(function(resolve, reject) {
+	var p = new Ember.RSVP.Promise(function(resolve, reject) {
 	  reject(message);
 	});
 
@@ -3775,47 +3900,75 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 {	
 	searchValue: null,
 	potentialMatches: null,
+	selected: false,
+
+	searching: true,
 
 	init: function()
 	{
 		console.log('CERTApps.Attendee init');
 
-		potentialMatches = Ember.A([]);
+		this.set("potentialMatches", Ember.A([]));
 	},
 
 	reset: function()
 	{
-		this.set("search", "");
+		this.set("searchValue", "");
 		this.set("KeyID", 0);
+	},
+
+	select: function()
+	{
+		this.set("selected", true);
+	},
+
+	unselect: function()
+	{
+		this.set("selected", false);
 	},
 
 	search: function()
 	{
 		console.group("CERTApps.Attendee search");
 		var rawValue = this.get("searchValue");
+		var p = null;
 
 		console.log("rawValue", rawValue);
 
-		var values = this.getSearchValues(rawValue);
+		if( rawValue )
+		{
+			var values = this.getSearchValues(rawValue);
 
-		var p = CERTApps.ajax({
-			url: "/api/member/search",
-			data: values
-		});
-	
-		console.groupEnd();
+			p = CERTApps.ajax({
+				url: "/api/member/search",
+				data: values
+			});
+		
+			console.groupEnd();
 
-		p.then(
-			function(obj)
-			{
-				obj.forEach(function(item)
+			p.then(
+				function(obj)
 				{
+					var pm = this.get('potentialMatches');
 
-				});
-			}.bind(this),
-			CERTApps.ajaxError.bind(this)
-			);
+					pm.clear();
 
+					obj.Members.forEach(function(item)
+					{
+						pm.pushObject(item);
+					});
+
+					this.toggleProperty("searching");
+					this.select();
+
+				}.bind(this),
+					CERTApps.ajaxError.bind(this)
+				);
+		} else
+		{
+			p = CERTApps.rejectRSVP("No search value passed");
+		}
+		
 		return p;
 	},
 

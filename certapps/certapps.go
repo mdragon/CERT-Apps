@@ -340,47 +340,53 @@ func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		member, errM := getMemberFromUser(c, u, w, r)
 
 		if noErrMsg(errM, w, c, "Loading member") {
-			errT, team := getTeam(0, member, c, w, r)
+			member.Officer = true
 
-			if noErrMsg(errT, w, c, "Loading team in initialSetup") {
-				//addErr := member.addToTeam(team.Key, c)
+			_, errM = datastore.Put(c, member.Key, member)
+			if noErrMsg(errM, w, c, "Making Member Officer") {
 
-				if team == nil {
-					// TODO setup the team
-				}
+				errT, team := getTeam(0, member, c, w, r)
 
-				var tmRecords []*TeamMember
-				tmQuery := datastore.NewQuery("TeamMember").Filter("TeamKey = ", team.Key).Filter("MemberKey = ", member.Key).KeysOnly()
+				if noErrMsg(errT, w, c, "Loading team in initialSetup") {
+					//addErr := member.addToTeam(team.Key, c)
 
-				var tmErr error
-				//var keys []*datastore.Key
+					if team == nil {
+						// TODO setup the team
+					}
 
-				c.Infof("calling tmQuery.GetAll")
-				_, tmErr = tmQuery.GetAll(c, &tmRecords)
+					var tmRecords []*TeamMember
+					tmQuery := datastore.NewQuery("TeamMember").Filter("TeamKey = ", team.Key).Filter("MemberKey = ", member.Key).KeysOnly()
 
-				if noErrMsg(tmErr, w, c, fmt.Sprintf("looking for TeamMember for team: %+v, Member: %+v", team.Key, member.Key)) {
-					if len(tmRecords) == 0 {
+					var tmErr error
+					//var keys []*datastore.Key
 
-						tm := TeamMember{MemberKey: member.Key, TeamKey: team.Key}
-						tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
-						tm.setAudits(member)
+					c.Infof("calling tmQuery.GetAll")
+					_, tmErr = tmQuery.GetAll(c, &tmRecords)
 
-						tm.Key, tmErr = datastore.Put(c, tm.Key, &tm)
+					if noErrMsg(tmErr, w, c, fmt.Sprintf("looking for TeamMember for team: %+v, Member: %+v", team.Key, member.Key)) {
+						if len(tmRecords) == 0 {
 
-						if noErrMsg(tmErr, w, c, fmt.Sprintf("Saving TeamMember record, team: %+v, Member: %+v", team.Key, member.Key)) {
+							tm := TeamMember{MemberKey: member.Key, TeamKey: team.Key}
+							tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
+							tm.setAudits(member)
 
+							tm.Key, tmErr = datastore.Put(c, tm.Key, &tm)
+
+							if noErrMsg(tmErr, w, c, fmt.Sprintf("Saving TeamMember record, team: %+v, Member: %+v", team.Key, member.Key)) {
+
+							}
 						}
 					}
-				}
 
-				//checkErr(addErr, w, c, "Failed adding member to team")
-				if team != nil {
-					if team.GoogleAPIKey == "" {
-						if team.Key == nil {
-							team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+					//checkErr(addErr, w, c, "Failed adding member to team")
+					if team != nil {
+						if team.GoogleAPIKey == "" {
+							if team.Key == nil {
+								team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+							}
+							team.GoogleAPIKey = "xyz"
+							datastore.Put(c, team.Key, team)
 						}
-						team.GoogleAPIKey = "xyz"
-						datastore.Put(c, team.Key, team)
 					}
 				}
 			}
@@ -398,34 +404,40 @@ func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 func fixData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	//u := user.Current(c)
+	u := user.Current(c)
 
 	var query *datastore.Query
 	var results []*TeamMember
 
 	var keys []*datastore.Key
 	var err error
+	var context interface{}
 
-	query = datastore.NewQuery("TeamMember")
+	if u.Admin {
+		query = datastore.NewQuery("TeamMember")
 
-	c.Infof("calling GetAll")
-	keys, err = query.GetAll(c, &results)
+		c.Infof("calling GetAll")
+		keys, err = query.GetAll(c, &results)
 
-	if noErrMsg(err, w, c, "Getting Events with no TeamKey") {
-		for idx, _ := range results {
-			e := results[idx]
-			key := keys[idx]
+		if noErrMsg(err, w, c, "Getting Events with no TeamKey") {
+			for idx, _ := range results {
+				e := results[idx]
+				key := keys[idx]
 
-			if e.MemberKey.IntID() != 5045143463788544 {
-				datastore.Delete(c, key)
+				if e.MemberKey.IntID() != 5045143463788544 {
+					datastore.Delete(c, key)
+				}
 			}
 		}
+
+		context = struct {
+			Whee bool
+		}{false}
+	} else {
+		context = struct {
+			MustBeAdmin bool
+		}{true}
 	}
-
-	context := struct {
-		Whee bool
-	}{false}
-
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
@@ -804,6 +816,8 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 
 									Enabled: true,
 								},
+
+								Active: true,
 							}
 
 							//lKey := datastore.NewKey(c, "Location", "", 0, nil)
@@ -1004,9 +1018,11 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 
 	memberErr := datastore.GetMulti(c, memberKeys, members)
 
-	c.Debugf("memberErr: %+v, %s", memberErr, memberErr.Error())
-	if memberErr.Error() != "datastore: no such entity" {
-		checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+	c.Debugf("memberErr: %+v", memberErr)
+	if memberErr != nil {
+		if memberErr.Error() != "datastore: no such entity" {
+			checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+		}
 	}
 
 	lookup := lookupOthers(member)

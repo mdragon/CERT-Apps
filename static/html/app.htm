@@ -106,6 +106,17 @@
     	{
     		margin-right: 10px;
     	}
+
+    	table.attendees td
+    	{
+    		display: none;
+    	}
+
+    	table.attendees td.alwaysShow,
+    	table.attendees td.selected
+    	{
+    		display: block;
+    	}
 	</style>
 </head>
 <body>
@@ -174,6 +185,7 @@
 			<th>Email</th>
 			{{#if content.loggedInMember.CanLookup }}
 				<th>Address</th>
+				<th>Home Phone</th>
 			{{/if}}
 
 		</thead>
@@ -188,7 +200,7 @@
 					<td>{{mem.FirstName}} {{mem.LastName}}</td>
 					<td>
 						{{#if mem.cellDisplay}}
-							{{mem.Cell}}
+							{{mem.cellFormatted}}
 						{{/if}}
 					</td>
 					<td>
@@ -198,6 +210,7 @@
 					</td>
 					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.Line1}}{{mem.line2Display}}</td>
+						<td>{{mem.homePhoneFormatted}}</td>
 					{{/if}}
 				</tr>
 				{{/if}}
@@ -583,7 +596,7 @@
 					{{#each o in offerings}}
 						<tr>
 							<td>{{o.name}}</td>
-							<td>{{o.scheduled}}</td>
+							<td>{{o.scheduledDateOnly}}</td>
 							<td>{{o.shortLocation}}</td>
 						</tr>
 					{{/each}}
@@ -594,7 +607,7 @@
 			{{/if}}
 
 			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
-			{{input type="date" value=newOffering.scheduled placeholder="Date" size="10"}}<br/>
+			{{input type="date" value=newOffering.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
 			<button {{action 'saveA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
 		</div>
@@ -650,7 +663,7 @@
 					<i {{action "editA" c}} class="fa fa-pencil action"></i>
 				</td>
 				<td>{{c.name}}</td>
-				<td>{{c.displayDate}}</td>
+				<td>{{c.scheduledDateOnly}}</td>
 				<td>{{c.shortLocation}}</td>
 				<td>
 					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
@@ -666,21 +679,41 @@
 	<h4>Certification Class</h4>
 
 	{{input value=cClass.name placeholder="Name" size="50"}}<br/>
-	{{input type="date" value=cClass.scheduled placeholder="Date" size="10"}}<br/>
+	{{input type="date" value=cClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
 	<button {{action 'saveA' cClass}}><i class="fa fa-save"></i> Save</button>
 
 	<div class="">
 		<h4>Attendees</h4>
-		{{#if topics }}
-			<table class="table table-condensed table-striped table-responsive">
+		{{#if cClass.attendees }}
+			<table class="table table-condensed table-striped table-responsive attendees">
 				<thead>
 					<th>Name</th>
 				</thead>
 				<tbody>
-				{{#each t in sortedTopics}}
+				{{#each a in cClass.attendees }}
 					<tr>
-						<td>{{t.name}}</td>
+						<td class="alwaysShow">
+							{{#if a.searchValue }}
+								{{a.searchValue}}
+							{{else}}
+								{{a.name}}
+							{{/if}}
+						</td>
+						<td {{bind-attr class=a.selected}}>
+								{{#each p in a.potentialMatches }}
+									{{log "potential"}}
+									{{log p}}
+									{{p.FirstName}} {{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button">Use this one</button><br/>
+									
+								{{else}}
+									{{#if a.searching }}
+										<img src="../image/spinner.gif" /> Searching ...
+									{{else}}
+										No potential matches found, try searching again
+									{{/if}}
+								{{/each}}
+						</td>
 					</tr>
 				{{/each}}
 				</tbody>
