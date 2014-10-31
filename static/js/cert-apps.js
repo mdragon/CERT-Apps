@@ -3961,7 +3961,8 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 
 					obj.Members.forEach(function(item)
 					{
-						pm.pushObject(item);
+						var mem = CERTApps.Member.create(item);
+						pm.pushObject(mem);
 					});
 
 					this.toggleProperty("searching");
