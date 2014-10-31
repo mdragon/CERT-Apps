@@ -3871,7 +3871,7 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 		
 		var p2 = p.then( function(obj)
 		{
-			var model = { cClass: obj, newAttendee: CERTApps.Attendee.create() };
+			var model = { cClass: obj };
 
 			console.log('CERTApps.CertificationClassTupdateRoute.model, params', model, params)
 			return model;
@@ -3893,6 +3893,12 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 		console.groupEnd()
 		
 		return params;
+	},
+
+	afterModel: function(model)
+	{
+		model.newAttendee = CERTApps.Attendee.create();
+		return model;
 	},
 });
 
