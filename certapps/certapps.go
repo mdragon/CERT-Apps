@@ -2607,11 +2607,19 @@ func processCertsAndTopics(c appengine.Context, certs []*Certification, topics [
 
 		candt := certsByID[topic.CertificationKey.IntID()]
 
-		c.Debugf("\t for candt %d, %d", candt.Certification.KeyID)
+		if candt != nil {
+			if candt.Certification != nil {
+				c.Debugf("\t for candt %d", candt.Certification.KeyID)
 
-		candt.Topics = append(candt.Topics, topic)
+				candt.Topics = append(candt.Topics, topic)
 
-		c.Debugf("\t after append %d, %+v", len(candt.Topics), topic)
+				c.Debugf("\t after append %d, %+v", len(candt.Topics), topic)
+			} else {
+				c.Errorf("\t Certification was not found %+v, %+v", candt.Topics, topic.CertificationKey)
+			}
+		} else {
+			c.Errorf("\t candt was not found %+v, %+v", topic.CertificationKey, topic)
+		}
 	}
 
 	return results
