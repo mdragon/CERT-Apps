@@ -702,17 +702,17 @@
 							{{/if}}
 						</td>
 						<td class="alwaysShow">
-								{{#each p in a.potentialMatches }}
-									{{log "potential"}}
-									{{log p}}
-									{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button">Yes</button><br/>
+							{{#each p in a.potentialMatches }}
+								{{log "potential"}}
+								{{log p}}
+								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button">Yes</button><br/>
+							{{else}}
+								{{#if a.searching }}
+									<img src="../image/spinner.gif" /> Searching ...
 								{{else}}
-									{{#if a.searching }}
-										<img src="../image/spinner.gif" /> Searching ...
-									{{else}}
-										No potential matches found, try searching again
-									{{/if}}
-								{{/each}}
+									No potential matches found, try searching again
+								{{/if}}
+							{{/each}}
 						</td>
 					</tr>
 				{{/each}}
