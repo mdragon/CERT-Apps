@@ -776,30 +776,31 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 		if len(member) == 0 {
 			c.Infof("existing Member not found for user.ID: %v, count:%d", u.ID, len(member))
 
-			memberQ = datastore.NewQuery("Member").Filter("Email =", u.Email)
+			lowerEmail := strings.ToLower(u.Email)
+			memberQ = datastore.NewQuery("Member").Filter("Email =", lowerEmail)
 
-			c.Infof("Got membersQ and members for Email: %v, calling GetAll", u.Email)
+			c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 			keys, err = memberQ.GetAll(c, &member)
 
 			if noErrMsg(err, w, c, "members for email") {
 				c.Infof("checking len(members)")
 				if len(member) == 0 {
-					c.Infof("existing Member not found for user.Email: %v, count:%d", u.Email, len(member))
+					c.Infof("existing Member not found for user.Email: %v, count:%d", lowerEmail, len(member))
 
-					memberQ = datastore.NewQuery("Member").Filter("Email2 =", u.Email)
+					memberQ = datastore.NewQuery("Member").Filter("Email2 =", lowerEmail)
 
-					c.Infof("Got membersQ and members for Email: %v, calling GetAll", u.Email)
+					c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 					keys, err = memberQ.GetAll(c, &member)
 
 					if noErrMsg(err, w, c, "members for email2") {
 						if len(member) == 0 {
-							c.Infof("existing Member not found for user.Email2: %v, count:%d", u.Email, len(member))
+							c.Infof("existing Member not found for user.Email2: %v, count:%d", lowerEmail, len(member))
 
 							m := &Member{
 								Person: Person{
-									FirstName: u.Email,
+									FirstName: strings.ToLower(u.Email),
 									LastName:  "",
-									Email:     u.Email,
+									Email:     strings.ToLower(u.Email),
 									Cell:      "",
 
 									UserID: u.ID,
@@ -871,10 +872,11 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 			found = true
 
 			if mem.Email == "" {
-				mem.Email = u.Email
+				lowerEmail := strings.ToLower(u.Email)
+				mem.Email = lowerEmail
 
 				_, err = datastore.Put(c, mem.Key, mem)
-				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", mem.Key, u.Email, mem))
+				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", mem.Key, lowerEmail, mem))
 			} else {
 				c.Debugf("email was already set: %v, not updating to: %v", mem.Email, u.Email)
 			}
@@ -1137,10 +1139,13 @@ func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user
 	if curMember.KeyID == saveMember.KeyID || allow {
 
 		saveMember.locationGeocode(c, w, r)
-
 		c.Debugf("saveMember.Location after geocode: %+v", saveMember.Location)
 
 		saveMember.setAudits(curMember)
+
+		c.Debugf("Setting email(s) ToLower")
+		saveMember.Email = strings.ToLower(saveMember.Email)
+		saveMember.Email2 = strings.ToLower(saveMember.Email2)
 
 		keyOut, mErr := datastore.Put(c, saveMember.Key, saveMember)
 
@@ -2888,14 +2893,37 @@ func apiMemberSearch(c appengine.Context, w http.ResponseWriter, r *http.Request
 		c.Infof("JSON from request: %+v", postData)
 
 		if postData.Phone == "" {
-			queries += 3
-			memberFirstNameQuery(postData.NameOrEmail, false, c)
-			memberLastNameQuery(postData.NameOrEmail, false, c)
-			memberEmailQuery(postData.NameOrEmail, false, c)
+
+			firstChar := postData.NameOrEmail[0:1]
+			upperFirstChar := strings.ToUpper(firstChar)
+
+			if firstChar == upperFirstChar {
+				upperFirstChar = ""
+			}
+			queries += doMemberSearch(postData.NameOrEmail, membersChan, c)
+
+			if upperFirstChar != "" {
+				newValue := upperFirstChar + postData.NameOrEmail[1:]
+
+				queries += doMemberSearch(newValue, membersChan, c)
+			}
+
+			queries++
+			go func() {
+				newValue := strings.ToLower(postData.NameOrEmail)
+				members, err := memberEmailQuery(newValue, false, c)
+
+				if err == nil {
+					membersChan <- members
+				} else {
+					c.Errorf("%+v", err)
+				}
+			}()
+
 		} else {
 			queries++
 			go func() {
-				members, err := memberPhoneQuery(postData.Phone, false, c)
+				members, err := memberCellQuery(postData.Phone, false, c)
 
 				if err == nil {
 					membersChan <- members
@@ -2928,26 +2956,54 @@ func apiMemberSearch(c appengine.Context, w http.ResponseWriter, r *http.Request
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
+func doMemberSearch(value string, membersChan chan []*Member, c appengine.Context) int {
+
+	go func() {
+		members, err := memberFirstNameQuery(value, false, c)
+
+		if err == nil {
+			membersChan <- members
+		} else {
+			c.Errorf("%+v", err)
+		}
+	}()
+
+	go func() {
+		members, err := memberLastNameQuery(value, false, c)
+
+		if err == nil {
+			membersChan <- members
+		} else {
+			c.Errorf("%+v", err)
+		}
+	}()
+
+	return 2
+}
+
 func memberFirstNameQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
 	c.Infof("Member First Name Query: %s", value)
 
-	return nil, nil
+	mems, err := memberQuery("FirstName", value, equality, c)
+	return mems, err
 }
 
 func memberLastNameQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
 	c.Infof("Member Last Name Query: %s", value)
 
-	return nil, nil
+	mems, err := memberQuery("LastName", value, equality, c)
+	return mems, err
 }
 
 func memberEmailQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
 	c.Infof("Member Email Query: %s", value)
 
-	return nil, nil
+	mems, err := memberQuery("Email", value, equality, c)
+	return mems, err
 }
 
-func memberPhoneQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
-	c.Infof("Member Phone Query: %s", value)
+func memberCellQuery(value string, equality bool, c appengine.Context) ([]*Member, error) {
+	c.Infof("Member Cell Query: %s", value)
 
 	mems, err := memberQuery("Cell", value, equality, c)
 	return mems, err

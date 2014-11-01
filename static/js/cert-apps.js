@@ -379,6 +379,11 @@ CERTApps.BaseObject = Ember.Object.extend(
 		console.groupEnd();
 	},
 
+	cleanData: function()
+	{
+		this.trimAll();
+	},
+
 	trimAll: function()
 	{
 		Ember.keys(this).forEach( function(prop)
@@ -749,7 +754,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	{
 		console.group("CERTApps.Member save")
 
-		this.trimAll();
+		this.cleanData();
 
 		console.log('saving', this);
 
@@ -772,6 +777,22 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		}.bind(this));
 
 		console.groupEnd();
+	},
+
+	cleanData: function()
+	{
+		this._super();
+
+		var email = this.get("Email");
+		if( email ) {
+			this.set("Email", email.toLowerCase());
+		}
+
+		email = this.get("Email2");
+		if( email ) {
+			this.set("Email2", email.toLowerCase());
+		}
+		
 	},
 
 	emailDisplay: function()
@@ -3935,55 +3956,70 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 
 	search: function()
 	{
-		console.group("CERTApps.Attendee search");
 		var rawValue = this.get("searchValue");
 		var p = null;
 
 		console.log("rawValue", rawValue);
 
-		if( rawValue )
-		{
+		if( rawValue ) {
 			var values = this.getSearchValues(rawValue);
 
-			p = CERTApps.ajax({
-				url: "/api/member/search",
-				data: values
-			});
-		
-			console.groupEnd();
-
-			p.then(
-				function(obj)
-				{
-					var pm = this.get('potentialMatches');
-
-					pm.clear();
-
-					obj.Members.forEach(function(item)
-					{
-						var mem = CERTApps.Member.create(item);
-						pm.pushObject(mem);
-					});
-
-					this.toggleProperty("searching");
-					this.select();
-
-				}.bind(this),
-					CERTApps.ajaxError.bind(this)
-				);
-		} else
-		{
+			p = this.doSearch(values);
+		} else {
 			p = CERTApps.rejectRSVP("No search value passed");
 		}
 		
 		return p;
 	},
 
+	doSearch: function(values)
+	{
+		console.group("CERTApps.Attendee search");
+		this.set("searchData", values);
+
+		p = CERTApps.ajax({
+			url: "/api/member/search",
+			data: values
+		});
+	
+		console.groupEnd();
+
+		p.then(
+			function(obj)
+			{
+				var pm = this.get('potentialMatches');
+				var noMatches = false;
+
+				pm.clear();
+
+				if( obj.Members ) {
+					if( obj.Members.length > 0 ) {
+						obj.Members.forEach(function(item)
+						{
+							var mem = CERTApps.Member.create(item);
+							pm.pushObject(mem);
+						});
+					} else { 
+						noMatches = true;
+					}
+				} else {
+					noMatches = true;
+				}
+
+				this.toggleProperty("searching");
+				this.select();
+
+			}.bind(this),
+				CERTApps.ajaxError.bind(this)
+			);
+		return p;
+	},
+
 	getSearchValues: function(rawValue)
 	{
-		console.group("CERTApps.Attendee getSerachValues");
+		console.group("CERTApps.Attendee getSearchValues");
 
-		var values = {};
+		var values = { adjusted: false };
 
 		values.phone = this.getPhone(rawValue);
 		if( ! values.phone ) 
