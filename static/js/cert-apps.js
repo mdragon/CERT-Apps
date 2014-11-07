@@ -4117,12 +4117,15 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 	}
 });	
 
-CERTApps.CreateMemberButtonView = Ember.View.extend({
+CERTApps.CreateMemberButtonView = Ember.Component.extend({
+	templateName: "createMemberButton",
+
 	click: function(evt) {
 		console.group("CERTApps.CreateMemberButtonView click");
 		
 		console.log("evt", evt);
 		console.log("arguments", arguments);
+		console.log("this", this);
 		
 		console.groupEnd();
 	}

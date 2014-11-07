@@ -720,9 +720,8 @@
 
 							{{/each}}
 							{{#unless a.searching }}
-								{{#view "CreateMemberButton"}}
-									<button class="button" {{bind-attr disabled=a.searching}}> <i class="fa fa-plus"></i> Create And Add</button><br/>
-								{{/view}}
+								{{view "createMemberButton"}}
+
 								<div style="display: none;"> 
 									<h4>Create Member</h4>
 									Stuff
@@ -761,3 +760,8 @@ Landing index
 		<img src="../image/spinner.gif" /> Loading...
 	</div>
 </script>
+
+<script type="text/x-handlebars" data-template-name="createMemberButton">
+	<button class="button"> <i class="fa fa-plus"></i> Create And Add</button><br/>
+</script>
+
