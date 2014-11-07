@@ -210,15 +210,7 @@ CERTApps.MemberRoute = Ember.Route.extend(
 {
 	actions:
 	{
-		saveContact: function(member)
-		{
-			console.group('CERTApps.MemberRoute actions.saveContact');
-			console.log('member, args', member, arguments);
 
-			member.save()
-
-			console.groupEnd();
-		}
 	},
 
 	model: function(params)
@@ -4130,3 +4122,17 @@ CERTApps.CreateMemberButtonView = Ember.Component.extend({
 		console.groupEnd();
 	}
 });
+
+CERTApps.MemberEditComponent = Ember.Component.extend({
+	actions: {
+		saveContact: function(member) {
+			console.group('CERTApps.MemberRoute actions.saveContact');
+			console.log('member, args', member, arguments);
+
+			member.save()
+
+			console.groupEnd();
+		}
+	}
+});
+
