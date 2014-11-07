@@ -345,15 +345,17 @@
 
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th>Yes</th>
-				<th>No</th>
-				<th>Maybe</th>
-				<th>Pending</th>
-				<th>Un-Sent</th>
+				<tr>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Yes</th>
+					<th>No</th>
+					<th>Maybe</th>
+					<th>Pending</th>
+					<th>Un-Sent</th>
+				</tr>
 			</thead>
 			<tbody>
 				{{#each e in upcoming}}
@@ -403,11 +405,13 @@
 	{{#if recent }}
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
-				<th></th>
-				<th></th>
-				<th></th>
-				<th>Attended</th>
-				<th>Hours</th>
+				<tr>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Attended</th>
+					<th>Hours</th>
+				</tr>
 			</thead>
 			<tbody>
 				{{#each e in recent}}
@@ -568,7 +572,9 @@
 			{{#if topics }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
-						<th>Name</th>
+						<tr>
+							<th>Name</th>
+						</tr>
 					</thead>
 					<tbody>
 					{{#each t in sortedTopics}}
@@ -591,7 +597,9 @@
 			{{#if offierings }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
-						<th>Name</th><th>Date</th><th>Location</th>
+						<tr>
+							<th>Name</th><th>Date</th><th>Location</th>
+						</tr>
 					</thead>
 					<tbody>
 					{{#each o in offerings}}
@@ -625,8 +633,10 @@
 
 	<table class="table table-condensed table-striped">
 		<thead>
-			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
-			<th>Name</th><th>Renewal Months</th>
+			<tr>
+				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+				<th>Name</th><th>Renewal Months</th>
+			</tr>
 		</thead>
 		<tbody>
 		{{#each c in content}}
@@ -654,8 +664,10 @@
 
 	<table class="table table-condensed table-striped">
 		<thead>
-			<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
-			<th>Name</th><th>Scheduled</th><th>Location</th>
+			<tr>
+				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+				<th>Name</th><th>Scheduled</th><th>Location</th>
+			</tr>
 		</thead>
 		<tbody>
 		{{#each c in content.cClasses}}
@@ -689,7 +701,9 @@
 		{{#if cClass.attendees }}
 			<table class="table table-condensed table-striped table-responsive attendees">
 				<thead>
-					<th>Name</th>
+					<tr>
+						<th>Name</th>
+					</tr>
 				</thead>
 				<tbody>
 				{{#each a in cClass.attendees }}
@@ -705,7 +719,7 @@
 							{{#each p in a.potentialMatches }}
 								{{log "potential"}}
 								{{log p}}
-								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button">Yes</button><br/>
+								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button"> <i class="fa fa-plus"></i> Add</button><br/>
 							{{else}}
 								{{#if a.searching }}
 									<img src="../image/spinner.gif" /> Searching ...
@@ -728,7 +742,7 @@
 		{{/if}}
 
 		{{input value=newAttendee.searchValue placeholder="Name, Email, Phone" size="30" disabled=cClass.classNotSaved}}<br/>
-		<button {{action 'addAttendeeA' newAttendee cClass disabled=cClass.classNotSaved}}><i class="fa fa-save"></i> Add</button>
+		<button {{action 'addAttendeeA' newAttendee cClass disabled=cClass.classNotSaved}}><i class="fa fa-search"></i> Look Up</button>
 	</div>
 </script>
 
