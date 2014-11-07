@@ -3466,9 +3466,9 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			console.groupEnd();
 		},
 
-		addAttendeeA: function(attendee, cClass, attendees)
+		attendeeLookupA: function(attendee, cClass, attendees)
 		{
-			console.group("CERTApps.CertificationClassRoute actions.addAttendeeA");
+			console.group("CERTApps.CertificationClassRoute actions.attendeeLookupA");
 
 			console.log("attendee, cClass", attendee, cClass);
 
@@ -3517,8 +3517,18 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			attendee.reset();
 
 			console.groupEnd();
-		}
+		},
 
+		createAttendeeA: function(source, newMember, cClass)
+		{
+			console.group("CERTApps.CertificationClassRoute actions.createAttendeeA")
+
+			console.log("source, newMember, cClass", source, newMember, cClass);
+
+			console.log("arguments", arguments);
+
+			console.groupEnd();
+		}
 	},
 });
 
@@ -4105,6 +4115,15 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 
 		return nameOrEmail;
 	}
-
-
 });	
+
+CERTApps.CreateMemberButtonView = Ember.View.extend({
+	click: function(evt) {
+		console.group("CERTApps.CreateMemberButtonView click");
+		
+		console.log("evt", evt);
+		console.log("arguments", arguments);
+		
+		console.groupEnd();
+	}
+});

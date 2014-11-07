@@ -57,66 +57,56 @@
 		{
 		}
 
-	    @media (min-width: 875px) 
-	    {
-      		.center-content
-      		{
-        		width: 850px;
-      		}
-    	}
+		@media (min-width: 875px) 
+		{
+			.center-content
+			{
+			width: 850px;
+			}
+		}
 
-    	td.mapped
-    	{
-    		/* border: 1px solid green !important; */
-    		background-color: lightyellow !important;
-    	}
+		td.mapped
+		{
+			/* border: 1px solid green !important; */
+			background-color: lightyellow !important;
+		}
 
-    	table.importMap td
-    	{
-    		border: 1px solid #efefef;
-    	}
+		table.importMap td
+		{
+			border: 1px solid #efefef;
+		}
 
-    	td.toggle-up-down
-    	{
-    		white-space: nowrap;
-    	}
+		td.toggle-up-down
+		{
+			white-space: nowrap;
+		}
 
-    	td.toggle-up-down i:hover
-    	{
-    		cursor: pointer;
-    	}
+		td.toggle-up-down i:hover
+		{
+			cursor: pointer;
+		}
 
-    	.action:hover
-    	{
-    		cursor: pointer;
-    	}
+		.action:hover
+		{
+			cursor: pointer;
+		}
 
-    	.map-canvas
-    	{
-    		/*width: 950px;*/
-    		height: 750px;
-    	}
+		.map-canvas
+		{
+			/*width: 950px;*/
+			height: 750px;
+		}
 
-    	.space-left
-    	{
-    		margin-left: 10px;
-    	}
+		.space-left
+		{
+			margin-left: 10px;
+		}
 
-    	.space-right
-    	{
-    		margin-right: 10px;
-    	}
+		.space-right
+		{
+			margin-right: 10px;
+		}
 
-    	table.attendees td
-    	{
-    		display: none;
-    	}
-
-    	table.attendees td.alwaysShow,
-    	table.attendees td.selected
-    	{
-    		display: block;
-    	}
 	</style>
 </head>
 <body>
@@ -708,25 +698,37 @@
 				<tbody>
 				{{#each a in cClass.attendees }}
 					<tr>
-						<td class="alwaysShow">
+						<td class="">
 							{{#if a.searchValue }}
 								{{a.searchValue}}
 							{{else}}
 								{{a.name}}
 							{{/if}}
 						</td>
-						<td class="alwaysShow">
+						<td class="">
 							{{#each p in a.potentialMatches }}
 								{{log "potential"}}
 								{{log p}}
-								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} <button class="button"> <i class="fa fa-plus"></i> Add</button><br/>
+								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} 
+								&nbsp; <button class="button" {{action "addAttendeeA" p cClass}}> <i class="fa fa-save"></i> Select</button><br/>
 							{{else}}
 								{{#if a.searching }}
 									<img src="../image/spinner.gif" /> Searching ...
 								{{else}}
-									No potential matches found, try searching again
+									No potential matches found
 								{{/if}}
+
 							{{/each}}
+							{{#unless a.searching }}
+								{{#view "CreateMemberButton"}}
+									<button class="button" {{bind-attr disabled=a.searching}}> <i class="fa fa-plus"></i> Create And Add</button><br/>
+								{{/view}}
+								<div style="display: none;"> 
+									<h4>Create Member</h4>
+									Stuff
+ 									<button class="button" {{action "createAttendeeA" this newMember cClass}} {{bind-attr disabled=a.searching}}> <i class="fa fa-plus"></i> Create And Add</button><br/>
+								</div>
+							{{/unless}}
 						</td>
 					</tr>
 				{{/each}}
@@ -742,7 +744,7 @@
 		{{/if}}
 
 		{{input value=newAttendee.searchValue placeholder="Name, Email, Phone" size="30" disabled=cClass.classNotSaved}}<br/>
-		<button {{action 'addAttendeeA' newAttendee cClass disabled=cClass.classNotSaved}}><i class="fa fa-search"></i> Look Up</button>
+		<button {{action 'attendeeLookupA' newAttendee cClass}} {{bind-attr disabled=cClass.classNotSaved}}><i class="fa fa-search"></i> Look Up</button>
 	</div>
 </script>
 
