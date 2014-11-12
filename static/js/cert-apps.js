@@ -3515,21 +3515,17 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 		createAttendeeA: function(source, newMember, cClass)
 		{
 			console.group("CERTApps.CertificationClassRoute actions.createAttendeeA")
-
 			console.log("source, newMember, cClass", source, newMember, cClass);
-
 			console.log("arguments", arguments);
-
 			console.groupEnd();
 		},
 
 		addAttendeeA: function(source, member, cClass)
 		{
 			console.group("CERTApps.CertificationClassRoute actions.addAttendeeA")
-
 			console.log("source, member, cClass", source, member, cClass);
-
-			console.log("arguments", arguments);
+			
+			cClass.addAttendee(member);
 
 			console.groupEnd();			
 		}
@@ -3677,7 +3673,44 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 		return scheduled;
 
-	}.property("scheduled")
+	}.property("scheduled"),
+
+	addAttendee: function(member)
+	{
+		console.group("CERTApps.CertificationClass addAttendee");
+		console.log('adding Member to CertificationClass', member, this);
+
+		var p = null;
+		if( member )
+		{
+			var t = CERTApps.ajax({
+				url: '/api/certificationClass/attendee/add',
+				data: { CClass: { KeyID: this.get("KeyID")}, Member: { KeyID: member.get("KeyID") } }
+			});
+
+			p = t.then(function(data)
+			{
+				// if( data.CClass )
+				// {
+				// 	console.log('syncing with', data.CClass);
+				// 	//this.sync(data.CClass);
+				// } else
+				// {
+				// 	console.warn("Cannot sync when there's no CClass", data);
+				// }
+
+				//console.log('this after sync', this);
+
+				return this;
+			}.bind(this));
+		} else
+		{
+			p = CERTApps.rejectRSVP("Memer not passed to CERTApps.CertificationClass addAttendee")
+		}
+		console.groupEnd();
+
+		return p;	
+	}
 });
 
 CERTApps.getZeroPaddedDate = function(date)

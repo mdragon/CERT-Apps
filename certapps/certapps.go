@@ -222,6 +222,8 @@ type CertificationClass struct {
 
 	Location
 
+	Attendees []*datastore.Key
+
 	Audit
 }
 
@@ -302,6 +304,7 @@ func init() {
 	http.Handle("/api/certificationClass", appstats.NewHandler(apiCertificationClassGet))
 	http.Handle("/api/certificationClass/all", appstats.NewHandler(apiCertificationClassGetAll))
 	http.Handle("/api/certificationClass/save", appstats.NewHandler(apiCertificationClassSave))
+	http.Handle("/api/certificationClass/attendee/add", appstats.NewHandler(apiCertificationClassAttendeeAdd))
 
 	http.Handle("/api/member/search", appstats.NewHandler(apiMemberSearch))
 
@@ -2737,6 +2740,11 @@ func (obj *CertificationClass) save(member *Member, c appengine.Context) error {
 }
 
 func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
+	if member == nil {
+		//TODO: Should lookup member here
+		//member = getMemberFromUser(c, u, w, r)
+	}
+
 	t.Key = datastore.NewKey(c, "CertificationClass", "", id, nil)
 
 	err := datastore.Get(c, t.Key, t)
@@ -3042,6 +3050,80 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 	}
 
 	return members, err
+}
+
+func apiCertificationClassAttendeeAdd(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	u := user.Current(c)
+	var context interface{}
+
+	var postData struct {
+		CClass *CertificationClass
+		Member *Member
+	}
+
+	c.Infof("certificationClassAddAttendee")
+
+	mem, memberErr := getMemberFromUser(c, u, w, r)
+
+	if noErrMsg(memberErr, w, c, "getMemberFromUser") {
+		decoder := json.NewDecoder(r.Body)
+		jsonDecodeErr := decoder.Decode(&postData)
+
+		if jsonDecodeErr == io.EOF {
+			c.Infof("EOF, should it be?")
+		} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
+			c.Infof("JSON from request: KeyIDs Member: %d, CClass: %d", postData.Member.KeyID, postData.CClass.KeyID)
+
+			classLookupErr := postData.CClass.lookup(postData.CClass.KeyID, mem, c)
+
+			if noErrMsg(classLookupErr, w, c, "Looking up Certification Class") {
+				postData.Member.Key = datastore.NewKey(c, "Member", "", postData.Member.KeyID, nil)
+
+				if postData.Member.Key.Incomplete() == false {
+
+					unique := true
+					for _, attendee := range postData.CClass.Attendees {
+						if attendee.IntID() == postData.Member.KeyID {
+							unique = false
+							break
+						}
+					}
+
+					if unique {
+						postData.CClass.Attendees = append(postData.CClass.Attendees, postData.Member.Key)
+
+						classSaveErr := postData.CClass.save(mem, c)
+
+						if noErrMsg(classSaveErr, w, c, "Saving CClass with Member") {
+							context = struct {
+								Added bool
+							}{
+								true,
+							}
+						}
+					}
+				} else {
+					c.Errorf("Member passed is not a valid Key ID, it is incomplete, ie 0")
+				}
+			} else {
+				context = struct {
+					NotLoggedIn bool
+				}{
+					false,
+				}
+			}
+		} else {
+			context = struct {
+				Error   bool
+				Message string
+			}{
+				true,
+				"Must pass teamID",
+			}
+		}
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
