@@ -3424,7 +3424,7 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 
 			} else
 			{
-				p = CERTApps.rejectRSVP("TeamID not passed to CERTApps.CertificationClass save")
+				p = CERTApps.rejectRSVP("no model found for application")
 			}
 
 
@@ -3432,6 +3432,7 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			function(data)
 				{	
 					cClass.sync(data);
+					this.transitionTo("certification.class.tupdate", {cClass: cClass});
 				}.bind(this)
 			);
 
@@ -3520,7 +3521,19 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			console.log("arguments", arguments);
 
 			console.groupEnd();
+		},
+
+		addAttendeeA: function(source, member, cClass)
+		{
+			console.group("CERTApps.CertificationClassRoute actions.addAttendeeA")
+
+			console.log("source, member, cClass", source, member, cClass);
+
+			console.log("arguments", arguments);
+
+			console.groupEnd();			
 		}
+
 	},
 });
 
@@ -3881,10 +3894,6 @@ CERTApps.CertificationClassTcreateRoute = CERTApps.BaseRoute.extend(
 
 CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 {
-	actions:
-	{
-	},
-
 	model: function(params)
 	{
 		console.group("CERTApps.CertificationClassTupdateRoute model");
@@ -3920,6 +3929,7 @@ CERTApps.CertificationClassTupdateRoute = CERTApps.BaseRoute.extend(
 
 	afterModel: function(model)
 	{
+		console.log("afterModel adding newAttendee");
 		model.newAttendee = CERTApps.Attendee.create();
 		return model;
 	},
@@ -4110,7 +4120,7 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 });	
 
 CERTApps.CreateMemberButtonView = Ember.Component.extend({
-	templateName: "createMemberButton",
+	layoutName: "createMemberButton",
 
 	click: function(evt) {
 		console.group("CERTApps.CreateMemberButtonView click");

@@ -660,7 +660,7 @@
 								{{log "potential"}}
 								{{log p}}
 								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} 
-								&nbsp; <button class="button" {{action "addAttendeeA" p cClass}}> <i class="fa fa-save"></i> Select</button><br/>
+								&nbsp; <button class="button" {{action "addAttendeeA" this p cClass}}> <i class="fa fa-save"></i> Select</button><br/>
 							{{else}}
 								{{#if a.searching }}
 									<img src="../image/spinner.gif" /> Searching ...
