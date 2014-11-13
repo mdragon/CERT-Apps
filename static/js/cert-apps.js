@@ -3467,7 +3467,7 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 
 			var trackA = CERTApps.Attendee.create(attendee);
 
-			cClass.attendees.pushObject(trackA);
+			cClass.searches.pushObject(trackA);
 
 			var p = trackA.search();
 
@@ -3491,14 +3491,14 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 
 						if( msg === "No search value passed")
 						{
-							for( var x = cClass.attendees.length - 1; x >= 0; x --)
+							for( var x = cClass.searches.length - 1; x >= 0; x --)
 							{
-								var a = cClass.attendees[x];
+								var a = cClass.searches[x];
 
 								a.unselect();
 								if( Ember.$.trim(a.get("searchValue") === "" ))
 								{
-									cClass.attendees.removeAt(x);
+									cClass.searches.removeAt(x);
 								}
 							}
 							return true;
@@ -3520,12 +3520,12 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			console.groupEnd();
 		},
 
-		addAttendeeA: function(source, member, cClass)
+		addAttendeeA: function(source, member, cClass, search)
 		{
 			console.group("CERTApps.CertificationClassRoute actions.addAttendeeA")
-			console.log("source, member, cClass", source, member, cClass);
+			console.log("source, member, cClass, search", source, member, cClass, search);
 			
-			cClass.addAttendee(member);
+			cClass.addAttendee(member, search);
 
 			console.groupEnd();			
 		}
@@ -3593,12 +3593,14 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 	isLastEdited: null,
 
 	attendees: null,
+	searches: null,
 	
 	init: function()
 	{
 		console.log('CERTApps.CertificationClass init');
 
-		this.set("attendees", Ember.A([]));
+		if( this.get("attendees") == null ) this.set("attendees", Ember.A([]));
+		this.set("searches", Ember.A([]));
 	},
 
 	save: function(teamID)
@@ -3675,7 +3677,7 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 	}.property("scheduled"),
 
-	addAttendee: function(member)
+	addAttendee: function(member, search)
 	{
 		console.group("CERTApps.CertificationClass addAttendee");
 		console.log('adding Member to CertificationClass', member, this);
@@ -3701,6 +3703,9 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 				//console.log('this after sync', this);
 
+				this.attendees.pushObject(member);
+				this.searches.removeObject(search);
+
 				return this;
 			}.bind(this));
 		} else
@@ -3710,7 +3715,14 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		console.groupEnd();
 
 		return p;	
-	}
+	},
+
+	attendeesOrSearches: function()
+	{
+		var len = this.get("attendees").length + this.get("searches").length;
+		console.log("len", len);
+		return len > 0;
+	}.property("attendees.length", "searches.length")
 });
 
 CERTApps.getZeroPaddedDate = function(date)

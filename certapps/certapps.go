@@ -222,7 +222,9 @@ type CertificationClass struct {
 
 	Location
 
-	Attendees []*datastore.Key
+	Attendees []*datastore.Key `json:"-"`
+
+	MembersAttending []Member `json:"attendees", datastore:"-"`
 
 	Audit
 }
@@ -2751,6 +2753,27 @@ func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Contex
 
 	if noErrMsg(err, nil, c, fmt.Sprintf("Getting CertificationClass %d", id)) {
 		t.setKey(t.Key)
+
+		if len(t.Attendees) > 0 {
+			t.MembersAttending = make([]Member, len(t.Attendees))
+
+			for _, x := range t.Attendees {
+				c.Debugf("Attendee: %+v", x)
+			}
+
+			if err = datastore.GetMulti(c, t.Attendees, t.MembersAttending); err != nil {
+				if me, ok := err.(appengine.MultiError); ok {
+					for i, merr := range me {
+						if merr == datastore.ErrNoSuchEntity {
+							c.Errorf("Member with Key: %d not found when finding Atendees", t.Attendees[i])
+						}
+					}
+				} else {
+					return err
+				}
+			}
+
+		}
 	}
 
 	return err

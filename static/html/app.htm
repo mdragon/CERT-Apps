@@ -638,7 +638,7 @@
 
 	<div class="">
 		<h4>Attendees</h4>
-		{{#if cClass.attendees }}
+		{{#if cClass.attendeesOrSearches }}
 			<table class="table table-condensed table-striped table-responsive attendees">
 				<thead>
 					<tr>
@@ -647,6 +647,13 @@
 				</thead>
 				<tbody>
 				{{#each a in cClass.attendees }}
+					<tr>
+						<td class="">
+							{{a.FirstName}} {{a.LastName}}
+						</td>
+					</tr>
+				{{/each}}
+				{{#each a in cClass.searches }}
 					<tr>
 						<td class="">
 							{{#if a.searchValue }}
@@ -660,7 +667,7 @@
 								{{log "potential"}}
 								{{log p}}
 								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} 
-								&nbsp; <button class="button" {{action "addAttendeeA" this p cClass}}> <i class="fa fa-save"></i> Select</button><br/>
+								&nbsp; <button class="button" {{action "addAttendeeA" this p cClass a}}> <i class="fa fa-save"></i> Select</button><br/>
 							{{else}}
 								{{#if a.searching }}
 									<img src="../image/spinner.gif" /> Searching ...
