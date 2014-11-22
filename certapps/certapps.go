@@ -466,7 +466,7 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	if u != nil {
 		mem, _ := getMemberFromUser(c, u, w, r)
 
-		c.Debugf("Got member: %s", mem.Key.StringID())
+		c.Debugf("Got member: %d", mem.Key.IntID())
 
 		audit := &MemberLogin{
 			MemberKey: mem.Key,
@@ -493,7 +493,7 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 			_, mErr := datastore.Put(c, mem.Key, mem)
 
-			checkErr(mErr, w, c, "Failed to update Last Login for member: "+mem.Key.StringID())
+			checkErr(mErr, w, c, fmt.Sprintf("Failed to update Last Login for member: %d", mem.Key.IntID()))
 		}
 	}
 
