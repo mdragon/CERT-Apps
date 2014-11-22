@@ -1260,13 +1260,13 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (m Member) addToTeam(teamKey *datastore.Key, c appengine.Context) error {
+func (m *Member) addToTeam(teamKey *datastore.Key, c appengine.Context) error {
 	tm := &TeamMember{
 		TeamKey:   teamKey,
 		MemberKey: m.Key,
 	}
 
-	tm.setAudits(&m)
+	tm.setAudits(m)
 
 	tm.Key = datastore.NewKey(c, "TeamMember", "", 0, nil)
 	_, tmErr := datastore.Put(c, tm.Key, tm)
@@ -1274,7 +1274,7 @@ func (m Member) addToTeam(teamKey *datastore.Key, c appengine.Context) error {
 	return tmErr
 }
 
-func (a Audit) setAudits(m *Member) {
+func (a *Audit) setAudits(m *Member) {
 	a.ModifiedBy = m.Key
 	a.Modified = time.Now()
 
@@ -1284,7 +1284,7 @@ func (a Audit) setAudits(m *Member) {
 	}
 }
 
-func (a Audit) setKey(key *datastore.Key) {
+func (a *Audit) setKey(key *datastore.Key) {
 	a.Key = key
 	if key != nil {
 		a.KeyID = key.IntID()
@@ -1457,7 +1457,7 @@ func response(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (event Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	c.Infof("*Event.lookup %d", event.KeyID)
 	var err error
 
@@ -1482,7 +1482,7 @@ func (event Event) lookup(member *Member, c appengine.Context, u *user.User, w h
 	return err
 }
 
-func (event Event) checkMissingFields(c appengine.Context, err error) error {
+func (event *Event) checkMissingFields(c appengine.Context, err error) error {
 	c.Infof("Event.checkMissingFields")
 
 	var efm *datastore.ErrFieldMismatch
@@ -1522,51 +1522,57 @@ func (event Event) checkMissingFields(c appengine.Context, err error) error {
 	return err
 }
 
-func (me MemberEvent) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	c.Infof("*MemberEvent.lookup")
 	var err error
 
-	if me.KeyID != 0 {
-		if me.Key == nil {
-			me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
-			c.Debugf("me.Key from ID %d", me.KeyID)
+	if me != nil {
+		if me.KeyID != 0 {
+			if me.Key == nil {
+				me.Key = datastore.NewKey(c, "MemberEvent", "", me.KeyID, nil)
+				c.Debugf("me.Key from ID %d", me.KeyID)
+			} else {
+				c.Debugf("me.Key was already set %+v", me.Key)
+			}
+
+			if member == nil {
+				member, _ = getMemberFromUser(c, u, w, r)
+			}
+
+			err = datastore.Get(c, me.Key, me)
+
+			me.setKey(me.Key)
 		} else {
-			c.Debugf("me.Key was already set %+v", me.Key)
+			err = errors.New("Must pass an MemberEvent with a KeyID")
 		}
-
-		if member == nil {
-			member, _ = getMemberFromUser(c, u, w, r)
-		}
-
-		err = datastore.Get(c, me.Key, me)
-
-		me.setKey(me.Key)
 	} else {
-		err = errors.New("Must pass an MemberEvent with a KeyID")
+		err = errors.New("lookup Called on nil MemberEvent")
 	}
 
 	return err
 }
 
-func (reminders RemindersToSend) addFilters(query *datastore.Query) *datastore.Query {
-	if reminders.All == false {
-		if reminders.Unsent {
-			query = query.Filter("FirstReminder =", zeroDate)
-		}
+func (reminders *RemindersToSend) addFilters(query *datastore.Query) *datastore.Query {
+	if reminders != nil {
+		if reminders.All == false {
+			if reminders.Unsent {
+				query = query.Filter("FirstReminder =", zeroDate)
+			}
 
-		if reminders.RespondedYesOrMaybe {
-			query = query.Filter("Attending =", true)
-		}
+			if reminders.RespondedYesOrMaybe {
+				query = query.Filter("Attending =", true)
+			}
 
-		if reminders.NoResponse {
-			query = query.Filter("FirstResponded =", zeroDate)
+			if reminders.NoResponse {
+				query = query.Filter("FirstResponded =", zeroDate)
+			}
 		}
 	}
 
 	return query
 }
 
-func (event Event) responses(reminders *RemindersToSend, member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) ([]*MemberEvent, error) {
+func (event *Event) responses(reminders *RemindersToSend, member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) ([]*MemberEvent, error) {
 	c.Infof("*Event.responses %d", event.KeyID)
 	var results []*MemberEvent
 
@@ -1651,7 +1657,7 @@ func eventSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (event Event) save(member *Member, team *Team, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
+func (event *Event) save(member *Member, team *Team, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) error {
 	var err error
 
 	c.Infof("*Event.save %d, for team: %d", event.KeyID, team.KeyID)
@@ -1732,7 +1738,7 @@ func events(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (team Team) events(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (error, []*Event, []*MemberEvent) {
+func (team *Team) events(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (error, []*Event, []*MemberEvent) {
 	var eventList []*Event
 	var eventKeys []*datastore.Key
 	var err error
@@ -1855,7 +1861,7 @@ func (team Team) events(member *Member, c appengine.Context, u *user.User, w htt
 	return err, eventList, responseList
 }
 
-func (team Team) hasMember(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) bool {
+func (team *Team) hasMember(member *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) bool {
 	c.Infof("Team.hasMember team: %d, member: %d", team.KeyID, member.KeyID)
 
 	retval := false
@@ -2136,7 +2142,7 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (event Event) typeString() string {
+func (event *Event) typeString() string {
 	retval := "Event"
 
 	if event.Deployment {
@@ -2168,12 +2174,12 @@ Please respond with your availability using this link: %s
 
 `
 
-func (event Event) timeInfo() string {
+func (event *Event) timeInfo() string {
 	const layout = "January 2, 2006 at 3:04pm"
 	return event.EventStart.Format(layout)
 }
 
-func (response MemberEvent) getURL(c appengine.Context) string {
+func (response *MemberEvent) getURL(c appengine.Context) string {
 	baseURL := appengine.DefaultVersionHostname(c)
 
 	proto := "http"
@@ -2183,11 +2189,11 @@ func (response MemberEvent) getURL(c appengine.Context) string {
 	return fmt.Sprintf("%s://%s/response/%d", proto, baseURL, response.KeyID)
 }
 
-func (response MemberEvent) sentFirstReminder() bool {
+func (response *MemberEvent) sentFirstReminder() bool {
 	return zeroDate.Equal(response.FirstReminder) == false
 }
 
-func (response MemberEvent) save(c appengine.Context, member *Member) error {
+func (response *MemberEvent) save(c appengine.Context, member *Member) error {
 	response.Key = datastore.NewKey(c, "MemberEvent", "", response.KeyID, nil)
 	response.setAudits(member)
 
@@ -2322,7 +2328,7 @@ func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http
 	}
 }
 
-func (m Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	m.Longitude = 0
 	m.Latitude = 0
 	m.PublicLatitude = 0
@@ -2335,7 +2341,7 @@ func (m Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *h
 	c.Debugf("m.Location after geocode: %+v", m.Location)
 }
 
-func (l Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
+func (l *Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
 	address := fmt.Sprintf("%s, %s, %s", l.Line1, l.City, l.Zip)
 
 	googleLoc, err := geocode(address, c, w, r)
@@ -2629,7 +2635,7 @@ func processCertsAndTopics(c appengine.Context, certs []*Certification, topics [
 	return results
 }
 
-func (t Certification) save(member *Member, c appengine.Context) error {
+func (t *Certification) save(member *Member, c appengine.Context) error {
 	tKey := t.Key
 	if tKey == nil {
 		tKey = datastore.NewKey(c, "Certification", "", t.KeyID, nil)
@@ -2649,7 +2655,7 @@ func (t Certification) save(member *Member, c appengine.Context) error {
 	return putErr
 }
 
-func (t Certification) lookup(id int64, member *Member, c appengine.Context) error {
+func (t *Certification) lookup(id int64, member *Member, c appengine.Context) error {
 	t.Key = datastore.NewKey(c, "Certification", "", id, nil)
 
 	err := datastore.Get(c, t.Key, t)
@@ -2696,7 +2702,7 @@ func apiTrainingTopicSave(c appengine.Context, w http.ResponseWriter, r *http.Re
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (t TrainingTopic) save(member *Member, c appengine.Context) error {
+func (t *TrainingTopic) save(member *Member, c appengine.Context) error {
 	tKey := t.Key
 	if tKey == nil {
 		tKey = datastore.NewKey(c, "TrainingTopic", "", t.KeyID, nil)
@@ -2713,7 +2719,7 @@ func (t TrainingTopic) save(member *Member, c appengine.Context) error {
 	return putErr
 }
 
-func (obj CertificationClass) save(member *Member, c appengine.Context) error {
+func (obj *CertificationClass) save(member *Member, c appengine.Context) error {
 	objType := "CertificationClass"
 
 	objKey := obj.Key
@@ -2735,7 +2741,7 @@ func (obj CertificationClass) save(member *Member, c appengine.Context) error {
 	return putErr
 }
 
-func (t CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
+func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
 	if member == nil {
 		//TODO: Should lookup member here
 		//member = getMemberFromUser(c, u, w, r)
