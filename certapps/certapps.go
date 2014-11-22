@@ -1127,6 +1127,7 @@ func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 }
 
 func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*datastore.Key, error) {
+	var err error
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
@@ -1143,8 +1144,12 @@ func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user
 	c.Debugf("Checking Keys || allow: %s, %d == %d?", allow, curMember.KeyID, saveMember.KeyID)
 	if curMember.KeyID == saveMember.KeyID || allow {
 
-		saveMember.locationGeocode(c, w, r)
-		c.Debugf("saveMember.Location after geocode: %+v", saveMember.Location)
+		err = saveMember.locationGeocode(c, w, r)
+		if err != nil {
+			c.Errorf("geocode err: %+v", err)
+		} else {
+			c.Debugf("saveMember.Location after geocode: %+v", saveMember.Location)
+		}
 
 		saveMember.setAudits(curMember)
 
@@ -2282,7 +2287,7 @@ func getGoogleAPIKey(c appengine.Context, w http.ResponseWriter, r *http.Request
 
 	key := team.GoogleAPIKey
 
-	c.Debugf("Found GoogleAPIKey %+v", team)
+	c.Debugf("Found GoogleAPIKey %s", team.GoogleAPIKey)
 
 	return key, nil
 }
@@ -2320,6 +2325,11 @@ func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http
 			return nil, jsonDecodeErr
 		}
 
+		if results.Status == "REQUEST_DENIED" {
+			c.Errorf("api results with error %+v", results)
+			return nil, errors.New("Google API request denied, bad Key?")
+		}
+
 		c.Infof("json results %+v", results)
 
 		return &results, nil
@@ -2328,17 +2338,19 @@ func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http
 	}
 }
 
-func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
+	var err error
+
 	m.Longitude = 0
 	m.Latitude = 0
 	m.PublicLatitude = 0
 	m.PublicLongitude = 0
 
 	if m.Line1 != "" {
-		m.Location.geocode(c, w, r)
+		err = m.Location.geocode(c, w, r)
 	}
 
-	c.Debugf("m.Location after geocode: %+v", m.Location)
+	return err
 }
 
 func (l *Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
@@ -2354,7 +2366,11 @@ func (l *Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.R
 		l.PublicLongitude = fudgeGPS(l.Longitude, c)
 	}
 
-	c.Debugf("Location after geocode: %+v", l)
+	if err != nil {
+		c.Errorf("Error calling geocode: %+v", err)
+	} else {
+		c.Debugf("Location after geocode: %+v", l)
+	}
 
 	return err
 }
