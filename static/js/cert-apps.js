@@ -3993,6 +3993,7 @@ CERTApps.Attendee = CERTApps.BaseObject.extend(
 		console.log('CERTApps.Attendee init');
 
 		this.set("potentialMatches", Ember.A([]));
+		this.set("newMember", CERTApps.Member.create({hideSave: true}));
 	},
 
 	reset: function()
@@ -4173,6 +4174,11 @@ CERTApps.CreateMemberButtonView = Ember.Component.extend({
 		console.log("evt", evt);
 		console.log("arguments", arguments);
 		console.log("this", this);
+
+		var target$ = $(evt.target)
+		var memberForm$ = target$.parent().parent().find(".js-create-member");
+
+		memberForm$.slideDown()
 		
 		console.groupEnd();
 	}

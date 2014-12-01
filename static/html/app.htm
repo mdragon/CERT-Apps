@@ -679,10 +679,11 @@
 							{{#unless a.searching }}
 								{{view "createMemberButton"}}
 
-								<div style="display: none;"> 
+								<div style="display: none;" class="js-create-member"> 
 									<h4>Create Member</h4>
-									Stuff
- 									<button class="button" {{action "createAttendeeA" this newMember cClass}} {{bind-attr disabled=a.searching}}> <i class="fa fa-plus"></i> Create And Add</button><br/>
+									{{member-edit member=a.newMember}}	
+
+ 									<button class="button" {{action "createAttendeeA" this a.newMember cClass}} {{bind-attr disabled=a.searching}}> <i class="fa fa-save"></i> Save And Add</button><br/>
 								</div>
 							{{/unless}}
 						</td>
@@ -771,6 +772,8 @@ Landing index
 			</div>
 		</div>
 
-		<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
+		{{#unless member.hideSave }}
+			<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
+		{{/unless}}
 	</form>
 </script>
