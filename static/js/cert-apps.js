@@ -1304,7 +1304,9 @@ CERTApps.Event = CERTApps.TimesObject.extend(
 			this.set("Exercise", false);
 			this.set("Meeting", false);
 
-			this.set(value, true);
+			if( value ) {
+				this.set(value, true);
+			}
 		}
 
 		// getter

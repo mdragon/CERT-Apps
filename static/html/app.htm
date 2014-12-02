@@ -436,7 +436,7 @@
 				<h5><i class="fa fa-info"></i> Information</h4>
 			</div>
 			<div class="panel-body">
-				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}
+				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}<br/>
 				{{input name="Summary" placeholder="Summary" value=content.Event.Summary size=70}}
 				{{textarea cols=68 rows=3 value=content.Event.Description placeholder="Description"}}
 			</div>
