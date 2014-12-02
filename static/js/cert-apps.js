@@ -2226,18 +2226,20 @@ CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
 		console.log('obj', obj);
 
 		var list = Ember.A([]);
-		for( var x = obj.Events.length - 1; x >= 0; x-- )
-		{
-			var e = obj.Events[x];
-			var ev = CERTApps.Event.create(e); 
 
-			ev.parseDatesToJS();
+		if( obj.Events) {
+			for( var x = obj.Events.length - 1; x >= 0; x-- ) {
+				var e = obj.Events[x];
+				var ev = CERTApps.Event.create(e); 
 
-			console.log('adding event to list', ev);
+				ev.parseDatesToJS();
 
-			list.pushObject(ev)
+				console.log('adding event to list', ev);
+
+				list.pushObject(ev)
+			}
 		}
-
+		
 		var events = CERTApps.Events.create({events: list});
 
 		console.log('TeamIDEventsRoute model returning', events); 
