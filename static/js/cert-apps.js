@@ -34,6 +34,7 @@ CERTApps.Router.map(function()
 			{
 				this.route("comfortStations", function()
 				{
+					this.route("list");
 					this.route("create", { path: '/'});
 					this.route("update", { path: ':stationID'});
 				});

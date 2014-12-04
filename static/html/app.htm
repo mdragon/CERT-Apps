@@ -121,6 +121,7 @@
 <script type="text/javascript" src="../js/handlebars-v1.3.x.js"></script>
 <script type="text/javascript" src="../js/ember-v1.8.x.js"></script>
 <script type="text/javascript" src="../js/cert-apps.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/x-handlebars">
 	<div class="nav">
@@ -129,7 +130,7 @@
 
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
-				{{#link-to 'team.id.comfortStations' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStations.create' content.Team}}Create{{/link-to}} | 
+				{{#link-to 'team.id.comfortStations.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStations.create' content.Team}}Create{{/link-to}} | 
 
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
@@ -264,8 +265,6 @@
 
 	<div class="map-canvas"></div>
 </script>
-
-    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/x-handlebars" data-template-name="member">
 	<div class="center-content">
@@ -778,4 +777,18 @@ Landing index
 			<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
 		{{/unless}}
 	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStations">
+	<div class="center-content">
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStations/list">
+	<h3>Comfort Stations</h3>
+	{{#each s in locations}}
+	{{else}}
+		No Comfort Stations have been created
+	{{/each}}
 </script>
