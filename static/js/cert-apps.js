@@ -12,7 +12,7 @@ window.CERTApps = Ember.Application.create(
 		// step made while transitioning into a route, including
 		// `beforeModel`, `model`, and `afterModel` hooks, and
 		// information about redirects and aborted transitions
-//		LOG_TRANSITIONS_INTERNAL: true,
+		LOG_TRANSITIONS_INTERNAL: true,
 	
 		LOG_VIEW_LOOKUPS: true,
 		LOG_ACTIVE_GENERATION: true
@@ -23,30 +23,36 @@ window.CERTApps = Ember.Application.create(
 
 CERTApps.Router.map(function() 
 {
-	this.resource('landing', { path: 'landing' });
+	this.route('landing', { path: 'landing' });
 	this.resource('member', function()
 		{	
 			this.route('update');
 		});
-	this.resource('team', function()
+	this.route('team', function()
 		{
-			this.resource("teamID", { path: ':teamID' 	}, function()
+			this.route("id", { path: ':teamID' 	}, function()
 			{
+				this.route("comfortStations", function()
+				{
+					this.route("create", { path: '/'});
+					this.route("update", { path: ':stationID'});
+				});
+
 				this.resource('event', function()
 				{
 					this.route("create", { path: '/' });
 					this.route("update", { path: ':eventID' });
 				});
 
-				this.resource("roster", function()
+				this.route("roster", function()
 				{
 					this.route('import');
 					this.route('map');
 				});
 
 				this.route('events');
-				});
 			});
+		});
 	this.resource('eventDetails', { path: 'event' }, function()
 		{
 			this.resource('eventID', { path: ':eventID' }, function()
@@ -271,10 +277,23 @@ CERTApps.TeamRoute = Ember.Route.extend(
 		return model;
 	},
 
+	serialize: function(model)
+	{
+		console.group("CERTApps.TeamRoute serialize");
+
+	//	console.log('model', model);
+		debugger;
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
+
 });
 
 
-CERTApps.RosterRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
@@ -333,7 +352,19 @@ CERTApps.RosterRoute = CERTApps.BaseRoute.extend(
 
 		return t2;
 	},
+	
+	serialize: function(model)
+	{
+		console.group("CERTApps.RosterRoute serialize");
 
+	//	console.log('model', model);
+		debugger;
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
 });
 
 CERTApps.BaseObject = Ember.Object.extend(
@@ -586,7 +617,7 @@ CERTApps.Roster.reopenClass(
 	}
 });
 
-CERTApps.RosterImportRoute = Ember.Route.extend(
+CERTApps.TeamIdRosterImportRoute = Ember.Route.extend(
 {
 	actions:
 	{
@@ -693,7 +724,7 @@ CERTApps.RosterImportRoute = Ember.Route.extend(
 
 });
 
-CERTApps.RosterIndexRoute = Ember.Route.extend(
+CERTApps.TeamIdRosterIndexRoute = Ember.Route.extend(
 {
 	actions:
 	{
@@ -715,7 +746,7 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps RosterIndexRoute setupController')
+		console.group('CERTApps TeamIdRosterIndexRoute setupController')
 
 		controller.set('model', model);
 
@@ -723,8 +754,20 @@ CERTApps.RosterIndexRoute = Ember.Route.extend(
 		console.groupEnd();
 
 		return;		
-	}
+	},
 
+	serialize: function(model)
+	{
+		console.group("CERTApps.RosterIndexRoute serialize");
+
+		console.log('model', model);
+		debugger;
+		var obj = { teamID: model.get('KeyID') };
+
+		console.groupEnd();
+
+		return obj;
+	}
 });
 
 
@@ -1612,7 +1655,7 @@ CERTApps.EventCreateRoute = Ember.Route.extend(
 
 });
 
-CERTApps.RosterMapView = Ember.View.extend(
+CERTApps.TeamIdRosterMapView = Ember.View.extend(
 {
 	didInsertElement: function()	
 	{
@@ -1658,7 +1701,7 @@ CERTApps.RosterMapView = Ember.View.extend(
     }
 });
 
-CERTApps.RosterMapRouter = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdRosterMapRouter = CERTApps.BaseRoute.extend(
 {
 	setupController: function(controller, model)
 	{
@@ -1794,7 +1837,7 @@ CERTApps.TeamIndexRoute = CERTApps.BaseRoute.extend(
 	}
 });
 
-CERTApps.TeamIDRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 {
 /*	model: function(params)
 	{
@@ -2111,7 +2154,7 @@ CERTApps.MemberEvent.reopenClass(
 	}
 });
 
-CERTApps.TeamIDEventsRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 {	
 	actions:
 	{
