@@ -16,6 +16,7 @@ func init() {
 	http.Handle("/api/certificationClass/attendee/add", appstats.NewHandler(apiCertificationClassAttendeeAdd))
 
 	http.Handle("/api/comfort-station/", appstats.NewHandler(apiComfortStation))
+	http.Handle("/api/comfort-stations/", appstats.NewHandler(apiComfortStationsAll))
 
 	http.Handle("/api/member/search", appstats.NewHandler(apiMemberSearch))
 

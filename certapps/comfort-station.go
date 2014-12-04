@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -124,6 +125,31 @@ func apiComfortStationGet(u *user.User, c appengine.Context, w http.ResponseWrit
 	}
 
 	return struct{ Get bool }{true}
+}
+
+func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	//u := user.Current(c)
+	var context interface{}
+	/*	var mem *Member
+		var postData struct {
+			CClass *CertificationClass
+			Team   *Team
+		}*/
+
+	c.Infof("apiComfortStationsAll")
+
+	path := r.URL.Path
+	lastSlashIdx := strings.LastIndex(path, "/") + 1
+	strId := path[lastSlashIdx:]
+	intId, _ := strconv.ParseInt(strId, 0, 0)
+
+	c.Debugf("lastSlashIdx: %d, strId: %s, intId: %d", lastSlashIdx, strId, intId)
+
+	context = struct {
+		Locations []*ComfortStation `json:"locations"`
+	}{}
+
+	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func (cs *ComfortStation) save(c appengine.Context) {
