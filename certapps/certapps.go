@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	textT "text/template"
 	"time"
 
 	"appengine"
@@ -23,8 +22,6 @@ import (
 	"appengine/user"
 )
 
-var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
-var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 var zeroDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 
 var delayEmailReminders2 = delay.Func("sendEmailReminders2", sendEmailReminders)
@@ -408,46 +405,6 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	//bArr, memberJSONerr := json.MarshalIndent(context, "", "\t")
 	returnJSONorErrorToResponse(context, c, w, r)
-}
-
-func returnJSONorErrorToResponse(context interface{}, c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	jsonC := JSONContext{}
-	bArr, memberJSONerr := json.Marshal(context)
-	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-		//c.Debugf("getting length")
-		//n := bytes.Index(bArr, []byte{0})
-		n := len(bArr)
-
-		if n > 0 {
-			//c.Debugf("getting string for: %d bytes", n)
-			jsonC.Data = string(bArr[:n])
-
-			//c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
-			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
-		} else {
-			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
-
-			errData := struct{ message string }{"No bytes after Marshalling context"}
-
-			bArr, memberJSONerr = json.Marshal(errData)
-			if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-				c.Debugf("getting length for json of %+v", errData)
-				//n := bytes.Index(bArr, []byte{0})
-				n := len(bArr)
-
-				c.Debugf("length for member JSON bytes %d", n)
-				if n > 0 {
-					c.Debugf("getting string for: %d bytes", n)
-					jsonC.Data = string(bArr[:n])
-				} else {
-					jsonC.Data = "\"message\": \"could not form error JSON using template\""
-				}
-
-				c.Debugf("jsonErrTemplate.ExecuteTemplate: %+v", jsonC)
-				jsonErrTemplate.ExecuteTemplate(w, "jsonErr", jsonC)
-			}
-		}
-	}
 }
 
 func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*Member, error) {

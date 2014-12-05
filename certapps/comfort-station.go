@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -130,6 +129,8 @@ func apiComfortStationGet(u *user.User, c appengine.Context, w http.ResponseWrit
 func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	//u := user.Current(c)
 	var context interface{}
+	var stations []*ComfortStation
+	var keys []*datastore.Key
 	/*	var mem *Member
 		var postData struct {
 			CClass *CertificationClass
@@ -138,16 +139,27 @@ func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.R
 
 	c.Infof("apiComfortStationsAll")
 
-	path := r.URL.Path
-	lastSlashIdx := strings.LastIndex(path, "/") + 1
-	strId := path[lastSlashIdx:]
-	intId, _ := strconv.ParseInt(strId, 0, 0)
+	intId, err := getIdFromRequest(r, c)
 
-	c.Debugf("lastSlashIdx: %d, strId: %s, intId: %d", lastSlashIdx, strId, intId)
+	if noErrMsg(err, w, c, "Getting ID from Request") {
+		c.Debugf("load for %d", intId)
 
-	context = struct {
-		Locations []*ComfortStation `json:"locations"`
-	}{}
+		teamKey := datastore.NewKey(c, "Team", "", intId, nil)
+
+		q := datastore.NewQuery("ComfortStation").Filter("TeamKey =", teamKey)
+		keys, err = q.GetAll(c, &stations)
+
+		for x, _ := range stations {
+			s := stations[x]
+			s.setKey(keys[x])
+		}
+
+		context = struct {
+			Locations []*ComfortStation `json:"locations"`
+		}{
+			stations,
+		}
+	}
 
 	returnJSONorErrorToResponse(context, c, w, r)
 }
