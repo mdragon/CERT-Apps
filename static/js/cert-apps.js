@@ -32,7 +32,7 @@ CERTApps.Router.map(function()
 		{
 			this.route("id", { path: ':teamID' 	}, function()
 			{
-				this.route("comfortStations", function()
+				this.route("comfortStation", function()
 				{
 					this.route("list");
 					this.route("create", { path: '/'});
@@ -4244,36 +4244,80 @@ CERTApps.MemberEditComponent = Ember.Component.extend({
 	}
 });
 
-CERTApps.TeamIdComfortStationsCreateView = Ember.View.extend(
+CERTApps.TeamIdComfortStationCreateView = Ember.View.extend(
 {
 	templateName: 'team/id/comfortStation/update'
 });
 
-CERTApps.TeamIdComfortStationsCreateRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdComfortStationRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
+		createComfortStation: function()
+		{
+			console.group("CERTApps.TeamIdComfortStationRoute.actions createComfortStation")
+			var team = this.modelFor("team");
+			console.log("transitioning with", team);
+			this.transitionTo("team.id.comfortStation.create", team);
+
+			console.groupEnd();
+		},
+
+		saveComfortStation: function(station, team)
+		{
+			console.group("CERTApps.TeamIdComfortStationRoute.actions createComfortStation")
+			console.log("station, team", station, team);
+
+			youWereHere();
+
+			console.groupEnd();
+		}
+	}
+});
+
+CERTApps.TeamIdComfortStationCreateRoute = CERTApps.BaseRoute.extend(
 {
 	model: function(params)
 	{
-		var model = { cClass: CERTApps.ComfortStation.create() };
+		var model = { station: CERTApps.ComfortStation.create() };
 
-		console.log('CERTApps.TeamIdComfortStationsCreateRoute.model, params', model, params)
+		console.log('CERTApps.TeamIdComfortStationCreateRoute.model, params', model, params);
+		return model;
+	},
+
+	afterModel: function(model)
+	{
+		console.group("CERTApps.TeamIdComfortStationCreateRoute afterModel");
+
+		var team = this.modelFor('team');
+		model.team = team;
+
+		model.station = CERTApps.ComfortStation.create({City: team.City, State: team.State, Zip: team.Zip});
+
+		console.log('model', model);
+		console.groupEnd();
+
 		return model;
 	}
 });
 
-CERTApps.TeamIdComfortStationsUpdateRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdComfortStationUpdateRoute = CERTApps.BaseRoute.extend(
 {
 	model: function(params)
 	{
-		console.group("CERTApps.TeamIdComfortStationsUpdateRoute model");
+		console.group("CERTApps.TeamIdComfortStationListRoute model");
 		console.log('params', params);
 
-		var p = CERTApps.CertificationClass.load(params.cClassID);
+		var team = this.modelFor('team');
+
+		var p = CERTApps.ComfortStation.load(team.get("KeyID"));
 		
 		var p2 = p.then( function(obj)
 		{
-			var model = { cClass: obj };
+			var model = obj;
+			model.team = team;
 
-			console.log('CERTApps.TeamIdComfortStationsUpdateRoute.model, params', model, params)
+			console.log('CERTApps.TeamIdComfortStationListRoute.model, params', model, params);
 			return model;
 		});
 
@@ -4282,9 +4326,22 @@ CERTApps.TeamIdComfortStationsUpdateRoute = CERTApps.BaseRoute.extend(
 		return p2;
 	},
 
+	afterModel: function(model)
+	{
+		console.group("CERTApps.TeamIdComfortStationListRoute afterModel");
+
+		var team = this.modelFor('team');
+		model.team = team;
+
+		console.log('model', model);
+		console.groupEnd();
+
+		return model;
+	},
+
 	serialize: function(model)
 	{
-		console.group('CERTApps.TeamIdComfortStationsUpdateRoute serialize');
+		console.group('CERTApps.TeamIdComfortStationUpdateRoute serialize');
 		
 		var params = {cClassID: model.cClass.get('KeyID')};
 
@@ -4296,11 +4353,11 @@ CERTApps.TeamIdComfortStationsUpdateRoute = CERTApps.BaseRoute.extend(
 	},
 });
 
-CERTApps.TeamIdComfortStationsListRoute = CERTApps.BaseRoute.extend(
+CERTApps.TeamIdComfortStationListRoute = CERTApps.BaseRoute.extend(
 {
 	model: function(params)
 	{
-		console.group("CERTApps.TeamIdComfortStationsListRoute model");
+		console.group("CERTApps.TeamIdComfortStationListRoute model");
 		console.log('params', params);
 
 		var team = this.modelFor('team');
@@ -4309,9 +4366,9 @@ CERTApps.TeamIdComfortStationsListRoute = CERTApps.BaseRoute.extend(
 		
 		var p2 = p.then( function(obj)
 		{
-			var model = { cClass: obj };
-
-			console.log('CERTApps.TeamIdComfortStationsListRoute.model, params', model, params)
+			var model = obj;
+			
+			console.log('CERTApps.TeamIdComfortStationListRoute.model, params', model, params)
 			return model;
 		});
 
@@ -4320,18 +4377,22 @@ CERTApps.TeamIdComfortStationsListRoute = CERTApps.BaseRoute.extend(
 		return p2;
 	},
 
-	setupController: function(model, controller)
+	afterModel: function(model)
 	{
-		console.group("CERTApps.TeamIdComfortStationsListRoute setupController");
+		console.group("CERTApps.TeamIdComfortStationListRoute afterModel");
 
-		console.log("arguments", arguments);
+		var team = this.modelFor('team');
+		model.team = team;
 
+		console.log('model', model);
 		console.groupEnd();
+
+		return model;
 	},
 
 	serialize: function(model)
 	{
-		console.group('CERTApps.TeamIdComfortStationsListRoute serialize');
+		console.group('CERTApps.TeamIdComfortStationListRoute serialize');
 		
 		var params = {teamID: model.Team.get('KeyID')};
 

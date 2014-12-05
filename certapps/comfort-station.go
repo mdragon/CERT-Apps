@@ -16,8 +16,12 @@ type ComfortStation struct {
 	Name  string
 	Notes string
 
-	EditKeys []int64
+	EditKeys []*datastore.Key
 	TeamKey  *datastore.Key
+
+	Contact string
+	Email   string
+	Phone   string
 
 	Location
 
