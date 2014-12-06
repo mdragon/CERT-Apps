@@ -43,16 +43,16 @@ type RemindersToSend struct {
 }
 
 type Location struct {
-	Line1 string
-	Line2 string
-	City  string
-	State string
-	Zip   string
+	Line1 string `json:"line1"`
+	Line2 string `json:"line2"`
+	City  string `json:"city"`
+	State string `json:"state"`
+	Zip   string `json:"zip"`
 
-	Latitude        float64
-	Longitude       float64
-	PublicLatitude  float64
-	PublicLongitude float64
+	Latitude        float64 `json:"latitude"`
+	Longitude       float64 `json:"longitude"`
+	PublicLatitude  float64 `json:"publicLatitude"`
+	PublicLongitude float64 `json:"publicLongitude"`
 }
 
 type Team struct {

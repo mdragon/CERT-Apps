@@ -203,7 +203,7 @@
 						{{/if}}
 					</td>
 					{{#if content.loggedInMember.CanLookup}}
-						<td>{{mem.Line1}}{{mem.line2Display}}</td>
+						<td>{{mem.line1}}{{mem.line2Display}}</td>
 						<td>{{mem.homePhoneFormatted}}</td>
 					{{/if}}
 				</tr>
@@ -450,14 +450,14 @@
 			<div class="panel-body">
 				<label>
 					<b>Event:</b>  <br/>
-					{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=70}}<br/>
+					{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=70}}<br/>
 				</label>
 
 				<label>
 					<b>Parking:</b> </br>
 
 					<div class="parking-location" style="" >
-						{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
+						{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
 					</div>
 				</label>
 			</div>
@@ -765,11 +765,11 @@ Landing index
 				<h4><i class="fa fa-home"></i> Home Address</h4>
 			</div>
 			<div class="panel-body">
-				{{input name="Line1" placeholder="Address" value=member.Line1 size='50'}}<br/>
-				{{input name="Line2" placeholder="Address Line 2" value=member.Line2 size='50'}}<br/>
-				{{input name="City" placeholder="City" value=member.City size='30'}}, 
-				{{input name="State" placeholder="State" value=member.State size='3'}}
-				{{input name="Zip" placeholder="Zip" value=member.Zip size='7'}}
+				{{input name="line1" placeholder="Address" value=member.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=member.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=member.city size='30'}}, 
+				{{input name="state" placeholder="State" value=member.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=member.zip size='7'}}
 			</div>
 		</div>
 
@@ -801,7 +801,7 @@ Landing index
 			<tr>
 				<td><i class="fa fa-pencil action" {{action editComfortStation s}}></i>
 				<td>{{s.name}}</td>
-				<td>{{s.line1}}</td>
+				<td>{{s.line1}}{{s.line2Display}}</td>
 				<td>{{s.contact}}</td>
 				<td>{{s.email}}</td>
 				<td>{{s.phone}}</td>
@@ -826,11 +826,11 @@ Landing index
 			<div class="panel-body">
 				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
 				<br/>
-				{{input name="Line1" placeholder="Address" value=station.Line1 size='50'}}<br/>
-				{{input name="Line2" placeholder="Address Line 2" value=station.Line2 size='50'}}<br/>
-				{{input name="City" placeholder="City" value=station.City size='30'}}, 
-				{{input name="State" placeholder="State" value=station.State size='3'}}
-				{{input name="Zip" placeholder="Zip" value=station.Zip size='7'}}
+				{{input name="line1" placeholder="Address" value=station.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=station.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=station.city size='30'}}, 
+				{{input name="state" placeholder="State" value=station.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
 			</div>
 		</div>
 

@@ -492,7 +492,7 @@ CERTApps.Roster.reopenClass(
 
 					for( var y = 0; y < colsLen; y++ )
 					{
-						obj.cols.pushObject({name: '_c' + y.toString(), value: $.trim(cols[y])});
+						obj.cols.pushObject({zip: '_c' + y.toString(), value: $.trim(cols[y])});
 					}
 
 					//console.debug('obj', JSON.stringify(obj));
@@ -855,16 +855,8 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 	line2Display: function()
 	{
-		var val = ""
-		
-		var line2 = this.get('Line2')
-		if( $.trim(line2).length > 0 )
-		{
-			val = ", " + line2;
-		}
-
-		return val;
-	}.property('Line2'),
+		CERTApps.line2Display(this);
+	}.property('line2'),
 
 	getFields: function()
 	{
@@ -1059,6 +1051,19 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 	},
 
 });
+
+CERTApps.line2Display = function(obj) {
+	//Member.line2Display
+	var val = ""
+	
+	var line2 = obj.get('line2')
+	if( $.trim(line2).length > 0 )
+	{
+		val = ", " + line2;
+	}
+
+	return val;
+}
 
 CERTApps.Event = CERTApps.TimesObject.extend(
 {
@@ -1680,13 +1685,13 @@ CERTApps.TeamIdRosterMapView = Ember.View.extend(
 
         this.controller.model.Members.forEach( function(item)
         {
-        	if( item.PublicLatitude != 0 )
+        	if( item.publicLatitude != 0 )
         	{
-	        	var pos = {lat: item.PublicLatitude, lng: item.PublicLongitude};
+	        	var pos = {lat: item.publicLatitude, lng: item.publicLongitude};
 
-	        	if( item.Latitude != 0 )
+	        	if( item.latitude != 0 )
 	        	{
-		        	pos = {lat: item.Latitude, lng: item.Longitude};
+		        	pos = {lat: item.latitude, lng: item.longitude};
 	        	}
 
 	        	console.log('putting item on map', pos, item);
@@ -4269,13 +4274,28 @@ CERTApps.TeamIdComfortStationRoute = CERTApps.BaseRoute.extend(
 			console.groupEnd();
 		},
 
+		editComfortStation: function(station)
+		{
+			console.group("CERTApps.TeamIdComfortStationRoute.actions editComfortStation")
+			var team = this.modelFor("team");
+			console.log("transitioning with", team, station);
+			this.transitionTo("team.id.comfortStation.update", team, {station: station});
+
+			console.groupEnd();
+		},
+
 		saveComfortStation: function(station, team)
 		{
 			console.group("CERTApps.TeamIdComfortStationRoute.actions createComfortStation")
 			console.log("station, team", station, team);
 
 			var teamID = team.get("KeyID");
-			station.save(teamID);
+			var p = station.save(teamID);
+
+			p.then(function saveComfortStationThen() {
+				this.send("editComfortStation", station);
+			}.bind(this)
+			);
 
 			console.groupEnd();
 		}
@@ -4299,7 +4319,7 @@ CERTApps.TeamIdComfortStationCreateRoute = CERTApps.BaseRoute.extend(
 		var team = this.modelFor('team');
 		model.team = team;
 
-		model.station = CERTApps.ComfortStation.create({City: team.City, State: team.State, Zip: team.Zip});
+		model.station = CERTApps.ComfortStation.create({city: team.city, state: team.state, zip: team.zip});
 
 		console.log('model', model);
 		console.groupEnd();
@@ -4312,19 +4332,19 @@ CERTApps.TeamIdComfortStationUpdateRoute = CERTApps.BaseRoute.extend(
 {
 	model: function(params)
 	{
-		console.group("CERTApps.TeamIdComfortStationListRoute model");
+		console.group("CERTApps.TeamIdComfortStationUpdateRoute model");
 		console.log('params', params);
 
 		var team = this.modelFor('team');
 
-		var p = CERTApps.ComfortStation.load(team.get("KeyID"));
+		var p = CERTApps.ComfortStation.fetchForTeam(team.get("KeyID"));
 		
 		var p2 = p.then( function(obj)
 		{
 			var model = obj;
 			model.team = team;
 
-			console.log('CERTApps.TeamIdComfortStationListRoute.model, params', model, params);
+			console.log('CERTApps.TeamIdComfortStationUpdateRoute.model, params', model, params);
 			return model;
 		});
 
@@ -4335,7 +4355,7 @@ CERTApps.TeamIdComfortStationUpdateRoute = CERTApps.BaseRoute.extend(
 
 	afterModel: function(model)
 	{
-		console.group("CERTApps.TeamIdComfortStationListRoute afterModel");
+		console.group("CERTApps.TeamIdComfortStationUpdateRoute afterModel");
 
 		var team = this.modelFor('team');
 		model.team = team;
@@ -4350,7 +4370,7 @@ CERTApps.TeamIdComfortStationUpdateRoute = CERTApps.BaseRoute.extend(
 	{
 		console.group('CERTApps.TeamIdComfortStationUpdateRoute serialize');
 		
-		var params = {cClassID: model.cClass.get('KeyID')};
+		var params = {stationID: model.station.get('KeyID')};
 
 		console.log('params', params);
 
@@ -4373,8 +4393,19 @@ CERTApps.TeamIdComfortStationListRoute = CERTApps.BaseRoute.extend(
 		
 		var p2 = p.then( function(obj)
 		{
-			var model = obj;
-			
+			var model = { locations: Ember.A([]) };
+
+			if( obj ) {
+				if( obj.locations )
+				{
+					obj.locations.forEach(function comfortStationListRouteModelForEach(obj) {
+						var cs = CERTApps.ComfortStation.create(obj);
+
+						model.locations.pushObject(cs);
+					}.bind(this)
+					);
+				}
+			}
 			console.log('CERTApps.TeamIdComfortStationListRoute.model, params', model, params)
 			return model;
 		});
@@ -4451,14 +4482,35 @@ CERTApps.ComfortStation = CERTApps.BaseObject.extend(
 		);
 
 		return o;
-	}
+	},
+
+	line2Display: function()
+	{
+		return CERTApps.line2Display(this);
+	}.property("line2")
 });	
 
 CERTApps.ComfortStation.reopenClass(
 {
-	load: function(teamID)
+	fetch: function(stationID)
 	{
-		console.group("CERTApps.ComfortStation.load")
+		console.group("CERTApps.ComfortStation.fetch")
+		console.log("stationID", stationID);
+
+		var options = 
+		{
+			url: "/api/comfort-station/" + stationID,
+			type: "get"
+		};
+
+		var t = CERTApps.ajax(options);
+
+		return t;
+	}
+
+	fetchForTeam: function(teamID)
+	{
+		console.group("CERTApps.ComfortStation.fetchForTeam")
 		console.log("teamID", teamID);
 
 		var options = 
