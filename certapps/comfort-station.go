@@ -14,15 +14,15 @@ import (
 )
 
 type ComfortStation struct {
-	Name  string
-	Notes string
+	Name  string `json:"name"`
+	Notes string `json:"notes"`
 
 	EditKeys []*datastore.Key
 	TeamKey  *datastore.Key
 
-	Contact string
-	Email   string
-	Phone   string
+	Contact string `json:"contact"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
 
 	Location
 
@@ -30,8 +30,8 @@ type ComfortStation struct {
 }
 
 type ComfortStationHours struct {
-	Open  time.Time
-	Close time.Time
+	Open  time.Time `json:"open"`
+	Close time.Time `json:"close"`
 
 	TeamKey           *datastore.Key
 	ComfortStationKey *datastore.Key
@@ -113,7 +113,7 @@ func apiComfortStationSave(u *user.User, c appengine.Context, w http.ResponseWri
 
 		mem, err := getMemberFromUser(c, u, w, r)
 		if noErrMsg(err, w, c, "Getting member from user") {
-			pd.Station.TeamKey = datastore.NewKey(c, "ComfortStation", "", pd.Team.KeyID, nil)
+			pd.Station.TeamKey = datastore.NewKey(c, "Team", "", pd.Team.KeyID, nil)
 
 			err = pd.Station.save(mem, c)
 

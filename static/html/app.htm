@@ -799,11 +799,16 @@ Landing index
 	<tbody>
 		{{#each s in locations}}
 			<tr>
-				<td>{{s.Name}}</td>
+				<td><i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+				<td>{{s.name}}</td>
+				<td>{{s.line1}}</td>
+				<td>{{s.contact}}</td>
+				<td>{{s.email}}</td>
+				<td>{{s.phone}}</td>
 			</tr>
 		{{else}}
 			<tr>
-				<td colspan="5">No Comfort Stations have been created</td>
+				<td colspan="6">No Comfort Stations have been created</td>
 			</tr>
 		{{/each}}
 	</tbody>
