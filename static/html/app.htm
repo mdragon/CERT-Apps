@@ -819,7 +819,7 @@ Landing index
 				<h4><i class="fa fa-home"></i> Comfort Station</h4>
 			</div>
 			<div class="panel-body">
-				{{input name="Name" placeholder="Business/House of Worship Name" value=station.Name size='50'}}<br/>
+				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
 				<br/>
 				{{input name="Line1" placeholder="Address" value=station.Line1 size='50'}}<br/>
 				{{input name="Line2" placeholder="Address Line 2" value=station.Line2 size='50'}}<br/>
@@ -834,11 +834,22 @@ Landing index
 				<h4><i class="fa fa-user"></i> Contact</h4>
 			</div>
 			<div class="panel-body">
-				{{input name="Contact" placeholder="Contact's Name" value=station.Contact size="30"}}<br/>
-				{{input name="Email" placeholder="Email Address" value=station.Email size="30"}}<br/>
-				{{input type="tel" name="Phone" placeholder="Phone" value=station.Phone}}<br/>
+				{{input name="Contact" placeholder="Contact's Name" value=station.contact size="30"}}<br/>
+				{{input name="Email" placeholder="Email Address" value=station.email size="30"}}<br/>
+				{{input type="tel" name="Phone" placeholder="Phone" value=station.phone}}<br/>
 			</div>
 		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-file-text-o "></i> Notes</h4>
+			</div>
+			<div class="panel-body">
+				These will be displayed to the public.  Any notes about how to find your location, where to park, etc.
+				{{textarea value=station.notes cols="80" rows="3"}}
+			</div>
+		</div>
+
 
 		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
 	</form>

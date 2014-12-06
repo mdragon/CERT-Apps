@@ -388,8 +388,12 @@ CERTApps.BaseObject = Ember.Object.extend(
 				console.log('this', JSON.stringify(this));
 				console.log('obj', JSON.stringify(obj));
 
-				console.log('setting KeyID', this.get('KeyID'), obj.KeyID);
-				this.set('KeyID', obj.KeyID);
+				if( obj.KeyID ) {
+					console.log('setting KeyID', this.get('KeyID'), obj.KeyID);
+					this.set('KeyID', obj.KeyID);
+				} else {
+					console.warn("obj passed to sync had no KeyID value")
+				}
 			} else
 			{
 				console.warn("obj passed to sync had a data value that was null or undefined");
@@ -3807,23 +3811,22 @@ CERTApps.getDateAndTimeFormatted = function(datePart, timePart)
 	return retval;
 };
 
-CERTApps.ajax = function(options)
-{
+CERTApps.ajax = function(options) {
 	var t = null;
 
-	if( options.url )
-	{
+	if( options.url ) {
 		options.dataType = options.dataType || "json";
 		options.type = options.type || "post";
 		options.cache = options.cache || false;
 
-		if( options.data )
-		{
-			if( options.type.toLowerCase() == "post" )
-			{
-				if( $.isPlainObject(options.data))
-				{
+		if( options.data ) {
+			if( options.type.toLowerCase() == "post" ) {
+				if( $.isPlainObject(options.data)) {
 					options.data = JSON.stringify(options.data);
+				} else {
+					if( Ember.typeOf(options.data) === "instance" ) {
+						console.error("options.data needs to have named sub-objects not a single entity passed with no name, etc");
+					}
 				}
 			}
 		}
@@ -3831,15 +3834,18 @@ CERTApps.ajax = function(options)
 		console.log('requesting', options)
 
 		var a = $.ajax(options);
-		 t = a.then(function(data)
-		{ 
+		t = a.then(function(data) { 
 			var obj = this.moveUpData(data); 
 
 			return obj;
-		}.bind(this));
-	} else
-	{
-		var msg ="Must provide settings.url when calling CERTApps.ajax";
+		}.bind(this), function(xhr, textStatus, error) {
+			console.error("ajax request failed", textStatus, error, {error: error, options: options, xhr: xhr} );
+
+			return true;
+		}.bind(this)
+		);
+	} else {
+		var msg ="Must provide options.url when calling CERTApps.ajax";
 		t = CERTApps.rejectRSVP(msg);
 		console.error(msg);
 	}
@@ -4268,7 +4274,8 @@ CERTApps.TeamIdComfortStationRoute = CERTApps.BaseRoute.extend(
 			console.group("CERTApps.TeamIdComfortStationRoute.actions createComfortStation")
 			console.log("station, team", station, team);
 
-			youWereHere();
+			var teamID = team.get("KeyID");
+			station.save(teamID);
 
 			console.groupEnd();
 		}
@@ -4410,10 +4417,41 @@ CERTApps.ComfortStation = CERTApps.BaseObject.extend(
 		console.log('CERTApps.ComfortStation init');
 	},
 
+
 	reset: function()
 	{
+		//console.log('CERTApps.ComfortStation init');
+
 		this.set("KeyID", 0);
 	},
+
+	save: function(teamID)
+	{
+		console.group("CERTApps.ComfortStation save");
+
+		var key = this.get("KeyID") || ""
+
+		var options =  {
+			url: "/api/comfort-station/" + key,
+			data: {Station: this, Team: {KeyID: teamID}}
+		};
+
+		var p = CERTApps.ajax(options);
+
+		var o = p.then(function comfortStationSaveSuccess(obj) {
+			console.group("CERTApps.ComfortStation comfortStationSaveSuccess");
+
+			this.sync(obj.Station);
+
+			console.groupEnd();
+
+			return this;
+
+		}.bind(this)
+		);
+
+		return o;
+	}
 });	
 
 CERTApps.ComfortStation.reopenClass(
@@ -4425,22 +4463,11 @@ CERTApps.ComfortStation.reopenClass(
 
 		var options = 
 		{
-			url: '/api/comfort-stations/' + teamID,
-			type: 'get',
-			cache: false,
-			dataType: 'json'
+			url: "/api/comfort-stations/" + teamID,
+			type: "get"
 		};
 
-		console.log('requesting data', options)
-
-		var a = $.ajax(options);
-		var t = a.then(function(obj)
-		{ 
-			var obj = CERTApps.moveUpData(obj); 
-
-			return obj;
-		}.bind(this));
-
+		var t = CERTApps.ajax(options);
 
 		return t;
 	}

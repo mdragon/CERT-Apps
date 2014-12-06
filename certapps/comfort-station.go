@@ -2,6 +2,7 @@ package certapps
 
 import (
 	"encoding/json"
+	//"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -97,21 +98,32 @@ func apiComfortStationSave(u *user.User, c appengine.Context, w http.ResponseWri
 
 	c.Debugf("apiComfortStationSave")
 
-	var postData struct {
-		ComfortStation *ComfortStation
-		Team           *Team
+	var pd struct {
+		Station *ComfortStation
+		Team    *Team
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&postData)
+	jsonDecodeErr := decoder.Decode(&pd)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
-		c.Infof("JSON from request: %+v", postData)
+		c.Infof("JSON from request: Station: %+v, Team: %+v", pd.Station, pd.Team)
+
+		mem, err := getMemberFromUser(c, u, w, r)
+		if noErrMsg(err, w, c, "Getting member from user") {
+			pd.Station.TeamKey = datastore.NewKey(c, "ComfortStation", "", pd.Team.KeyID, nil)
+
+			err = pd.Station.save(mem, c)
+
+			if noErrMsg(err, w, c, "Saving ComfortStation") {
+
+			}
+		}
 	}
 
-	return postData
+	return pd
 }
 
 func apiComfortStationGetAll(u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) interface{} {
@@ -168,6 +180,19 @@ func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.R
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func (cs *ComfortStation) save(c appengine.Context) {
+func (cs *ComfortStation) save(mem *Member, c appengine.Context) error {
+	c.Infof("ComfortStation.save")
 
+	if cs.Key == nil {
+		cs.Key = datastore.NewKey(c, "ComfortStation", "", cs.KeyID, nil)
+		c.Debugf("Using KeyID %d, to create Key %+v", cs.KeyID, cs.Key)
+	}
+
+	cs.setAudits(mem)
+
+	newKey, err := datastore.Put(c, cs.Key, cs)
+
+	cs.setKey(newKey)
+
+	return err
 }
