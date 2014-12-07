@@ -32,7 +32,7 @@ func apiCertificationClassSave(c appengine.Context, w http.ResponseWriter, r *ht
 	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
 		postData.CClass.TeamKey = teamKey
@@ -64,7 +64,7 @@ func apiCertificationClassGet(c appengine.Context, w http.ResponseWriter, r *htt
 
 	c.Infof("certificationClassGet %d", id)
 
-	mem, _ = getMemberFromUser(c, u, w, r)
+	mem, _ = getMemberFromUser(c, u)
 
 	cClass := new(CertificationClass)
 	err := cClass.lookup(id, mem, c)
@@ -90,7 +90,7 @@ func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *
 	c.Infof("certificationClassGetAll, id: %d", id)
 
 	if id != 0 {
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		if mem != nil {
 			var results []*CertificationClass
@@ -144,7 +144,7 @@ func apiCertificationClassAttendeeAdd(c appengine.Context, w http.ResponseWriter
 
 	c.Infof("certificationClassAddAttendee")
 
-	mem, memberErr := getMemberFromUser(c, u, w, r)
+	mem, memberErr := getMemberFromUser(c, u)
 
 	if noErrMsg(memberErr, w, c, "getMemberFromUser") {
 		decoder := json.NewDecoder(r.Body)
