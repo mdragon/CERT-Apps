@@ -30,12 +30,19 @@ type ComfortStation struct {
 	Audit
 }
 
+type ComfortStationEditor struct {
+	MemberKey *datastore.Key
+
+	Audit
+}
+
 type ComfortStationHours struct {
 	Open  time.Time `json:"open"`
 	Close time.Time `json:"close"`
 
 	TeamKey           *datastore.Key
 	ComfortStationKey *datastore.Key
+	EditorKey         *datastore.Key
 
 	Audit
 }
@@ -112,7 +119,7 @@ func apiComfortStationSave(u *user.User, c appengine.Context, w http.ResponseWri
 	} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
 		c.Infof("JSON from request: Station: %+v, Team: %+v", pd.Station, pd.Team)
 
-		mem, err := getMemberFromUser(c, u, w, r)
+		mem, err := getMemberFromUser(c, u)
 		if noErrMsg(err, w, c, "Getting member from user") {
 			pd.Station.TeamKey = datastore.NewKey(c, "Team", "", pd.Team.KeyID, nil)
 
@@ -227,6 +234,11 @@ func (cs *ComfortStation) save(mem *Member, c appengine.Context) error {
 	if cs.Key == nil {
 		cs.Key = datastore.NewKey(c, "ComfortStation", "", cs.KeyID, nil)
 		c.Debugf("Using KeyID %d, to create Key %+v", cs.KeyID, cs.Key)
+	}
+
+	if cs.Line1 != "" {
+		err := cs.Location.geocode(c)
+		checkErr(err, nil, c, "Geocoding Comfort Station address")
 	}
 
 	cs.setAudits(mem)

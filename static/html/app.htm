@@ -818,10 +818,11 @@ Landing index
 	{{log "team/id/comfortStation/update content"}}
 	{{log content}}
 	
+	<h3>Comfort Station</h3>
 	<form>
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h4><i class="fa fa-home"></i> Comfort Station</h4>
+				<h4><i class="fa fa-home"></i> Information/Location</h4>
 			</div>
 			<div class="panel-body">
 				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
@@ -833,7 +834,6 @@ Landing index
 				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
 			</div>
 		</div>
-
 		<div class="panel panel-default">
 			<div class="panel-heading">
 				<h4><i class="fa fa-user"></i> Contact</h4>
@@ -851,10 +851,18 @@ Landing index
 			</div>
 			<div class="panel-body">
 				These will be displayed to the public.  Any notes about how to find your location, where to park, etc.
-				{{textarea value=station.notes cols="80" rows="3"}}
+				{{textarea value=station.notes cols="50" rows="4"}}
 			</div>
 		</div>
-
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-pencil "></i> Editors</h4>
+			</div>
+			<div class="panel-body">
+				These people will be allowed to update the hours and open/closed status of your the Comfort Station.
+				
+			</div>
+		</div>
 
 		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
 	</form>
