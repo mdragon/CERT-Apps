@@ -2,6 +2,7 @@ package certapps
 
 import (
 	"encoding/json"
+	"fmt"
 	//"errors"
 	"io"
 	"net/http"
@@ -128,32 +129,11 @@ func apiComfortStationSave(u *user.User, c appengine.Context, w http.ResponseWri
 
 func apiComfortStationGetAll(u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) interface{} {
 	c.Debugf("apiComfortStationGetAll")
-	return struct{ GetAll bool }{true}
-}
-
-func apiComfortStationGet(u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) interface{} {
-	c.Debugf("apiComfortStationGet")
-	c.Debugf("Request.URL %+v, LastIndex: %d, len: %d", r.URL, strings.LastIndex(r.URL.String(), "/"), len(r.URL.String()))
-
-	if strings.LastIndex(r.URL.String(), "/") == len(r.URL.String())-1 {
-		return apiComfortStationGetAll(u, c, w, r)
-	}
-
-	return struct{ Get bool }{true}
-}
-
-func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	//u := user.Current(c)
-	var context interface{}
 	var stations []*ComfortStation
 	var keys []*datastore.Key
-	/*	var mem *Member
-		var postData struct {
-			CClass *CertificationClass
-			Team   *Team
-		}*/
-
-	c.Infof("apiComfortStationsAll")
+	var context = struct {
+		Locations []*ComfortStation `json:"locations"`
+	}{}
 
 	intId, err := getIdFromRequest(r, c)
 
@@ -170,12 +150,73 @@ func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.R
 			s.setKey(keys[x])
 		}
 
-		context = struct {
-			Locations []*ComfortStation `json:"locations"`
-		}{
-			stations,
+		context.Locations = stations
+	}
+
+	return context
+}
+
+func apiComfortStationGet(u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) interface{} {
+	c.Debugf("apiComfortStationGet")
+	c.Debugf("Request.URL %+v, LastIndex: %d, len: %d", r.URL, strings.LastIndex(r.URL.String(), "/"), len(r.URL.String()))
+
+	var context interface{}
+
+	if strings.LastIndex(r.URL.String(), "/") == len(r.URL.String())-1 {
+		context = apiComfortStationGetAll(u, c, w, r)
+	}
+
+	intId, err := getIdFromRequest(r, c)
+
+	context = struct {
+		error   bool
+		message string
+	}{
+		true,
+		"Could not parse Id",
+	}
+
+	if noErrMsg(err, w, c, "Getting ID from Request") {
+		station := new(ComfortStation)
+		c.Debugf("load for %d", intId)
+
+		csKey := datastore.NewKey(c, "ComfortStation", "", intId, nil)
+
+		err = datastore.Get(c, csKey, station)
+
+		if noErrMsg(err, w, c, fmt.Sprintf("Loading ComfortStation by id: %d", intId)) {
+			station.setKey(csKey)
+
+			context = struct {
+				Station *ComfortStation `json:"station"`
+			}{
+				station,
+			}
+		} else {
+			context = struct {
+				error bool
+			}{true}
 		}
 	}
+
+	//returnJSONorErrorToResponse(context, c, w, r)
+
+	return context
+}
+
+func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	//u := user.Current(c)
+	var context interface{}
+	/*	var mem *Member
+		var postData struct {
+			CClass *CertificationClass
+			Team   *Team
+		}*/
+
+	c.Infof("apiComfortStationsAll")
+	u := user.Current(c)
+
+	context = apiComfortStationGetAll(u, c, w, r)
 
 	returnJSONorErrorToResponse(context, c, w, r)
 }

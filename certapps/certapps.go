@@ -1911,18 +1911,23 @@ func locationLookupHandler(c appengine.Context, w http.ResponseWriter, r *http.R
 func getGoogleAPIKey(c appengine.Context, w http.ResponseWriter, r *http.Request) (string, error) {
 	u := user.Current(c)
 	mem, _ := getMemberFromUser(c, u, w, r)
+	key := ""
 
-	teamErr, team := getTeam(0, mem, c, w, r)
+	err, team := getTeam(0, mem, c, w, r)
 
-	if teamErr != nil {
-		return "", teamErr
+	if err == nil {
+
+		key = team.GoogleAPIKey
+
+		c.Debugf("Found GoogleAPIKey %s", team.GoogleAPIKey)
+
+		if len(key) < 4 {
+			key = ""
+			err = errors.New("Google API Key seemed invalid as it was less than 4 letters")
+		}
 	}
 
-	key := team.GoogleAPIKey
-
-	c.Debugf("Found GoogleAPIKey %s", team.GoogleAPIKey)
-
-	return key, nil
+	return key, err
 }
 
 func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http.Request) (*GoogleLocationResults, error) {
