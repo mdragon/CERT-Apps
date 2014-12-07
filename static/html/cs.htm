@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>Comfort Stations</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
+
+	<style type="text/css">
+		.nav
+		{
+			background-color: #efefef;
+			width: 100%;
+			margin: auto;
+			text-align: right;
+			padding: 3px;
+		}
+
+		.app
+		{
+		}
+
+		.odd
+		{
+			background: #efefef;
+		}
+
+		.panel-heading
+		{
+			padding: 3px 15px  !important;
+		}
+
+		.panel-heading h4
+		{
+			margin-top: 5px !important;
+			margin-bottom: 5px !important;
+		}
+
+		body
+		{
+			margin-left: 5px;
+		}
+
+		label
+		{
+			font-weight: 300 !important;
+		}
+
+		.center-content
+		{
+			margin: 0 auto;
+		}
+
+		.member-contact-form
+		{
+		}
+
+		@media (min-width: 875px) 
+		{
+			.center-content
+			{
+			width: 850px;
+			}
+		}
+
+		td.mapped
+		{
+			/* border: 1px solid green !important; */
+			background-color: lightyellow !important;
+		}
+
+		table.importMap td
+		{
+			border: 1px solid #efefef;
+		}
+
+		td.toggle-up-down
+		{
+			white-space: nowrap;
+		}
+
+		td.toggle-up-down i:hover
+		{
+			cursor: pointer;
+		}
+
+		.action:hover
+		{
+			cursor: pointer;
+		}
+
+		.map-canvas
+		{
+			/*width: 950px;*/
+			height: 750px;
+		}
+
+		.space-left
+		{
+			margin-left: 10px;
+		}
+
+		.space-right
+		{
+			margin-right: 10px;
+		}
+
+	</style>
+</head>
+<body>
+
+	<div style="opacity: 0;">
+		<span style="font-family: FontAwesome;"></span>
+	<div>
+</body>
+</html>
+
+<script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
+<script type="text/javascript" src="../js/handlebars-v1.3.x.js"></script>
+<script type="text/javascript" src="../js/ember-v1.8.x.js"></script>
+<script type="text/javascript" src="../js/models/base-CERTModels.js"></script>
+<script type="text/javascript" src="../js/models/comfort-station.js"></script>
+<script type="text/javascript" src="../js/comfort-station-viewer.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+<script type="text/x-handlebars">
+	<div class="nav">
+		{{log "nav content"}}
+		{{log content}}
+	</div>
+	<div class="app">
+		{{outlet}}
+	</div>
+	<div class="foot">
+		Copyright Matt Dragon 2013-{{content.year}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="list">
+	{{log "list model"}}
+	{{log model}}
+	
+	<h3>Comfort Stations</h3>
+	<table class="table table-striped table-condensed">
+	<thead>
+		<tr>
+			<th><i class="fa fa-plus action" {{action "createComfortStation"}}></i></th><th>Name</th><th>Address</th><th>Contact</th><th>Email</th><th>Phone</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{#each s in locations}}
+			<tr>
+				<td><i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+				<td>{{s.name}}</td>
+				<td>{{s.line1}}{{s.line2Display}}</td>
+				<td>{{s.contact}}</td>
+				<td>{{s.email}}</td>
+				<td>{{s.phone}}</td>
+			</tr>
+		{{else}}
+			<tr>
+				<td colspan="6">No Comfort Stations have been created</td>
+			</tr>
+		{{/each}}
+	</tbody>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation/update">
+	{{log "team/id/comfortStation/update content"}}
+	{{log content}}
+	
+	<h3>Comfort Station</h3>
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-home"></i> Information/Location</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
+				<br/>
+				{{input name="line1" placeholder="Address" value=station.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=station.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=station.city size='30'}}, 
+				{{input name="state" placeholder="State" value=station.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-user"></i> Contact</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Contact" placeholder="Contact's Name" value=station.contact size="30"}}<br/>
+				{{input name="Email" placeholder="Email Address" value=station.email size="30"}}<br/>
+				{{input type="tel" name="Phone" placeholder="Phone" value=station.phone}}<br/>
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-file-text-o "></i> Notes</h4>
+			</div>
+			<div class="panel-body">
+				These will be displayed to the public.  Any notes about how to find your location, where to park, etc.
+				{{textarea value=station.notes cols="50" rows="4"}}
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-pencil "></i> Editors</h4>
+			</div>
+			<div class="panel-body">
+				These people will be allowed to update the hours and open/closed status of your the Comfort Station.
+				
+			</div>
+		</div>
+
+		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+	</form>
+</script>
