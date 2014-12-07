@@ -492,7 +492,7 @@ CERTApps.Roster.reopenClass(
 
 					for( var y = 0; y < colsLen; y++ )
 					{
-						obj.cols.pushObject({zip: '_c' + y.toString(), value: $.trim(cols[y])});
+						obj.cols.pushObject({name: '_c' + y.toString(), value: $.trim(cols[y])});
 					}
 
 					//console.debug('obj', JSON.stringify(obj));
@@ -4335,19 +4335,14 @@ CERTApps.TeamIdComfortStationUpdateRoute = CERTApps.BaseRoute.extend(
 		console.group("CERTApps.TeamIdComfortStationUpdateRoute model");
 		console.log('params', params);
 
-		var model = {station: null};
-		var p = CERTApps.ComfortStation.fetch(params.stationID);
-			
-		var p2 = p.then( function(obj) {
-			if( obj ) {
-				if( obj.station ) {
-					model.station = CERTApps.ComfortStation.create(obj.station);
-				} else {
-					console.error("No station object ComfortStation.fetch");
-				}
-			} else {
-				console.error("Nothing data from ComfortStation.fetch");
-			}
+		var team = this.modelFor('team');
+
+		var p = CERTApps.ComfortStation.fetchForTeam(team.get("KeyID"));
+		
+		var p2 = p.then( function(obj)
+		{
+			var model = obj;
+			model.team = team;
 
 			console.log('CERTApps.TeamIdComfortStationUpdateRoute.model, params', model, params);
 			return model;
@@ -4394,7 +4389,7 @@ CERTApps.TeamIdComfortStationListRoute = CERTApps.BaseRoute.extend(
 
 		var team = this.modelFor('team');
 
-		var p = CERTApps.ComfortStation.fetchForTeam(team.get("KeyID"));
+		var p = CERTApps.ComfortStation.load(team.get("KeyID"));
 		
 		var p2 = p.then( function(obj)
 		{
@@ -4511,7 +4506,7 @@ CERTApps.ComfortStation.reopenClass(
 		var t = CERTApps.ajax(options);
 
 		return t;
-	},
+	}
 
 	fetchForTeam: function(teamID)
 	{
