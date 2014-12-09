@@ -15,18 +15,17 @@ import (
 )
 
 type ComfortStation struct {
-	Name  string `json:"name"`
-	Notes string `json:"notes"`
+	Name      string `json:"name"`
+	Notes     string `json:"notes"`
+	Contact   string `json:"contact"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Published bool   `json:"published"`
 
 	EditKeys []*datastore.Key
 	TeamKey  *datastore.Key
 
-	Contact string `json:"contact"`
-	Email   string `json:"email"`
-	Phone   string `json:"phone"`
-
 	Location
-
 	Audit
 }
 
@@ -37,8 +36,10 @@ type ComfortStationEditor struct {
 }
 
 type ComfortStationHours struct {
-	Open  time.Time `json:"open"`
-	Close time.Time `json:"close"`
+	Open      time.Time `json:"open"`
+	Close     time.Time `json:"close"`
+	Published bool      `json:"published"`
+	Approved  bool      `json:"approved"`
 
 	TeamKey           *datastore.Key
 	ComfortStationKey *datastore.Key
@@ -50,11 +51,6 @@ type ComfortStationHours struct {
 func apiComfortStation(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
-	/*	var mem *Member
-		var postData struct {
-			CClass *CertificationClass
-			Team   *Team
-		}*/
 
 	c.Infof("apiComfortStation")
 
@@ -65,44 +61,10 @@ func apiComfortStation(c appengine.Context, w http.ResponseWriter, r *http.Reque
 		context = apiComfortStationGet(u, c, w, r)
 	}
 
-	// err := parseJSON(postData, r, c)
-	// if noErrMsg(err, w, c, "Parsing JSON") {
-	/*
-		decoder := json.NewDecoder(r.Body)
-		jsonDecodeErr := decoder.Decode(&postData)
-
-		if jsonDecodeErr == io.EOF {
-			c.Infof("EOF, should it be?")
-		} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
-			c.Infof("JSON from request: %+v", postData)
-
-			mem, _ = getMemberFromUser(c, u, w, r)
-
-			teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
-			postData.CClass.TeamKey = teamKey
-
-			saveErr := postData.CClass.save(mem, c)
-
-			c.Debugf("CertificationClass after save: %+v", postData.CClass)
-
-			if noErrMsg(saveErr, w, c, "Saving Certification") {
-				context = struct {
-					CClass *CertificationClass
-				}{
-					postData.CClass,
-				}
-			}
-		} else {
-
-		}
-
-	*/
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
 func apiComfortStationSave(u *user.User, c appengine.Context, w http.ResponseWriter, r *http.Request) interface{} {
-	// err := parseJSON(postData, r, c)
-	// if noErrMsg(err, w, c, "Parsing JSON") {
 
 	c.Debugf("apiComfortStationSave")
 
@@ -206,19 +168,11 @@ func apiComfortStationGet(u *user.User, c appengine.Context, w http.ResponseWrit
 		}
 	}
 
-	//returnJSONorErrorToResponse(context, c, w, r)
-
 	return context
 }
 
 func apiComfortStationsAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	//u := user.Current(c)
 	var context interface{}
-	/*	var mem *Member
-		var postData struct {
-			CClass *CertificationClass
-			Team   *Team
-		}*/
 
 	c.Infof("apiComfortStationsAll")
 	u := user.Current(c)

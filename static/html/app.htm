@@ -120,7 +120,7 @@
 <script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
 <script type="text/javascript" src="../js/handlebars-v1.3.x.js"></script>
 <script type="text/javascript" src="../js/ember-v1.8.x.js"></script>
-<script type="text/javascript" src="../js/models/base-CERTModels.js"></script>
+<script type="text/javascript" src="../js/models/common.js"></script>
 <script type="text/javascript" src="../js/models/comfort-station.js"></script>
 <script type="text/javascript" src="../js/cert-apps.js"></script>
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
@@ -718,7 +718,7 @@ Landing index
 
 <script type="text/x-handlebars" data-template-name="loading">
 	<div class="center-content" style="text-align: center">
-		<img src="../image/spinner.gif" /> Loading...
+		<i class="fa fa-spinner fa-2x fa-spin"></i> Loading...
 	</div>
 </script>
 
@@ -801,7 +801,15 @@ Landing index
 	<tbody>
 		{{#each s in locations}}
 			<tr>
-				<td><i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+				<td>
+					<i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+
+					{{#if s.published}}
+						<i style="color: green;" class="fa fa-eye" title="Published"></i>
+					{{else}}
+						<i style="color: darkred;" class="fa fa-eye-slash" title="Not Published"></i>
+					{{/if}}
+				</td>
 				<td>{{s.name}}</td>
 				<td>{{s.line1}}{{s.line2Display}}</td>
 				<td>{{s.contact}}</td>
@@ -828,12 +836,15 @@ Landing index
 			</div>
 			<div class="panel-body">
 				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
+				{{input type="checkbox" name="published" checked=station.published}} Published<br/>
 				<br/>
 				{{input name="line1" placeholder="Address" value=station.line1 size='50'}}<br/>
 				{{input name="line2" placeholder="Address Line 2" value=station.line2 size='50'}}<br/>
 				{{input name="city" placeholder="City" value=station.city size='30'}}, 
 				{{input name="state" placeholder="State" value=station.state size='3'}}
 				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
+
+
 			</div>
 		</div>
 		<div class="panel panel-default">
