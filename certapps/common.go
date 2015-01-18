@@ -71,6 +71,8 @@ type TeamMember struct {
 	TeamKey   *datastore.Key
 	MemberKey *datastore.Key
 
+	PhoneTree []*datastore.Key // members this member would call when phone tree is activated
+
 	Audit
 }
 
