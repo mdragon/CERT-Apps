@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>CERT Apps</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
+
+	<style type="text/css">
+		.nav
+		{
+			background-color: #efefef;
+			width: 100%;
+			margin: auto;
+			text-align: right;
+			padding: 3px;
+		}
+
+		.app
+		{
+		}
+
+		.odd
+		{
+			background: #efefef;
+		}
+
+		.panel-heading
+		{
+			padding: 3px 15px  !important;
+		}
+
+		.panel-heading h4
+		{
+			margin-top: 5px !important;
+			margin-bottom: 5px !important;
+		}
+
+		body
+		{
+			margin-left: 5px;
+		}
+
+		label
+		{
+			font-weight: 300 !important;
+		}
+
+		.center-content
+		{
+			margin: 0 auto;
+		}
+
+		.member-contact-form
+		{
+		}
+
+		@media (min-width: 875px) 
+		{
+			.center-content
+			{
+			width: 850px;
+			}
+		}
+
+		td.mapped
+		{
+			/* border: 1px solid green !important; */
+			background-color: lightyellow !important;
+		}
+
+		table.importMap td
+		{
+			border: 1px solid #efefef;
+		}
+
+		td.toggle-up-down
+		{
+			white-space: nowrap;
+		}
+
+		td.toggle-up-down i:hover
+		{
+			cursor: pointer;
+		}
+
+		.action:hover
+		{
+			cursor: pointer;
+		}
+
+		.map-canvas
+		{
+			/*width: 950px;*/
+			height: 750px;
+		}
+
+		.space-left
+		{
+			margin-left: 10px;
+		}
+
+		.space-right
+		{
+			margin-right: 10px;
+		}
+
+	</style>
+</head>
+<body>
+
+	<div style="opacity: 0;">
+		<span style="font-family: FontAwesome;"></span>
+	<div>
+</body>
+</html>
+
+<script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
+<script type="text/javascript" src="../js/handlebars-v2.0.x.js"></script>
+<script type="text/javascript" src="../js/ember-v1.9.x.js"></script>
+<script type="text/javascript" src="../js/models/common.js"></script>
+<script type="text/javascript" src="../js/models/comfort-station.js"></script>
+<script type="text/javascript" src="../js/cert-apps.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+<script type="text/x-handlebars">
+	<div class="nav">
+		{{log "nav content"}}
+		{{log content}}
+
+		{{#if content.LoggedIn }}
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.comfortStation.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStation.create' content.Team}}Create{{/link-to}} | 
+
+				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'team.id.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
+			{{/if}}
+			Team {{#link-to 'team.id.roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'team.id.roster.map' content.Team}}Map{{/link-to}} |
+
+			{{#link-to 'member.update'}}My Info{{/link-to}} | 
+
+			{{#if content.Member.FirstName }}
+				Welcome, {{content.Member.FirstName}}
+			{{/if}}
+		{{/if}}
+		<a {{bind-attr href="content.LogInOutLink"}}>{{content.LogInOutText}}</a>
+	</div>
+	<div class="app">
+		{{outlet}}
+	</div>
+	<div class="foot">
+		Copyright Matt Dragon 2013-{{content.year}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="index">
+	Test
+	{{outlet}}
+</script>
+	
+<script type="text/x-handlebars" data-template-name="team/id">
+	<div style="width: 80%; margin: 0 auto;">
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/roster/index">
+	<h3>{{content.Team.Name}} Roster</h3>
+
+	<table class="table table-responsive table-striped table-condensed table-bordered",>
+		<thead>
+			<tr>
+				{{#if content.loggedInMember.CanLookup }}
+					<th>Radio</th>
+				{{/if}}
+				<th>Name</th>
+				<th>Cell</th>
+				<th>Email</th>
+				{{#if content.loggedInMember.CanLookup }}
+					<th>Address</th>
+					<th>Home Phone</th>
+				{{/if}}
+			</tr>
+		</thead>
+		<tbody>
+			{{#each mem in content.Members }}
+				{{#if mem }}
+				<tr class="">
+					{{#if content.loggedInMember.CanLookup}}
+						<td>{{mem.RadioID}}</td>
+					{{/if}}
+					
+					<td>{{mem.FirstName}} {{mem.LastName}}</td>
+					<td>
+						{{#if mem.cellDisplay}}
+							{{mem.cellFormatted}}
+						{{/if}}
+					</td>
+					<td>
+						{{#if mem.emailDisplay}}
+							{{mem.Email}}
+						{{/if}}
+					</td>
+					{{#if content.loggedInMember.CanLookup}}
+						<td>{{mem.line1}}{{mem.line2Display}}</td>
+						<td>{{mem.homePhoneFormatted}}</td>
+					{{/if}}
+				</tr>
+				{{/if}}
+			{{/each}}
+		</tbody>
+	</table>
+
+	{{#link-to 'team.id.roster.import'}}Import Members{{/link-to}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/roster/import">
+	{{log "roster/import"}}
+	{{log content}}
+	<h3>Import Member Data for {{content.Team.Name}}</h3>
+
+	{{textarea cols=180 rows=15 value=content.data.RawPasteDataForImport}}
+	<br/>
+	<button {{action 'parseInput' content}}><i class="fa fa-save"></i> Parse</button>
+
+	<table class="table table-striped table-condensed table-bordered importMapping">
+		<thead>
+			<tr>
+			<th></th>
+			<th></th>
+			{{#each col in content.data.importCols }}
+				<th {{bind-attr class=":import-column col.name" }}>
+					{{view CERTApps.ImportColumnSelect
+						content=content.data.memberFields
+						prompt="Map to..."
+						class="import-column"
+						}}
+				</th>
+			{{/each}}
+			</tr>
+		</thead>
+		<tbody>
+			{{#each row in content.data.ParsedColumnsForImport}}
+				<tr>
+					<td class="toggle-up-down">
+						<i {{ action toggleDown row content.data.ParsedColumnsForImport }} class="fa fa-level-down" title="Toggle from here down"></i>
+						<i {{ action toggleUp row content.data.ParsedColumnsForImport }} class="fa fa-level-up" title="Toggle from here up"></i>
+					</td>
+					<td>{{input type="checkbox" checked=row.selected}}</td>
+					{{#each col in row.cols}}
+						<td {{bind-attr class=":import-column col.name"}}>{{col.value}}</td>
+					{{/each}}
+				</tr>
+			{{/each}}
+		</tbody>
+	</table>
+
+	<button {{action 'save' content}}><i class="fa fa-save"></i> Save</button>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/roster/map">
+	{{log "roster/import"}}
+	{{log content}}
+
+	<div class="map-canvas"></div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="member">
+	<div class="center-content">
+	<h3>Member</h3>
+	{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="member/update">
+	Update your contact information:
+	{{member-edit member=content}}	
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/events">
+	<div class="center-content">
+	<h4>Upcoming Events</h4>
+
+	{{#if upcoming}}
+
+		<table class="table table-striped table-condensed table-responsive">
+			<thead>
+				<tr>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Yes</th>
+					<th>No</th>
+					<th>Maybe</th>
+					<th>Pending</th>
+					<th>Un-Sent</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{#each e in upcoming}}
+					<tr>
+						<td>
+							<i {{action 'userResponseForm' e}} class="fa fa-reply action"></i>
+						</td>
+						<td>
+							<i {{action 'eventEdit' e}} class="fa fa-pencil action"></i>
+						</td>
+						<td>
+							{{#if e.summary }}
+								{{e.summary}}
+							{{else}}
+								Un-named
+							{{/if}}
+						</td>
+						<td>
+							{{e.prettyEventStart}}
+						</td>
+						<td>
+							{{e.responsesYes.length}}
+						</td>
+						<td>
+							{{e.responsesNo.length}}
+						</td>
+						<td>
+							{{e.responsesMaybe.length}}
+						</td>
+						<td>
+							{{e.responsesPending.length}}
+						</td>
+						<td>
+							{{e.responsesUnsent.length}}
+							<i {{action 'sendReminders' e}} class="fa fa-envelope-o action"></i>
+						</td>
+					</tr>
+				{{/each}}
+			</tbody>
+		</table>
+	{{else}}
+		No upcoming events
+	{{/if}}
+
+	<h4>Recent Events</h4>
+
+	{{#if recent }}
+		<table class="table table-striped table-condensed table-responsive">
+			<thead>
+				<tr>
+					<th></th>
+					<th></th>
+					<th></th>
+					<th>Attended</th>
+					<th>Hours</th>
+				</tr>
+			</thead>
+			<tbody>
+				{{#each e in recent}}
+					<tr>
+						<td>
+							<i {{action 'eventEdit' e}} class="fa fa-pencil action"></i>
+						</td>
+						<td>
+							{{#if e.summary }}
+								{{e.summary}}
+							{{else}}
+								Un-named
+							{{/if}}
+						</td>
+						<td>
+							{{e.prettyEventStart}}
+						</td>
+						<td>
+							{{e.attended.length}}
+						</td>
+						<td>
+							{{e.totalHours}}
+						</td>
+					</tr>
+				{{/each}}
+			</tbody>
+		</table>
+	{{else}}
+		No recent events
+	{{/if}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="eventID">
+{{log 'template eventID'}}
+{{log content}}
+	<div class="center-content">
+	<h3>{{content.summary}}</h3>
+	{{content.startDateBreakout.prettyDate}}*
+	{{content.eventStartDate}}
+
+	<p>
+		{{content.Description}}
+	</p>
+
+	{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="response/index">
+{{log "template response (under eventID)"}}
+{{log content}}
+
+	<h4>Please Respond With Your Availability</h4>
+	<form  class="form">
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Yes"}} Yes</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="No"}} No</label><br/>
+		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Maybe"}} Maybe</label><br/>
+
+		<div class="details" style="display: none;">
+			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}
+			<lable>Depart: {{input name="departTime" value=content.departTime size=5}}
+		</div>
+
+		<div class="submit-response" style="display: none;">
+			<button {{action 'submitResponse' content}} class="button"><i class="fa fa-save"></i> Save</button>
+		</div>
+		
+	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="event/update">
+{{log "event/update content"}}
+{{log content}}
+
+	<div class="center-content">
+	<h4>Event Details</h4>
+	<form>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h5><i class="fa fa-info"></i> Information</h4>
+			</div>
+			<div class="panel-body">
+				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}<br/>
+				{{input name="Summary" placeholder="Summary" value=content.Event.Summary size=70}}
+				{{textarea cols=68 rows=3 value=content.Event.Description placeholder="Description"}}
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h5><i class="fa fa-globe"></i> Location</h4>
+			</div>
+			<div class="panel-body">
+				<label>
+					<b>Event:</b>  <br/>
+					{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=70}}<br/>
+				</label>
+
+				<label>
+					<b>Parking:</b> </br>
+
+					<div class="parking-location" style="" >
+						{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
+					</div>
+				</label>
+			</div>
+		</div>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h5><i class="fa fa-calendar"></i> Dates/Times</h4>
+			</div>
+			<div class="panel-body">
+				<b>Start:</b>
+				<label>Date: {{input name="" placeholder="01/31/14" value=content.Event.eventStartDate}}</label>
+				<label>Time: {{input name="" placeholder = "0000" value=content.Event.eventStartTime size=10}} </label><br/>
+				<b>End:&nbsp;</b>
+				<label>Date: {{input name="" placeholder="(if different)" value=content.Event.eventFinishDate}}</label>
+				<label>Time: {{input name="" value=content.Event.eventFinishTime size=10}} </label>
+
+				<label>Meet Time: {{input  name="" value=content.Event.arriveTime size=10}}(if different than start)</label><br/>				
+			</div>
+		</div>
+		
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h5><i class="fa fa-external-link"></i> Links</h4>
+			</div>
+			<div class="panel-body">
+				<label class="link1">{{content.Event.link1Label}} Link: {{input name="IAP" placeholder="" value=content.Event.Link1 size=70}}<br/></label>
+				<label class="link2" {{bind-attr style=content.Event.showSecondLink}}>{{content.Event.link2Label}} Link: {{input name="Roster" placeholder="" value=content.Event.Link2 size=70}}<br/></label>
+			</div>
+		</div>
+
+		<button {{action 'saveEvent' content}}><i class="fa fa-save"></i> Save</button>
+		<button {{action 'createMissing' content}}><i class="fa fa-thumbs-o-up"></i> Create Missing Responses</button> 
+		<button {{action 'sendReminders' content}}><i class="fa fa-envelope-o"></i> Send Reminder</button> 
+	</form>
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification">
+	<div class="center-content">
+	{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/tupdate">
+	{{input value=certification.name placeholder="Name" size="50"}}<br/>
+	Valid for {{input value=certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
+	<button {{action 'saveA' content}}><i class="fa fa-save"></i> Save</button>
+
+	<div class="">
+		<div class="pull-left space-right" style="clear: left;">
+			<h4>Topics</h4>
+			{{#if topics }}
+				<table class="table table-condensed table-striped table-responsive">
+					<thead>
+						<tr>
+							<th>Name</th>
+						</tr>
+					</thead>
+					<tbody>
+					{{#each t in sortedTopics}}
+						<tr>
+							<td>{{t.name}}</td>
+						</tr>
+					{{/each}}
+					</tbody>
+				</table>
+			{{else}}
+				No Topics yet, start by adding one below <br/>
+			{{/if}}
+
+			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
+			<label>Effective Date: {{input type="date" value=newTopic.effectiveDate}}</label><br/>
+			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
+		</div>
+		<div class="pull-left" style="clear: right;">
+			<h4>Offerings</h4>
+			{{#if offierings }}
+				<table class="table table-condensed table-striped table-responsive">
+					<thead>
+						<tr>
+							<th>Name</th><th>Date</th><th>Location</th>
+						</tr>
+					</thead>
+					<tbody>
+					{{#each o in offerings}}
+						<tr>
+							<td>{{o.name}}</td>
+							<td>{{o.scheduledDateOnly}}</td>
+							<td>{{o.shortLocation}}</td>
+						</tr>
+					{{/each}}
+					</tbody>
+				</table>
+			{{else}}
+				No Offerings yet, start by adding one below <br/>
+			{{/if}}
+
+			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
+			{{input type="date" value=newOffering.scheduledDateOnly placeholder="Date" size="10"}}<br/>
+
+			<button {{action 'saveA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+		</div>
+		<div class="clearfix"></div>
+	</div>
+	
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/topic">
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/list">
+	<h4>Certifications</h4>
+
+	<table class="table table-condensed table-striped">
+		<thead>
+			<tr>
+				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+				<th>Name</th><th>Renewal Months</th>
+			</tr>
+		</thead>
+		<tbody>
+		{{#each c in content}}
+			<tr {{bind-attr class="c.certification.isLastEdited:success"}}>
+				<td>
+					<i {{action "editA" c}} class="fa fa-pencil action"></i>
+				</td>
+				<td>{{c.certification.name}}</td>
+				<td>{{c.certification.monthsValid}}</td>
+				<td>
+					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
+				</td>
+			</tr>
+		{{/each}}
+		<tbody>
+	</table>
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/class">
+{{outlet}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="certification/class/index">
+	<h4>Certification Classes</h4>
+
+	<table class="table table-condensed table-striped">
+		<thead>
+			<tr>
+				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
+				<th>Name</th><th>Scheduled</th><th>Location</th>
+			</tr>
+		</thead>
+		<tbody>
+		{{#each c in content.cClasses}}
+			<tr {{bind-attr class="c.isLastEdited:success"}}>
+				<td>
+					<i {{action "editA" c}} class="fa fa-pencil action"></i>
+				</td>
+				<td>{{c.name}}</td>
+				<td>{{c.scheduledDateOnly}}</td>
+				<td>{{c.shortLocation}}</td>
+				<td>
+					<i {{action "deleteA" c}} class="fa fa-trash action"></i>
+				</td>
+			</tr>
+		{{/each}}
+		<tbody>
+	</table>
+</script>
+
+
+<script type="text/x-handlebars" data-template-name="certification/class/tupdate">
+	<h4>Certification Class</h4>
+
+	{{input value=cClass.name placeholder="Name" size="50"}}<br/>
+	{{input type="date" value=cClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
+
+	<button {{action 'saveA' cClass}}><i class="fa fa-save"></i> Save</button>
+
+	<div class="">
+		<h4>Attendees</h4>
+		{{#if cClass.attendeesOrSearches }}
+			<table class="table table-condensed table-striped table-responsive attendees">
+				<thead>
+					<tr>
+						<th>Name</th>
+					</tr>
+				</thead>
+				<tbody>
+				{{#each a in cClass.attendees }}
+					<tr>
+						<td class="">
+							{{a.FirstName}} {{a.LastName}}
+						</td>
+					</tr>
+				{{/each}}
+				{{#each a in cClass.searches }}
+					<tr>
+						<td class="">
+							{{#if a.searchValue }}
+								{{a.searchValue}}
+							{{else}}
+								{{a.name}}
+							{{/if}}
+						</td>
+						<td class="">
+							{{#each p in a.potentialMatches }}
+								{{log "potential"}}
+								{{log p}}
+								{{p.FirstName}}&nbsp;{{p.LastName}}, {{p.cellFormatted}}, {{p.Email}} 
+								&nbsp; <button class="button" {{action "addAttendeeA" this p cClass a}}> <i class="fa fa-save"></i> Select</button><br/>
+							{{else}}
+								{{#if a.searching }}
+									<img src="../image/spinner.gif" /> Searching ...
+								{{else}}
+									No potential matches found
+								{{/if}}
+
+							{{/each}}
+							{{#unless a.searching }}
+								{{view "createMemberButton"}}
+
+								<div style="display: none;" class="js-create-member"> 
+									<h4>Create Member</h4>
+									{{member-edit member=a.newMember}}	
+
+ 									<button class="button" {{action "createAttendeeA" this a.newMember cClass}} {{bind-attr disabled=a.searching}}> <i class="fa fa-save"></i> Save And Add</button><br/>
+								</div>
+							{{/unless}}
+						</td>
+					</tr>
+				{{/each}}
+				</tbody>
+			</table>
+		{{else}}
+			{{#if cClass.classNotSaved}}
+				Save the Class to enable addingd Attendees.
+			{{else}}
+				No Attendees yet, add one below
+			{{/if}}
+			<br/>
+		{{/if}}
+
+		{{input value=newAttendee.searchValue placeholder="Name, Email, Phone" size="30" disabled=cClass.classNotSaved}}<br/>
+		<button {{action 'attendeeLookupA' newAttendee cClass}} {{bind-attr disabled=cClass.classNotSaved}}><i class="fa fa-search"></i> Look Up</button>
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="landing">
+Landing
+</script>
+
+<script type="text/x-handlebars" data-template-name="landing/index">
+Landing index
+</script>
+
+<script type="text/x-handlebars" data-template-name="loading">
+	<div class="center-content" style="text-align: center">
+		<i class="fa fa-spinner fa-2x fa-spin"></i> Loading...
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="createMemberButton">
+	<button class="button"> <i class="fa fa-plus"></i> Create And Add</button><br/>
+</script>
+
+<script type="text/x-handlebars" data-template-name="components/member-edit">
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-user"></i> Member</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="FirstName" placeholder="First Name" value=member.FirstName}}
+				{{input name="LastName" placeholder="Last Name" value=member.LastName}}
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-envelope"></i> Email</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Email" placeholder="Email Address" value=member.Email size='30'}} <br/>
+				<label>{{input type='checkbox' name="ShowEmail" checked=member.ShowEmail placeholder='Show'}} Show to other Members</label><br/>
+				{{input name="Email2" placeholder="Secondary Email Address" value=member.Email2 size='30'}} 
+			</div>
+		</div>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-phone"></i> Phone Numbers</h4>
+			</div>
+			<div class="panel-body">
+				{{input type="tel" name="Cell" placeholder="Cell Phone" value=member.cellFormatted}} <br/>
+				<label>{{input type='checkbox' name="ShowCell" checked=member.ShowCell placeholder='Show'}} Show Cell Phone to other Members</label><br/>
+				<label>{{input type='checkbox' name="OkToText" checked=member.OKToText}} OK to text?</label><br/>
+
+				{{input type="tel" name="HomePhone" placeholder="Home Phone" value=member.homePhoneFormatted}}
+			</div>
+		</div>
+		
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-home"></i> Home Address</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="line1" placeholder="Address" value=member.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=member.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=member.city size='30'}}, 
+				{{input name="state" placeholder="State" value=member.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=member.zip size='7'}}
+			</div>
+		</div>
+
+		{{#unless member.hideSave }}
+			<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
+		{{/unless}}
+	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation">
+	<div class="center-content">
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation/list">
+	{{log "team/id/comfortStation/list model"}}
+	{{log model}}
+	
+	<h3>Comfort Stations</h3>
+	<table class="table table-striped table-condensed">
+	<thead>
+		<tr>
+			<th><i class="fa fa-plus action" {{action "createComfortStation"}}></i></th><th>Name</th><th>Address</th><th>Contact</th><th>Email</th><th>Phone</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{#each s in locations}}
+			<tr>
+				<td>
+					<i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+
+					{{#if s.published}}
+						<i style="color: green;" class="fa fa-eye" title="Published"></i>
+					{{else}}
+						<i style="color: darkred;" class="fa fa-eye-slash" title="Not Published"></i>
+					{{/if}}
+				</td>
+				<td>{{s.name}}</td>
+				<td>{{s.line1}}{{s.line2Display}}</td>
+				<td>{{s.contact}}</td>
+				<td>{{s.email}}</td>
+				<td>{{s.phone}}</td>
+			</tr>
+		{{else}}
+			<tr>
+				<td colspan="6">No Comfort Stations have been created</td>
+			</tr>
+		{{/each}}
+	</tbody>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation/update">
+	{{log "team/id/comfortStation/update content"}}
+	{{log content}}
+	
+	<h3>Comfort Station</h3>
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-home"></i> Information/Location</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
+				{{input type="checkbox" name="published" checked=station.published}} Published<br/>
+				<br/>
+				{{input name="line1" placeholder="Address" value=station.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=station.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=station.city size='30'}}, 
+				{{input name="state" placeholder="State" value=station.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
+
+
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-user"></i> Contact</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Contact" placeholder="Contact's Name" value=station.contact size="30"}}<br/>
+				{{input name="Email" placeholder="Email Address" value=station.email size="30"}}<br/>
+				{{input type="tel" name="Phone" placeholder="Phone" value=station.phone}}<br/>
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-file-text-o "></i> Notes</h4>
+			</div>
+			<div class="panel-body">
+				These will be displayed to the public.  Any notes about how to find your location, where to park, etc.
+				{{textarea value=station.notes cols="50" rows="4"}}
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-pencil "></i> Editors</h4>
+			</div>
+			<div class="panel-body">
+				These people will be allowed to update the hours and open/closed status of your the Comfort Station.
+				
+			</div>
+		</div>
+
+		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+	</form>
+</script>
