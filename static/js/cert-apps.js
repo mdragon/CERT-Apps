@@ -920,7 +920,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	}.property("firstName", "LastName"),
 
 	officerShortName: function() {
-		return m.get("firstName") + " " + m.get("LastName").substring(0,1)
+		return this.get("firstName") + " " + this.get("LastName").substring(0,1)
 	}.property("firstName", "LastName"),
 
 });
