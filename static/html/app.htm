@@ -168,7 +168,7 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/index">
-	<h3>{{content.Team.Name}} Roster</h3>
+	<h3>{{model.Team.Name}} Roster</h3>
 
 	<table class="table table-responsive table-striped table-condensed table-bordered",>
 		<thead>
@@ -182,6 +182,7 @@
 				{{#if content.loggedInMember.CanLookup }}
 					<th>Address</th>
 					<th>Home Phone</th>
+					<th>Called By</th>
 				{{/if}}
 			</tr>
 		</thead>
@@ -207,6 +208,17 @@
 					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.line1}}{{mem.line2Display}}</td>
 						<td>{{mem.homePhoneFormatted}}</td>
+						<td>
+							{{log "model.Team.officers"}}
+							{{log model.Team.officers}}
+							
+							{{view "select" content=model.Team.officers 
+							    optionValuePath="content.keyID"
+       							optionLabelPath="content.officerShortName"
+       							value=mem.calledBy
+       							placeholder="--"
+       						}}<br/>
+						</td>
 					{{/if}}
 				</tr>
 				{{/if}}
@@ -262,7 +274,7 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/map">
-	{{log "roster/import"}}
+	{{log "team/id/roster/map"}}
 	{{log content}}
 
 	<div class="map-canvas"></div>
