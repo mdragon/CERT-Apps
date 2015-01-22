@@ -323,6 +323,13 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
+		changedCalledBy: function(member) {
+			console.group("CERTApps.TeamIdRosterRoute actions.changedCalledBy");
+			console.log("member", member);
+			member.set("calledByStatus", "saving");
+
+			console.groupEnd();
+		}
 	},
 
 	model: function(params)
@@ -923,6 +930,34 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		return this.get("firstName") + " " + this.get("LastName").substring(0,1)
 	}.property("firstName", "LastName"),
 
+	calledByStatus: null,
+	calledBySaving: Ember.computed.equal("calledByStatus", "saving"),
+	calledBySaved: Ember.computed.equal("calledByStatus", "saved"),
+	calledBySaveFailed: Ember.computed.equal("calledByStatus", "failed"),
+
+	calledByIcon: function() {
+		var retval ='';
+
+		if( this.get("calledBySaving") ) {
+			retval = "fa fa-spinner fa-spin";
+		}
+
+		if( this.get("calledBySaved") ) {
+			retval = "fa fa-check-circle text-success";
+		}
+
+		if( this.get("calledBySaveFailed") ) {
+			retval = "fa fa-close text-danger";
+		}	
+
+		return retval;
+	}.property("calledBySaving", "calledBySaved", "calledBySaveFailed"),
+
+	changedCalledBy: function()	{
+		console.log("changedCalledBy", this.get("calledBy"), this);
+
+		this.sendAction("changedCalledBy", this);
+	}.observes("calledBy")
 });
 
 CERTApps.Member.reopenClass({

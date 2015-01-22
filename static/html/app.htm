@@ -216,8 +216,10 @@
 							    optionValuePath="content.keyID"
        							optionLabelPath="content.officerShortName"
        							value=mem.calledBy
-       							placeholder="--"
-       						}}<br/>
+       							prompt="--"
+       						}}
+
+       						<span style="width: 16px; height: 16px; display: inline-block;"><i {{bind-attr class=mem.calledByIcon}}></i></span>
 						</td>
 					{{/if}}
 				</tr>
