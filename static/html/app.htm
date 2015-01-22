@@ -187,7 +187,8 @@
 			</tr>
 		</thead>
 		<tbody>
-			{{#each mem in content.Members }}
+			{{#each member in content.Members itemController="rosterEntry"}}
+				{{#with member.model as mem}}
 				{{#if mem }}
 				<tr class="">
 					{{#if content.loggedInMember.CanLookup}}
@@ -211,7 +212,7 @@
 						<td>
 							{{log "model.Team.officers"}}
 							{{log model.Team.officers}}
-							
+
 							{{view "select" content=model.Team.officers 
 							    optionValuePath="content.keyID"
        							optionLabelPath="content.officerShortName"
@@ -224,6 +225,7 @@
 					{{/if}}
 				</tr>
 				{{/if}}
+				{{/with}}
 			{{/each}}
 		</tbody>
 	</table>
