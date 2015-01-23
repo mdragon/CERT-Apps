@@ -667,10 +667,16 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 	}
 
 	var memberKeys []*datastore.Key
+
+	memberCallerByIntID := make(map[int64]int64)
 	c.Debugf("looping teamMembers which has: %d", len(teamMembers))
 	for _, tm := range teamMembers {
 		c.Debugf("teamMember: %+v", tm)
 		memberKeys = append(memberKeys, tm.MemberKey)
+		calledByKey := tm.CalledBy
+		if calledByKey != nil {
+			memberCallerByIntID[tm.MemberKey.IntID()] = calledByKey.IntID()
+		}
 	}
 	members := make([]Member, len(teamMembers))
 
@@ -714,6 +720,10 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 			m.Longitude = 0.0
 		} else {
 			c.Debugf("Has lookup rights, not resetting hidden email/cell")
+
+			val := memberCallerByIntID[m.KeyID]
+			c.Debugf("setting CalledBy to: %d, for Member: %d", val, m.KeyID)
+			m.CalledBy = val
 		}
 	}
 

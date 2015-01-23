@@ -103,12 +103,14 @@ type Member struct {
 
 	HomeAddress *datastore.Key
 
+	Town    bool
+	OEM     bool
+	Officer bool
+	Active  bool
+
+	CalledBy int64 `json:"calledBy", datastore:"-"`
 	//TODO: this would need to move to TeamMember when multiple teams was supported
 	CanLookup bool `datastore:"-"`
-	Town      bool
-	OEM       bool
-	Officer   bool
-	Active    bool
 
 	Person
 }

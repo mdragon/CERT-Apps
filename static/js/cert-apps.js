@@ -326,38 +326,42 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 		changedCalledBy: function(member) {
 			console.group("CERTApps.TeamIdRosterRoute actions.changedCalledBy");
 			console.log("calledBy", member.get("calledBy"));
-			console.log("member", member);
 
-			var team = this.modelFor("team");
-			member.set("calledByStatus", "saving");
-			var p = CERTApps.Member.changeCalledBy(member, team);
+			if( member.get("calledBy") )
+			{
+				console.log("member", member);
 
-			p.then(
-				function rosterRouteActionsChangeCalledBySuccess(data) {
-					console.log("rosterRouteActionsChangeCalledBySuccess", arguments)
+				var team = this.modelFor("team");
+				member.set("calledByStatus", "saving");
+				var p = CERTApps.Member.changeCalledBy(member, team);
 
-					if( data.Error ) {
-						console.log("data.Error", arguments)
+				p.then(
+					function rosterRouteActionsChangeCalledBySuccess(data) {
+						console.log("rosterRouteActionsChangeCalledBySuccess", arguments)
+
+						if( data.Error ) {
+							console.log("data.Error", arguments)
+							this.set("calledByStatus", "failed");
+	 
+						} else {
+							this.set("calledByStatus", "saved");
+
+							window.setTimeout(function clearStatusUpdateIcon() {
+								console.log("clearStatusUpdateIcon", arguments)
+								this.set("calledByStatus", "clear");
+							}.bind(this), 
+							5000
+							);
+						}
+					}.bind(member),
+
+					function rosterRouteActionsChangeCalledByFailure(xhr, status, error) {
+						console.log("rosterRouteActionsChangeCalledByFailure", arguments)
 						this.set("calledByStatus", "failed");
- 
-					} else {
-						this.set("calledByStatus", "saved");
+					}.bind(member)
 
-						window.setTimeout(function clearStatusUpdateIcon() {
-							console.log("clearStatusUpdateIcon", arguments)
-							this.set("calledByStatus", "clear");
-						}.bind(this), 
-						5000
-						);
-					}
-				}.bind(member),
-
-				function rosterRouteActionsChangeCalledByFailure(xhr, status, error) {
-					console.log("rosterRouteActionsChangeCalledByFailure", arguments)
-					this.set("calledByStatus", "failed");
-				}.bind(member)
-
-			);
+				);
+			}
 
 			console.groupEnd();
 		}
@@ -919,7 +923,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 			out = first + "-" + second + "-" + third;
 		} 
 
-		console.log('out, HomePhone, cleanPhone', out, phone, cleanPhone)
+		//console.log('out, CellPhone, cleanPhone', out, phone, cleanPhone)
 
 		return out;
 	}.property("Cell"),
@@ -949,7 +953,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 			out = first + "-" + second + "-" + third;
 		} 
 
-		console.log('out, HomePhone, cleanPhone', out, phone, cleanPhone)
+		//console.log('out, HomePhone, cleanPhone', out, phone, cleanPhone)
 
 		return out;
 	}.property("HomePhone"),
