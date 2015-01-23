@@ -393,7 +393,7 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		memKey := r.FormValue("member")
 		if memKey != "" {
 			intKey, _ := strconv.ParseInt(memKey, 0, 0)
-			context.Member = getMemberByIntKey2(intKey, member, c, w, r)
+			context.Member, err = getMemberByIntKey2(c, intKey, member)
 		} else {
 			context.Member = member
 		}
@@ -586,23 +586,26 @@ func lookupOthers(member *Member) bool {
 	return member.CanLookup
 }
 
-func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) *Member {
+func getMemberByIntKey2(c appengine.Context, key int64, currentMem *Member) (*Member, error) {
 	allow := lookupOthers(currentMem)
 	c.Debugf("Lookup Member by key: %d, allowed to lookup? %s", key, allow)
 
 	var m Member
 	var retval *Member
+	var err error
 	retval = nil
+
 	if allow {
 		k := datastore.NewKey(c, "Member", "", key, nil)
-		if err := datastore.Get(c, k, &m); err != nil {
+		if err = datastore.Get(c, k, &m); err != nil {
 			c.Errorf("datastore.Get member error: %v", err)
 
 		} else {
 			retval = &m
+			retval.setKey(k)
 		}
 	}
-	return retval
+	return retval, err
 }
 
 func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {

@@ -210,9 +210,6 @@
 						<td>{{mem.line1}}{{mem.line2Display}}</td>
 						<td>{{mem.homePhoneFormatted}}</td>
 						<td>
-							{{log "model.Team.officers"}}
-							{{log model.Team.officers}}
-
 							{{view "select" content=model.Team.officers 
 							    optionValuePath="content.keyID"
        							optionLabelPath="content.officerShortName"

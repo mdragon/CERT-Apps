@@ -327,7 +327,37 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 			console.group("CERTApps.TeamIdRosterRoute actions.changedCalledBy");
 			console.log("calledBy", member.get("calledBy"));
 			console.log("member", member);
+
+			var team = this.modelFor("team");
 			member.set("calledByStatus", "saving");
+			var p = CERTApps.Member.changeCalledBy(member, team);
+
+			p.then(
+				function rosterRouteActionsChangeCalledBySuccess(data) {
+					console.log("rosterRouteActionsChangeCalledBySuccess", arguments)
+
+					if( data.Error ) {
+						console.log("data.Error", arguments)
+						this.set("calledByStatus", "failed");
+ 
+					} else {
+						this.set("calledByStatus", "saved");
+
+						window.setTimeout(function clearStatusUpdateIcon() {
+							console.log("clearStatusUpdateIcon", arguments)
+							this.set("calledByStatus", "clear");
+						}.bind(this), 
+						5000
+						);
+					}
+				}.bind(member),
+
+				function rosterRouteActionsChangeCalledByFailure(xhr, status, error) {
+					console.log("rosterRouteActionsChangeCalledByFailure", arguments)
+					this.set("calledByStatus", "failed");
+				}.bind(member)
+
+			);
 
 			console.groupEnd();
 		}
@@ -406,13 +436,14 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 });
 
 CERTApps.RosterEntryController = Ember.Controller.extend({
-	test: function(controller) {
+	triggerChangedCalledBy: function(controller) {
 		//console.log("test controller", controller);
+
 
 		var member = controller.get("model");
 		if( member.get("calledBy") !== null ) {
-			this.send("changedCalledBy", member);
 		}
+			this.send("changedCalledBy", member);
 	}.observes("model.calledBy")
 });
 
@@ -992,6 +1023,22 @@ CERTApps.Member.reopenClass({
 		console.groupEnd();
 
 		return m;
+	},
+
+	changeCalledBy: function(member, team) {
+		console.group("CERTApps.Member.changeCalledBy");
+		console.log("member", member);
+
+		var calledBy = member.get("calledBy");
+		var options = 
+		{
+			url: "/api/member/calledBy",
+			data: {member: member.get("KeyID"), calledBy: calledBy, team: team.get("KeyID")},
+		};
+
+		var p = CERTApps.ajax(options);
+
+		return p;
 	}
 })
 
