@@ -107,6 +107,11 @@
 			margin-right: 10px;
 		}
 
+		.roster>tbody>tr>td, .roster>tbody>tr>th, .roster>thead>tr>td
+		{
+			padding: 2px;
+		}
+
 	</style>
 </head>
 <body>
@@ -170,7 +175,7 @@
 <script type="text/x-handlebars" data-template-name="team/id/roster/index">
 	<h3>{{model.Team.Name}} Roster</h3>
 
-	<table class="table table-responsive table-striped table-condensed table-bordered",>
+	<table class="table table-responsive table-striped table-condensed table-bordered roster",>
 		<thead>
 			<tr>
 				{{#if content.loggedInMember.CanLookup }}
