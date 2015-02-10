@@ -146,6 +146,9 @@
 			Team {{#link-to 'team.id.roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'team.id.roster.map' content.Team}}Map{{/link-to}} |
 
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.roster.calls' content.Team}}My Calls{{/link-to}} | 
+			{{/if}}
 
 			{{#if content.Member.FirstName }}
 				Welcome, {{content.Member.FirstName}}
@@ -296,6 +299,45 @@
 <script type="text/x-handlebars" data-template-name="member/update">
 	Update your contact information:
 	{{member-edit member=content}}	
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/roster/calls">
+	<table class="table table-responsive table-striped table-condensed table-bordered roster",>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Cell</th>
+				{{#if content.loggedInMember.CanLookup }}
+					<th>Home Phone</th>
+				{{/if}}
+				<th>Email</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{#each member in content.membersToCall itemController="rosterEntry"}}
+				{{#with member.model as mem}}
+				{{#if mem }}
+				<tr class="">					
+					<td>{{mem.FirstName}} {{mem.LastName}}</td>
+					<td>
+						{{#if mem.cellDisplay}}
+							{{mem.cellFormatted}}
+						{{/if}}
+					</td>
+					{{#if content.loggedInMember.CanLookup}}
+						<td>{{mem.homePhoneFormatted}}</td>
+					{{/if}}
+					<td>
+						{{#if mem.emailDisplay}}
+							{{mem.Email}}
+						{{/if}}
+					</td>
+				</tr>
+				{{/if}}
+				{{/with}}
+			{{/each}}
+		</tbody>
+	</table>
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/events">

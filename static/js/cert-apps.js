@@ -50,6 +50,7 @@ CERTApps.Router.map(function()
 				{
 					this.route('import');
 					this.route('map');
+					this.route("calls");
 				});
 
 				this.route('events');
@@ -308,7 +309,6 @@ CERTApps.TeamRoute = Ember.Route.extend(
 		console.group("CERTApps.TeamRoute serialize");
 
 	//	console.log('model', model);
-		debugger;
 		var obj = { teamID: model.get('KeyID') };
 
 		console.groupEnd();
@@ -430,7 +430,6 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 		console.group("CERTApps.RosterRoute serialize");
 
 	//	console.log('model', model);
-		debugger;
 		var obj = { teamID: model.get('KeyID') };
 
 		console.groupEnd();
@@ -772,13 +771,33 @@ CERTApps.TeamIdRosterIndexRoute = Ember.Route.extend(
 		console.group("CERTApps.TeamIdRosterIndexRoute serialize");
 
 		console.log('model', model);
-		debugger;
 		var obj = { teamID: model.get('KeyID') };
 
 		console.groupEnd();
 
 		return obj;
 	}
+});
+
+CERTApps.TeamIdRosterCallsRoute = Ember.Route.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps TeamIdRosterCallsRoute model')
+		var rosterModel = this.modelFor("teamIdRoster");
+		var appModel = this.modelFor("application");
+
+		var membersToCall = rosterModel.Members.filterBy("calledBy", appModel.Member.KeyID);
+		var model = { membersToCall: membersToCall, loggedInMember: appModel.Member };
+
+		console.groupEnd();
+
+		return model;
+	},
 });
 
 
@@ -1692,7 +1711,6 @@ CERTApps.EventRoute = Ember.Route.extend(
 		console.group("CERTApps.EventRoute serialize");
 
 	//	console.log('model', model);
-		debugger;
 		var obj = { eventID: model.get('KeyID') };
 
 		console.groupEnd();
