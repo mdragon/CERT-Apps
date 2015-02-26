@@ -319,19 +319,19 @@ CERTApps.TeamRoute = Ember.Route.extend(
 });
 
 
-CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
-{
+CERTApps.RosterTableComponent = Ember.Component.extend({
 	actions:
 	{
-		changedCalledBy: function(member) {
+		changedCalledBy: function(member, team) {
 			console.group("CERTApps.TeamIdRosterRoute actions.changedCalledBy");
 			console.log("calledBy", member.get("calledBy"));
+			console.log("team, team");
 
 			if( member.get("calledBy") )
 			{
 				console.log("member", member);
 
-				var team = this.modelFor("team");
+				//var team = this.modelFor("team");
 				member.set("calledByStatus", "saving");
 				var p = CERTApps.Member.changeCalledBy(member, team);
 
@@ -365,6 +365,13 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 
 			console.groupEnd();
 		}
+	}
+});
+
+CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
+{
+	actions:
+	{
 	},
 
 	model: function(params)
@@ -439,14 +446,14 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 });
 
 CERTApps.RosterEntryController = Ember.Controller.extend({
-	triggerChangedCalledBy: function(controller) {
+	triggerChangedCalledBy: function triggerChangedCalledBy(controller) {
 		//console.log("test controller", controller);
 
-
 		var member = controller.get("model");
+		var team = controller.get("parentController.team");
 		if( member.get("calledBy") !== null ) {
+			this.send("changedCalledBy", member, team);
 		}
-			this.send("changedCalledBy", member);
 	}.observes("model.calledBy")
 });
 
@@ -1036,12 +1043,6 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 		return retval;
 	}.property("calledBySaving", "calledBySaved", "calledBySaveFailed"),
-
-	// changedCalledBy: function()	{
-	// 	console.log("changedCalledBy", this.get("calledBy"), this);
-
-	// 	//this.sendAction("changedCalledBy", this);
-	// }.observes("calledBy"),
 });
 
 CERTApps.Member.reopenClass({
@@ -1068,7 +1069,7 @@ CERTApps.Member.reopenClass({
 
 	changeCalledBy: function(member, team) {
 		console.group("CERTApps.Member.changeCalledBy");
-		console.log("member", member);
+		console.log("member, team", member, team);
 
 		var calledBy = member.get("calledBy");
 		var options = 

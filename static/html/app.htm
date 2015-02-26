@@ -179,18 +179,11 @@
 	<h3>{{model.Team.Name}} Roster</h3>
 
 	{{#if content.loggedInMember.CanLookup}}
-
-		{{log "roster-table"}}
-		{{log content}}
-		{{log controller}}
-		{{log content.membersActive}}
-		{{log this.membersActive}}
-		{{log controller.membersActive}}
 		<h4>Active Members</h4>
-		{{roster-table memberList=this.membersActive content=content model=model}}
+		{{roster-table memberList=this.membersActive content=content team=model.Team}}
 
 		<h4>Inactive Members</h4>
-		{{roster-table memberList=this.membersInactive inactive=true content=content model=model}}
+		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team}}
 	{{else}}
 		{{roster-table memberList=content.Members content=content model=model}}
 	{{/if}}
@@ -242,7 +235,7 @@
 						<td>{{mem.line1}}{{mem.line2Display}}</td>
 						<td>{{mem.homePhoneFormatted}}</td>
 						<td>
-							{{view "select" content=model.Team.officers 
+							{{view "select" content=team.officers 
 							    optionValuePath="content.keyID"
        							optionLabelPath="content.officerShortName"
        							value=mem.calledBy
