@@ -779,6 +779,24 @@ CERTApps.TeamIdRosterIndexRoute = Ember.Route.extend(
 	}
 });
 
+CERTApps.TeamIdRosterIndexController = Ember.Controller.extend({
+	membersActive: function() {
+		var members = this.get("model.Members");
+
+		var retval = members.filterBy("Active", true);
+
+		return retval;
+	}.property("model.Members.@each"),
+
+	membersInactive: function() {
+		var members = this.get("model.Members");
+
+		var retval = members.filterBy("Active", false);
+
+		return retval;
+	}.property("model.Members.@each")
+});
+
 CERTApps.TeamIdRosterCallsRoute = Ember.Route.extend(
 {
 	actions:
