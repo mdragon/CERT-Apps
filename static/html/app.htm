@@ -123,8 +123,8 @@
 </html>
 
 <script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
-<script type="text/javascript" src="../js/handlebars-v2.0.x.js"></script>
-<script type="text/javascript" src="../js/ember-v1.9.x.js"></script>
+<script type="text/javascript" src="../js/ember-template-compiler-v1.10.x.js"></script>
+<script type="text/javascript" src="../js/ember-v1.10.x.debug.js"></script>
 <script type="text/javascript" src="../js/models/common.js"></script>
 <script type="text/javascript" src="../js/models/comfort-station.js"></script>
 <script type="text/javascript" src="../js/cert-apps.js"></script>
@@ -178,7 +178,7 @@
 <script type="text/x-handlebars" data-template-name="team/id/roster/index">
 	<h3>{{model.Team.Name}} Roster</h3>
 
-	<table class="table table-responsive table-striped table-condensed table-bordered roster",>
+	<table class="table table-responsive table-striped table-condensed table-bordered roster">
 		<thead>
 			<tr>
 				{{#if content.loggedInMember.CanLookup }}
@@ -302,7 +302,7 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/calls">
-	<table class="table table-responsive table-striped table-condensed table-bordered roster",>
+	<table class="table table-responsive table-striped table-condensed table-bordered roster">
 		<thead>
 			<tr>
 				<th>Name</th>
@@ -475,8 +475,8 @@
 		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Maybe"}} Maybe</label><br/>
 
 		<div class="details" style="display: none;">
-			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}
-			<lable>Depart: {{input name="departTime" value=content.departTime size=5}}
+			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}</label>
+			<label>Depart: {{input name="departTime" value=content.departTime size=5}}</label>
 		</div>
 
 		<div class="submit-response" style="display: none;">
@@ -496,7 +496,7 @@
 
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-info"></i> Information</h4>
+				<h5><i class="fa fa-info"></i> Information</h5>
 			</div>
 			<div class="panel-body">
 				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}<br/>
@@ -507,7 +507,7 @@
 
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-globe"></i> Location</h4>
+				<h5><i class="fa fa-globe"></i> Location</h5>
 			</div>
 			<div class="panel-body">
 				<label>
@@ -516,7 +516,7 @@
 				</label>
 
 				<label>
-					<b>Parking:</b> </br>
+					<b>Parking:</b> <br/>
 
 					<div class="parking-location" style="" >
 						{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
@@ -527,7 +527,7 @@
 			
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-calendar"></i> Dates/Times</h4>
+				<h5><i class="fa fa-calendar"></i> Dates/Times</h5>
 			</div>
 			<div class="panel-body">
 				<b>Start:</b>
@@ -543,7 +543,7 @@
 		
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-external-link"></i> Links</h4>
+				<h5><i class="fa fa-external-link"></i> Links</h5>
 			</div>
 			<div class="panel-body">
 				<label class="link1">{{content.Event.link1Label}} Link: {{input name="IAP" placeholder="" value=content.Event.Link1 size=70}}<br/></label>
@@ -654,7 +654,7 @@
 				</td>
 			</tr>
 		{{/each}}
-		<tbody>
+		</tbody>
 	</table>
 </script>
 
@@ -686,7 +686,7 @@
 				</td>
 			</tr>
 		{{/each}}
-		<tbody>
+		</tbody>
 	</table>
 </script>
 
@@ -882,6 +882,7 @@ Landing index
 			</tr>
 		{{/each}}
 	</tbody>
+	</table>
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/comfortStation/update">
