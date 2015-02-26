@@ -179,10 +179,10 @@
 	<h3>{{model.Team.Name}} Roster</h3>
 
 	{{#if content.loggedInMember.CanLookup}}
-		<h4>Active Members</h4>
+		<h4>Active Members({{this.membersActive.length}})</h4>
 		{{roster-table memberList=this.membersActive content=content team=model.Team}}
 
-		<h4>Inactive Members</h4>
+		<h4>Inactive Members({{this.membersInactive.length}})</h4>
 		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team}}
 	{{else}}
 		{{roster-table memberList=content.Members content=content model=model}}
@@ -207,6 +207,8 @@
 					<th>Called By</th>
 					{{#if inactive}}
 						<th>Last Active</th>
+					{{else}}
+						<th></th>
 					{{/if}}
 				{{/if}}
 			</tr>
@@ -246,8 +248,16 @@
 						</td>
 
 						{{#if inactive}}
-							<td>{{mem.lastContact}}</td>
+							<td>
+								{{mem.lastContact}}
+								<!--<i class="fa fa-arrow-up action" title="Reset to Active"></i>-->
+							</td>
+						{{else}}
+							<td>
+								<!--<i class="fa fa-arrow-down action" title="Force Inactive"></i>-->
+							</td>
 						{{/if}}
+
 					{{/if}}
 				</tr>
 				{{/if}}
