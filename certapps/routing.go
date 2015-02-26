@@ -38,7 +38,7 @@ func init() {
 	http.Handle("/team", appstats.NewHandler(teamData))
 	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
 	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
-	http.Handle("/fix/teamMembers/without/Memeber", appstats.NewHandler(fixData))
+	http.Handle("/fix/teamMembers/without/Member", appstats.NewHandler(fixData))
 	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
 	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
 	http.Handle("/setup", appstats.NewHandler(initialSetup))
