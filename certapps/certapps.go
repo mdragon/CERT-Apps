@@ -900,6 +900,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 				}
 
 				saveMember.Enabled = true
+				saveMember.Active = true
 
 				_, mErr := saveMem(&saveMember, curMember, c, u, w, r)
 
