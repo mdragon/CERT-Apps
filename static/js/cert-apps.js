@@ -131,7 +131,7 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 			return obj;
 		}.bind(this));
 
-		t.then(function(obj){ obj.year = 2014; });
+		t.then(function(obj){ obj.year = (new Date().getFullYear()); });
 
 		var t2 = t.then(function(obj)
 		{
