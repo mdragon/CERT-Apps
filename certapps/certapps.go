@@ -588,7 +588,7 @@ func lookupOthers(member *Member) bool {
 
 func getMemberByIntKey2(c appengine.Context, key int64, currentMem *Member) (*Member, error) {
 	allow := lookupOthers(currentMem)
-	c.Debugf("Lookup Member by key: %d, allowed to lookup? %s", key, allow)
+	c.Debugf("Lookup Member by key: %d, allowed to lookup? %t", key, allow)
 
 	var m Member
 	var retval *Member
