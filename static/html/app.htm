@@ -247,17 +247,13 @@
        						<span style="width: 16px; height: 16px; display: inline-block;"><i {{bind-attr class=mem.calledByIcon}}></i></span>
 						</td>
 
-						{{#if inactive}}
-							<td>
+						<td>
+							{{#if inactive}}
 								{{mem.lastContact}}
-								<!--<i class="fa fa-arrow-up action" title="Reset to Active"></i>-->
-							</td>
-						{{else}}
-							<td>
-								<!--<i class="fa fa-arrow-down action" title="Force Inactive"></i>-->
-							</td>
-						{{/if}}
+							{{/if}}
 
+							<i {{bind-attr class="mem.activeIcon :fa :action"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+						</td>
 					{{/if}}
 				</tr>
 				{{/if}}

@@ -109,6 +109,90 @@ func apiMemberCalledBy(c appengine.Context, w http.ResponseWriter, r *http.Reque
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
+func apiMemberToggleActive(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	var context interface{}
+	errMsg := ""
+
+	c.Infof("apiMemberToggleActive")
+
+	u := user.Current(c)
+	currentMem, curMemberErr := getMemberFromUser(c, u)
+
+	if noErrMsg(curMemberErr, w, c, "Getting Member from User") {
+
+		postData := struct {
+			Member int64
+			Team   int64
+			Active bool
+		}{}
+
+		decoder := json.NewDecoder(r.Body)
+		jsonDecodeErr := decoder.Decode(&postData)
+
+		if jsonDecodeErr == io.EOF {
+			c.Infof("EOF, should it be?")
+		} else if noErrMsg(jsonDecodeErr, nil, c, "Parsing json from body") {
+			c.Infof("JSON from request: %+v", postData)
+
+			if lookupOthers(currentMem) {
+				var memberToChange *Member
+
+				memberToChange, memberToChangeErr := getMemberByIntKey2(c, postData.Member, currentMem)
+
+				if noErrMsg(memberToChangeErr, w, c, "Looking up member to toggle Active for") {
+					if memberToChange.Active != postData.Active {
+						memberToChange.Active = postData.Active
+						memberToChange.setAudits(currentMem)
+
+						c.Debugf("Changing Active for Member: %d to %t", memberToChange.Key.IntID(), memberToChange.Active)
+						datastore.Put(c, memberToChange.Key, memberToChange)
+						//if noErrMsg(putErr, w, c, "Putting member") {
+						context = struct {
+							Success bool
+							Active  bool
+						}{
+							true,
+							memberToChange.Active,
+						}
+						// } else {
+						// 	errMsg = "Error saving user"
+						// }
+					}
+				} else {
+					errMsg = "Could not find member"
+				}
+			} else {
+				errMsg = "Could not lookup other members"
+			}
+
+		} else {
+			context = struct {
+				Error            bool
+				Message          string
+				PermissionsError bool
+			}{
+				true,
+				"User does not have rights to lookup other members",
+				true,
+			}
+		}
+	} // else jsonDecodeErr
+
+	if context == nil {
+		if errMsg != "" {
+			context = struct {
+				Error   bool
+				Message string
+			}{
+				true,
+				errMsg,
+			}
+		}
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
+
 func getTeamMemberByTeamAndMember(c appengine.Context, teamKey *datastore.Key, memberKey *datastore.Key, currentMem *Member) (*TeamMember, error) {
 	var teamMember *TeamMember
 	var err error

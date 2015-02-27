@@ -364,6 +364,20 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 			}
 
 			console.groupEnd();
+		},
+
+		toggleActive: function(mem, team) {
+			console.group("CERTApps.TeamIdRosterIndexControlle actions.toggleActive");
+			console.log("mem, team", mem, team);
+
+			var p = mem.toggleActive(team);
+
+			p.then(function toggleActiveSuccess(data)
+			{
+				console.log("then toggleActiveSuccess", data);
+			});
+
+			console.groupEnd();
 		}
 	}
 });
@@ -787,7 +801,7 @@ CERTApps.TeamIdRosterIndexRoute = Ember.Route.extend(
 });
 
 CERTApps.TeamIdRosterIndexController = Ember.Controller.extend({
-	membersActive: function() {
+	membersActive2: function() {
 		var members = this.get("model.Members");
 
 		var retval = members.filterBy("Active", true);
@@ -795,7 +809,10 @@ CERTApps.TeamIdRosterIndexController = Ember.Controller.extend({
 		return retval;
 	}.property("model.Members.@each"),
 
-	membersInactive: function() {
+	membersActive: Ember.computed.filterBy("model.Members", "active", true),
+	membersInactive: Ember.computed.filterBy("model.Members", "active", false),
+
+	membersInactive2: function() {
 		var members = this.get("model.Members");
 
 		var retval = members.filterBy("Active", false);
@@ -1043,6 +1060,80 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 		return retval;
 	}.property("calledBySaving", "calledBySaved", "calledBySaveFailed"),
+
+	active: Ember.computed.alias("Active"),
+
+	activeStatus: null,
+	activeSaving: Ember.computed.equal("activeStatus", "saving"),
+	activeSaved: Ember.computed.equal("activeStatus", "saved"),
+	activeSaveFailed: Ember.computed.equal("activeStatus", "failed"),
+
+	activeIcon: function() {
+		var retval ='';
+
+		if( this.get("activeSaving") ) {
+			retval = "fa-spinner fa-spin";
+		}
+
+		if( this.get("activeSaveFailed") ) {
+			retval = "fa-close";
+		}
+
+		if( retval == "" ) {
+			if( this.get("active") ) {
+				retval = "fa-arrow-down";
+			} else {
+				retval = "fa-arrow-up"
+			}
+		}
+			
+		return retval;
+	}.property("activeSaving", "activeSaved", "activeSaveFailed", "active"),
+
+	activeTitle: function() {
+		var retval ='';
+
+		if( this.get("active") ) {
+			retval = "Force Inactive";
+		} else {
+			retval = "Reset to Active";
+		}
+
+		return retval
+	}.property("active"),
+
+	toggleActive: function(team) {
+
+		this.toggleActiveStatus = "saving";
+
+		var settings = {
+			url: '/api/member/toggle-active',
+			data: {member: this.get("keyID"), team: team.get("keyID"), active: !this.get("active")}
+		};
+		var p = CERTApps.ajax(settings);
+
+		var t = p.then( 
+			function memberToggleActiveSuccess(data){
+				data = CERTApps.moveUpData(data);
+
+				if( data.error ) {
+					this.toggleActiveStatus = "failed";
+				} else {
+					this.set("active", data.Active);
+					console.log("toggled active for member", this.get("active"), this);
+				}
+
+				this.toggleActiveStatus = "done";
+
+				return data;
+			}.bind(this),
+			function memberToggleActiveError() {
+				this.toggleActiveStatus = "failed";
+			}.bind(this)
+		);
+
+		return t;
+	}
 });
 
 CERTApps.Member.reopenClass({
