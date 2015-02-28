@@ -184,6 +184,10 @@
 
 		<h4>Inactive Members({{this.membersInactive.length}})</h4>
 		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team}}
+
+		<h4>Disabled Member Accounts({{this.membersDisabled.length}})</h4>
+		{{roster-table memberList=this.membersDisabled inactive=true content=content team=model.Team}}
+
 	{{else}}
 		{{roster-table memberList=content.Members content=content model=model}}
 	{{/if}}
@@ -252,7 +256,8 @@
 								{{mem.lastContact}}
 							{{/if}}
 
-							<i {{bind-attr class="mem.activeIcon :fa :action"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+							<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem team}} {{bind-attr title="mem.enabledTitle"}}></i>
 						</td>
 					{{/if}}
 				</tr>

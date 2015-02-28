@@ -19,6 +19,7 @@ func init() {
 	http.Handle("/api/comfort-stations/", appstats.NewHandler(apiComfortStationsAll))
 
 	http.Handle("/api/member/toggle-active", appstats.NewHandler(apiMemberToggleActive))
+	http.Handle("/api/member/toggle-enabled", appstats.NewHandler(apiMemberToggleEnabled))
 	http.Handle("/api/member/search", appstats.NewHandler(apiMemberSearch))
 	http.Handle("/api/member/calledBy", appstats.NewHandler(apiMemberCalledBy))
 

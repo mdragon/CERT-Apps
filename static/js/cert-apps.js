@@ -378,6 +378,20 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 			});
 
 			console.groupEnd();
+		},
+
+		toggleEnabled: function(mem, team) {
+			console.group("CERTApps.TeamIdRosterIndexControlle actions.toggleEnabled");
+			console.log("mem, team", mem, team);
+
+			var p = mem.toggleEnabled(team);
+
+			p.then(function toggleEnabledSuccess(data)
+			{
+				console.log("then toggleEnabledSuccess", data);
+			});
+
+			console.groupEnd();
 		}
 	}
 });
@@ -809,8 +823,11 @@ CERTApps.TeamIdRosterIndexController = Ember.Controller.extend({
 		return retval;
 	}.property("model.Members.@each"),
 
-	membersActive: Ember.computed.filterBy("model.Members", "active", true),
-	membersInactive: Ember.computed.filterBy("model.Members", "active", false),
+	membersEnabled: Ember.computed.filterBy("model.Members", "enabled", true),
+	membersDisabled: Ember.computed.filterBy("model.Members", "enabled", false),
+
+	membersActive: Ember.computed.filterBy("membersEnabled", "active", true),
+	membersInactive: Ember.computed.filterBy("membersEnabled", "active", false),
 
 	membersInactive2: function() {
 		var members = this.get("model.Members");
@@ -1076,14 +1093,14 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		}
 
 		if( this.get("activeSaveFailed") ) {
-			retval = "fa-close";
+			retval = "fa-close text-danger";
 		}
 
 		if( retval == "" ) {
 			if( this.get("active") ) {
-				retval = "fa-arrow-down";
+				retval = "fa-arrow-down action";
 			} else {
-				retval = "fa-arrow-up"
+				retval = "fa-arrow-up action"
 			}
 		}
 			
@@ -1104,7 +1121,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 	toggleActive: function(team) {
 
-		this.toggleActiveStatus = "saving";
+		this.set("activeStatus", "saving");
 
 		var settings = {
 			url: '/api/member/toggle-active',
@@ -1117,23 +1134,98 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 				data = CERTApps.moveUpData(data);
 
 				if( data.error ) {
-					this.toggleActiveStatus = "failed";
+					this.set("activeStatus", "failed");
 				} else {
 					this.set("active", data.Active);
 					console.log("toggled active for member", this.get("active"), this);
 				}
 
-				this.toggleActiveStatus = "done";
+				this.set("activeStatus", "done");
 
 				return data;
 			}.bind(this),
 			function memberToggleActiveError() {
-				this.toggleActiveStatus = "failed";
+				this.set("activeStatus",  "failed");
+			}.bind(this)
+		);
+
+		return t;
+	},
+
+	enabled: Ember.computed.alias("Enabled"),
+
+	enabledStatus: null,
+	enabledSaving: Ember.computed.equal("enabledStatus", "saving"),
+	enabledSaved: Ember.computed.equal("enabledStatus", "saved"),
+	enabledSaveFailed: Ember.computed.equal("enabledStatus", "failed"),
+
+	enabledIcon: function() {
+		var retval ='';
+
+		if( this.get("enabledSaving") ) {
+			retval = "fa-spinner fa-spin";
+		}
+
+		if( this.get("enabledSaveFailed") ) {
+			retval = "fa-close text-danger";
+		}
+
+		if( retval == "" ) {
+			if( this.get("enabled") ) {
+				retval = "fa-ban action text-danger";
+			} else {
+				retval = "fa-check action text-success"
+			}
+		}
+			
+		return retval;
+	}.property("enabledSaving", "enabledSaved", "enabledSaveFailed", "active"),
+
+	enabledTitle: function() {
+		var retval ='';
+
+		if( this.get("enabled") ) {
+			retval = "Disable Member";
+		} else {
+			retval = "Enable Member";
+		}
+
+		return retval
+	}.property("enabled"),
+
+	toggleEnabled: function(team) {
+
+		this.set("enabledStatus", "saving");
+
+		var settings = {
+			url: '/api/member/toggle-enabled',
+			data: {member: this.get("keyID"), team: team.get("keyID"), enabled: !this.get("enabled")}
+		};
+		var p = CERTApps.ajax(settings);
+
+		var t = p.then( 
+			function memberToggleEnabledSuccess(data){
+				data = CERTApps.moveUpData(data);
+
+				if( data.error ) {
+					this.set("enabledStatus", "failed");
+				} else {
+					this.set("enabled", data.Enabled);
+					console.log("toggled enabled for member", this.get("enabled"), this);
+				}
+
+				this.set("enabledStatus", "done");
+
+				return data;
+			}.bind(this),
+			function memberToggleActiveError() {
+				this.set("enabledStatus",  "failed");
 			}.bind(this)
 		);
 
 		return t;
 	}
+
 });
 
 CERTApps.Member.reopenClass({
@@ -1883,25 +1975,31 @@ CERTApps.TeamIdRosterMapView = Ember.View.extend(
         var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
         var map = new google.maps.Map(mapCanvas, mapOptions);
 
-        this.controller.model.Members.forEach( function(item)
+        this.get("controller.model.Members").forEach( function(item)
         {
         	if( item.publicLatitude != 0 )
         	{
 	        	var pos = {lat: item.publicLatitude, lng: item.publicLongitude};
+				var title = item.KeyID.toString();
 
 	        	if( item.latitude != 0 )
 	        	{
 		        	pos = {lat: item.latitude, lng: item.longitude};
+		        	title = item.get("officerShortName");
 	        	}
 
 	        	console.log('putting item on map', pos, item);
 
-				var beachMarker = new google.maps.Marker({
+	        	var icon = 'http://www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png'
+
+	        	if( !item.get("active") ) icon = 'http://www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png'
+
+				var marker = new google.maps.Marker({
 					position: pos,
 					map: map,
 					animation: google.maps.Animation.DROP,
-					title: item.KeyID.toString(),
-					icon: 'http://www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png'
+					icon: icon,
+					title: title
 				});
 			}
         });
