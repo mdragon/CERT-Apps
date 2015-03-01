@@ -117,13 +117,11 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 		var settings = 
 		{
 			url: '/member',
-			type: 'json',
-			dataType: 'json'
 		};
 
 		console.log('requesting data', settings)
 
-		var a = $.ajax(settings);
+		var a = CERTApps.ajax(settings);
 		var t = a.then(function(obj)
 		{ 
 			var obj = this.moveUpData(obj); 
@@ -4129,6 +4127,7 @@ CERTApps.ajax = function(options) {
 		options.dataType = options.dataType || "json";
 		options.type = options.type || "post";
 		options.cache = options.cache || false;
+		options.contentType = options.contentType || "application/json; charset=utf-8";	
 
 		if( options.data ) {
 			if( options.type.toLowerCase() == "post" ) {

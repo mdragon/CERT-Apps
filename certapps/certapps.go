@@ -154,36 +154,40 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	url, err := url.QueryUnescape(rawurl)
 
 	if u != nil {
-		mem, _ := getMemberFromUser(c, u)
+		mem, memErr := getMemberFromUser(c, u)
 
-		c.Debugf("Got member: %d", mem.Key.IntID())
+		if noErrMsg(memErr, w, c, "Getting Member from User") {
+			c.Debugf("Got member: %d", mem.Key.IntID())
 
-		audit := &MemberLogin{
-			MemberKey: mem.Key,
-			Login:     time.Now(),
-			IP:        r.RemoteAddr,
-		}
+			audit := &MemberLogin{
+				MemberKey: mem.Key,
+				Login:     time.Now(),
+				IP:        r.RemoteAddr,
+			}
 
-		aKey := datastore.NewKey(c, "Audit", "", 0, nil)
+			aKey := datastore.NewKey(c, "Audit", "", 0, nil)
 
-		c.Infof("Putting MemberLogin: %v", aKey)
-		_, aErr := datastore.Put(c, aKey, audit)
+			c.Infof("Putting MemberLogin: %v", aKey)
+			_, aErr := datastore.Put(c, aKey, audit)
 
-		if noErrMsg(aErr, w, c, "Trying to put MemberLogin") {
-			//l.CreatedBy = outMKey
-			//l.ModifiedBy = outMKey
+			if noErrMsg(aErr, w, c, "Trying to put MemberLogin") {
+				//l.CreatedBy = outMKey
+				//l.ModifiedBy = outMKey
 
-			// c.Infof("Putting Location: %v", lKey)
-			// outLKey, lErr := datastore.Put(c, lKey, l)
+				// c.Infof("Putting Location: %v", lKey)
+				// outLKey, lErr := datastore.Put(c, lKey, l)
 
-			// if noErrMsg(lErr, w, c, "Trying to put Location") {
-			c.Infof("no error on MemberLogin")
+				// if noErrMsg(lErr, w, c, "Trying to put Location") {
+				c.Infof("no error on MemberLogin")
 
-			mem.LastLogin = audit.Login
+				mem.LastLogin = audit.Login
 
-			_, mErr := datastore.Put(c, mem.Key, mem)
+				_, mErr := datastore.Put(c, mem.Key, mem)
 
-			checkErr(mErr, w, c, fmt.Sprintf("Failed to update Last Login for member: %d", mem.Key.IntID()))
+				checkErr(mErr, w, c, fmt.Sprintf("Failed to update Last Login for member: %d", mem.Key.IntID()))
+			}
+		} else {
+			c.Errorf("Could not load member from user %+v", u)
 		}
 	}
 
@@ -355,7 +359,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 
-	var context MainAppContext
+	context := MainAppContext{}
 
 	returnUrl := r.Referer()
 	if returnUrl == "" {
@@ -425,6 +429,11 @@ func getMemberFromUser(c appengine.Context, u *user.User) (*Member, error) {
 	var mem *Member
 
 	found := false
+
+	if err != nil && strings.Index(err.Error(), "cannot load field") > -1 {
+		c.Debugf("overrode error because it was just a field error: %s", err.Error())
+		err = nil
+	}
 
 	if noErrMsg(err, nil, c, "members for id") {
 		c.Infof("checking len(members)")
@@ -614,6 +623,11 @@ func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {
 		teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
 		c.Debugf("Calling Get Team with Key: %+v", teamKey)
 		getTeamErr := datastore.Get(c, teamKey, &team)
+
+		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
+			getTeamErr = nil
+		}
+
 		if noErrMsg(getTeamErr, nil, c, "Error Get Team with Key") {
 			team.setKey(teamKey)
 		} else {
@@ -629,7 +643,11 @@ func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {
 
 		keys, getTeamErr := teamQ.GetAll(c, &teams)
 
-		if noErrMsg(getTeamErr, nil, c, "Failed while calling GetAll") {
+		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
+			getTeamErr = nil
+		}
+
+		if noErrMsg(getTeamErr, nil, c, "Calling GetAll for Team") {
 			lenTeams := len(teams)
 			if lenTeams == 1 {
 				team = teams[0]
@@ -687,7 +705,15 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 	c.Debugf("memberErr: %+v", memberErr)
 	if memberErr != nil {
 		if memberErr.Error() != "datastore: no such entity" {
-			checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+
+			if _, ok := memberErr.(*datastore.ErrFieldMismatch); ok {
+				memberErr = nil
+			}
+
+			if strings.Index(memberErr.Error(), "cannot load field \"HomeAddress\"") == -1 {
+
+				checkErr(memberErr, w, c, "Calling GetMulti with Keys")
+			}
 		}
 	}
 

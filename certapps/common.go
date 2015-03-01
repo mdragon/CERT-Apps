@@ -101,8 +101,6 @@ type Member struct {
 
 	RadioID string
 
-	HomeAddress *datastore.Key
-
 	Town    bool
 	OEM     bool
 	Officer bool
