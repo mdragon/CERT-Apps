@@ -62,7 +62,8 @@ type Team struct {
 	MembersEmail  string
 	OfficersEmail string
 
-	GoogleAPIKey string
+	GoogleAPIKey     string
+	ForecastIOAPIKey string
 
 	Audit
 }

@@ -54,6 +54,8 @@ CERTApps.Router.map(function()
 				});
 
 				this.route('events');
+				this.route("edit");
+
 			});
 		});
 	this.resource('eventDetails', { path: 'event' }, function()
@@ -265,7 +267,7 @@ CERTApps.TeamRoute = Ember.Route.extend(
 		var appTeam = appModel.get("Team");
 		if( appTeam  ) {
 			model = appTeam;
-			console.log("reusing appModel.Team", appTeam.toString());
+			console.log("reusing appModel.Team", appTeam.toString(), model);
 		}
 
 		if( ! model )
@@ -2144,13 +2146,14 @@ CERTApps.TeamIndexRoute = CERTApps.BaseRoute.extend(
 
 CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 {
-/*	model: function(params)
+
+	model: function(params)
 	{
 		console.group("CERTApps.TeamIDRoute model");
 
 		console.log('params', params);
-
-		var model = this.modelFor('team');
+ 
+		var model = {team: this.modelFor('team')};
 		
 		console.log('model', model);
 
@@ -2158,7 +2161,7 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 
 		return model;
 	},
-
+/*
 	afterModel: function(team, transition) 
 	{
 		console.group("CERTApps.TeamIDRoute afterModel");
@@ -2188,10 +2191,48 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 CERTApps.Team = CERTApps.BaseObject.extend({
 	officers: null,
 
+	uiStatuses: null,
+
 	init: function() {
 		console.log("CERTApps.Team init");
 		this.set("officers", Ember.A([]));
-	}	
+		this.set("uiStatuses", {saving: ""});
+	},
+
+	name: Ember.computed.alias("Name"),
+	city: Ember.computed.alias("City"),
+	state: Ember.computed.alias("State"),
+	zip: Ember.computed.alias("Zip"),
+	googleAPIKey: Ember.computed.alias("GoogleAPIKey"),
+	forecastIOAPIKey: Ember.computed.alias("ForecastIOAPIKey"),
+	membersEmail: Ember.computed.alias("MembersEmail"),
+	officersEmail: Ember.computed.alias("OfficersEmail"),
+
+	save: function() {
+		this.set("uiStatuses.saving", "saving")
+
+		var options = {
+			url: "/api/team/save",
+			data: {team: this}
+		};
+
+		var p = CERTApps.ajax(options);
+
+		var t = p.then(
+			function teamSaveSuccess(data) {
+				console.log("teamSaveSuccess", data);
+				this.set("uiStatuses.saving", "success");
+
+			}.bind(this),
+			function teamSaveFailure(arguments) {
+				console.log("teamSaveFailure", arguments);
+				this.set("uiStatuses.saving", "failed");
+			}.bind(this)
+		);
+
+		return t;
+	}
+
 });
 
 CERTApps.Team.reopenClass(
@@ -4832,5 +4873,18 @@ CERTModels.ComfortStation.reopenClass(
 		var t = CERTApps.ajax(options);
 
 		return t;
+	}
+});
+
+CERTApps.TeamEditComponent = Ember.Component.extend({
+	actions: {
+		saveTeam: function(team) {
+			console.group('CERTApps.TeamEditComponent actions.saveTeam');
+			console.log('team', team);
+
+			team.save()
+
+			console.groupEnd();
+		}
 	}
 });

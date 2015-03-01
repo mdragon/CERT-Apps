@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
 	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
-	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
 
 	<style type="text/css">
@@ -143,7 +143,11 @@
 				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'team.id.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
-			Team {{#link-to 'team.id.roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'team.id.roster.map' content.Team}}Map{{/link-to}} |
+			Team 
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.edit' content.Team}}Edit{{/link-to}} - 
+			{{/if}}
+			{{#link-to 'team.id.roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'team.id.roster.map' content.Team}}Map{{/link-to}} |
 
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
 			{{#if content.Member.CanLookup }}
@@ -168,8 +172,17 @@
 	Test
 	{{outlet}}
 </script>
+
+<script type="text/x-handlebars" data-template-name="team">
+	{{log "team"}}
+	{{log content}}
+	{{outlet}}
+</script>
+
 	
 <script type="text/x-handlebars" data-template-name="team/id">
+	{{log "team/id"}}
+	{{log content}}
 	<div style="width: 80%; margin: 0 auto;">
 		{{outlet}}
 	</div>
@@ -969,5 +982,52 @@ Landing index
 		</div>
 
 		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/edit">
+	<h3>{{model.Team.Name}}</h3>
+	{{log "team/id/edit"}}
+	{{log content}}
+	{{log model}}
+
+	{{team-edit team=model.team}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="components/team-edit">
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-users"></i> Details</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Name" placeholder="Team Name" value=team.name}}<br/>
+				{{input name="Town" placeholder="City/Town" value=team.city}}, {{input name="State" placeholder="State" value=team.state size="5"}} {{input type="tel" name="Zip" placeholder="Zip" value=team.zip size="5"}} 
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-envelope"></i> Email</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="MemberList" placeholder="Member Email List" value=team.membersList size='30'}} <br/>
+				{{input name="OfficerList" placeholder="Officer Email List" value=team.officersList size='30'}} <br/>
+			</div>
+		</div>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-server"></i> Web API Keys</h4>
+			</div>
+			<div class="panel-body">
+				<label>{{input name="GoogleAPI" placeholder="Google API Key" value=team.googleAPIKey size='50'}} Google API Key </label><br/>
+				<label>{{input name="ForecastIO" placeholder="ForecastIO API Key" value=team.forecastIOAPIKey size='50'}} Forecast IO API Key</label>
+			</div>
+		</div>
+
+		{{#unless team.hideSave }}
+			<button {{action 'saveTeam' team}}><i class="fa fa-save"></i> Save</button>
+		{{/unless}}
 	</form>
 </script>

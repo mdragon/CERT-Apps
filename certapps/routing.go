@@ -44,6 +44,8 @@ func init() {
 	http.Handle("/api/member/search", newHandler(apiMemberSearch))
 	http.Handle("/api/member/calledBy", newHandler(apiMemberCalledBy))
 
+	http.Handle("/api/team/save", newHandler(apiTeamSave))
+
 	http.Handle("/audit", newHandler(audit))
 	http.Handle("/certification", newHandler(certificationGet))
 	http.Handle("/certifications/all", newHandler(certificationsGetAll))
