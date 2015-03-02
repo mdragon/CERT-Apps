@@ -606,7 +606,16 @@ func getMemberByIntKey2(c appengine.Context, key int64, currentMem *Member) (*Me
 
 	if allow {
 		k := datastore.NewKey(c, "Member", "", key, nil)
-		if err = datastore.Get(c, k, &m); err != nil {
+
+		err = datastore.Get(c, k, &m)
+
+		index := strings.Index(err.Error(), "cannot load field \"HomeAddress\"")
+		c.Debugf("Index: %d, Err: %+v", index, err)
+		if err != nil && index > -1 {
+			err = nil
+		}
+
+		if err != nil {
 			c.Errorf("datastore.Get member error: %v", err)
 
 		} else {
