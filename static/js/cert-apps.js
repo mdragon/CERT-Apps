@@ -1979,28 +1979,32 @@ CERTApps.TeamIdRosterMapView = Ember.View.extend(
         {
         	if( item.publicLatitude != 0 )
         	{
-	        	var pos = {lat: item.publicLatitude, lng: item.publicLongitude};
-				var title = item.KeyID.toString();
+        		if( item.Enabled )
+        		{
+		        	var pos = {lat: item.publicLatitude, lng: item.publicLongitude};
+					var title = item.KeyID.toString();
 
-	        	if( item.latitude != 0 )
-	        	{
-		        	pos = {lat: item.latitude, lng: item.longitude};
-		        	title = item.get("officerShortName");
-	        	}
+		        	if( item.latitude != 0 )
+		        	{
+			        	pos = {lat: item.latitude, lng: item.longitude};
+			        	title = item.get("officerShortName");
+		        	}
 
-	        	console.log('putting item on map', pos, item);
+		        	console.log('putting item on map', pos, item);
 
-	        	var icon = 'http://www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png'
+		        	var icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png";
 
-	        	if( !item.get("active") ) icon = 'http://www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png'
+		        	if( !item.get("active") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png";
+	        		if( item.get("Officer") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/grn-pushpin.png";
 
-				var marker = new google.maps.Marker({
-					position: pos,
-					map: map,
-					animation: google.maps.Animation.DROP,
-					icon: icon,
-					title: title
-				});
+					var marker = new google.maps.Marker({
+						position: pos,
+						map: map,
+						animation: google.maps.Animation.DROP,
+						icon: icon,
+						title: title
+					});
+				}
 			}
         });
 
