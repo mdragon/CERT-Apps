@@ -435,6 +435,10 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 			var parsed = Ember.A([]);
 			if( obj.Members )
 			{
+				if( team ) {
+					team.get("officers").clear();
+				}
+
 				for( var x = obj.Members.length - 1; x >= 0; x-- )
 				{
 					var o = obj.Members[x];
@@ -443,6 +447,10 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 					m.loggedInMember = appModel.Member;
 
 					parsed.unshiftObject(m);
+				}
+
+				if( team ) {
+					team.get("officers").sort(CERTApps.Team.sortOfficerDropDown);
 				}
 			}
 			obj.loggedInMember = appModel.Member;
@@ -1243,6 +1251,7 @@ CERTApps.Member.reopenClass({
 
 				team.get("officers").pushObject(m)
 			}
+
 		}
 
 		console.groupEnd();
@@ -2270,6 +2279,10 @@ CERTApps.Team.reopenClass(
 		});
 
 		return t;
+	},
+
+	sortOfficerDropDown: function(a, b) {
+		return a.get("officerShortName") > b.get("officerShortName");
 	}
 });
 
