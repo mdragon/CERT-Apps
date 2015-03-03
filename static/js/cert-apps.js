@@ -1014,6 +1014,17 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		return out;
 	}.property("Cell"),
 
+	cellTelLink: function(key, value, priorValue)
+	{
+
+		var phone = this.get("Cell") ;
+		var out = "";
+
+		if( phone )	out = "tel:" + phone;
+
+		return out;
+	}.property("Cell"),
+
 	homePhoneFormatted: function(key, value, priorValue)
 	{
 		var phone = this.get("HomePhone");
@@ -1044,6 +1055,16 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		return out;
 	}.property("HomePhone"),
 
+	homePhoneTelLink: function(key, value, priorValue)
+	{
+		var phone = this.get("HomePhone") ;
+		var out = "";
+
+		if( phone )	out = "tel:" + phone;
+
+		return out;
+	}.property("HomePhone"),
+
 	getCleanPhone: function(value)
 	{
 		var cleanPhone = null;
@@ -1052,6 +1073,16 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 
 		return cleanPhone;
 	},
+
+	emailLink: function(key, value, priorValue)
+	{
+		var email = this.get("Email");
+		var out = "";
+
+		if( email )	out = "mailto:" + email;
+
+		return out;
+	}.property("Email"),
 
 	keyID: Ember.computed.alias("KeyID"),
 	firstName: Ember.computed.alias("FirstName"),

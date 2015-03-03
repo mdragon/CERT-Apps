@@ -242,17 +242,19 @@
 					<td>{{mem.FirstName}} {{mem.LastName}}</td>
 					<td>
 						{{#if mem.cellDisplay}}
-							{{mem.cellFormatted}}
+							<a {{bind-attr href=mem.cellTelLink}}>{{mem.cellFormatted}}</a>
 						{{/if}}
 					</td>
 					<td>
 						{{#if mem.emailDisplay}}
-							{{mem.Email}}
+							<a {{bind-attr href=mem.emailLink}}>{{mem.Email}}</a>
 						{{/if}}
 					</td>
 					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.line1}}{{mem.line2Display}}</td>
-						<td>{{mem.homePhoneFormatted}}</td>
+						<td>
+							<a {{bind-attr href=mem.homePhoneTelLink}}>{{mem.homePhoneFormatted}}</a>
+						</td>
 						<td>
 							{{view "select" content=team.officers 
 							    optionValuePath="content.keyID"
@@ -357,28 +359,30 @@
 			</tr>
 		</thead>
 		<tbody>
-			{{#each member in content.membersToCall itemController="rosterEntry"}}
-				{{#with member.model as mem}}
-				{{#if mem }}
-				<tr class="">					
-					<td>{{mem.FirstName}} {{mem.LastName}}</td>
-					<td>
-						{{#if mem.cellDisplay}}
-							{{mem.cellFormatted}}
+			{{#if content.loggedInMember.CanLookup}}
+				{{#each member in content.membersToCall itemController="rosterEntry"}}
+					{{#with member.model as mem}}
+						{{#if mem }}
+						<tr class="">					
+							<td>{{mem.FirstName}} {{mem.LastName}}</td>
+								<td>
+									<a {{bind-attr href=mem.cellTelLink}}>{{mem.cellFormatted}}</a>
+								</td>
+								<td>
+									<a {{bind-attr href=mem.homePhoneTelLink}}>{{mem.homePhoneFormatted}}</a>
+								</td>
+							<td>
+								{{#if mem.emailDisplay}}
+									<a {{bind-attr href=mem.emailLink}}>{{mem.Email}}</a>
+								{{/if}}
+							</td>
+						</tr>
 						{{/if}}
-					</td>
-					{{#if content.loggedInMember.CanLookup}}
-						<td>{{mem.homePhoneFormatted}}</td>
-					{{/if}}
-					<td>
-						{{#if mem.emailDisplay}}
-							{{mem.Email}}
-						{{/if}}
-					</td>
-				</tr>
-				{{/if}}
-				{{/with}}
-			{{/each}}
+					{{/with}}
+				{{/each}}
+			{{else}}
+			<tr><td colspan="3">Must be setup as an Officer to use this page</td></tr>
+			{{/if}}
 		</tbody>
 	</table>
 </script>
