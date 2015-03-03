@@ -736,13 +736,13 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 		if !lookup {
 			c.Infof("Doesn't have lookup rights, potentially resetting hidden email/cell")
 			if !m.ShowCell {
-				c.Debugf("Resetting Cell")
+				//c.Debugf("Resetting Cell")
 				m.Cell = "555-555-5555"
 
-				c.Debugf("Cell Reset: %+v", m)
+				//c.Debugf("Cell Reset: %+v", m)
 			}
 			if !m.ShowEmail {
-				c.Debugf("Resetting Email")
+				//c.Debugf("Resetting Email")
 				m.Email = "good-try@example.com"
 			}
 			m.Email2 = "good-try@example.com"
@@ -755,10 +755,10 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 			m.Latitude = 0.0
 			m.Longitude = 0.0
 		} else {
-			c.Debugf("Has lookup rights, not resetting hidden email/cell")
+			//c.Debugf("Has lookup rights, not resetting hidden email/cell")
 
 			val := memberCallerByIntID[m.KeyID]
-			c.Debugf("setting CalledBy to: %d, for Member: %d", val, m.KeyID)
+			//c.Debugf("setting CalledBy to: %d, for Member: %d", val, m.KeyID)
 			m.CalledBy = val
 		}
 	}
