@@ -281,7 +281,9 @@
 
 
 						{{#if content.loggedInMember.CanLookup}}
-							<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+							{{#if mem.enabled }}
+								<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+							{{/if}}
 							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem team}} {{bind-attr title="mem.enabledTitle"}}></i>
 						{{/if}}
 						</td>
