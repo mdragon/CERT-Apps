@@ -906,6 +906,7 @@ Landing index
 
 		{{#unless member.hideSave }}
 			<button {{action 'saveContact' member team}}><i class="fa fa-save"></i> Save</button>
+			<i {{bind-attr class=":fa member.savingIcon"}}></i>
 		{{/unless}}
 	</form>
 </script>

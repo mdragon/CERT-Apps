@@ -899,6 +899,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		this.cleanData();
 
 		console.log('saving this, team', this, team);
+		this.set("statuses.save", "saving");
 
 		var settings = 
 		{
@@ -910,13 +911,21 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		console.log('save member request', settings)
 
 		var a = CERTApps.ajax(settings);
-		a.then(function(obj){ 
-			obj = this.moveUpData(obj);
+		var t = a.then(
+			function(obj){ 
+				obj = this.moveUpData(obj);
 
-			this.sync(obj.Member) 
-		}.bind(this));
+				this.sync(obj.Member);
+				this.set("statuses.save", "success");
+			}.bind(this),
+			function() {
+				this.set("statuses.save", "failed");
+			}
+		);
 
 		console.groupEnd();
+
+		return t;
 	},
 
 	cleanData: function()
@@ -1271,7 +1280,30 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 		);
 
 		return t;
-	}
+	},
+
+	statuses: {},
+	saving: Ember.computed.equal("statuses.save", "saving"),
+	saveSuccess: Ember.computed.equal("statuses.save", "success"),
+	saveFailed: Ember.computed.equal("statuses.save", "failed"),
+
+	savingIcon: function() {
+		var retval ='';
+
+		if( this.get("saving") ) {
+			retval = "fa-spinner fa-spin";
+		}
+
+		if( this.get("saveSuccess") ) {
+			retval = "fa-check-circle text-success";
+		}
+
+		if( this.get("saveFailed") ) {
+			retval = "fa-close text-danger";
+		}	
+
+		return retval;
+	}.property("saving", "saveSuccess", "saveFailed"),
 
 });
 
@@ -4677,7 +4709,15 @@ CERTApps.MemberEditComponent = Ember.Component.extend({
 			console.group('CERTApps.MemberRoute actions.saveContact');
 			console.log('member, args', member, arguments);
 
-			member.save(team);
+			var p = member.save(team);
+
+			p.then( function(data) {
+				console.log("will clear save icon in 5 seconds");
+				window.setTimeout( function() { 
+					member.set("statuses.save", "done"); 
+				}, 
+				5000);
+			});
 
 			console.groupEnd();
 		}
