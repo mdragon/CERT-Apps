@@ -195,13 +195,13 @@
 		<button {{action "addMember" model.Team}}><i class="fa fa-user-plus"></i> Add Member</button><br/>
 
 		<h4>Active Members({{this.membersActive.length}})</h4>
-		{{roster-table memberList=this.membersActive content=content team=model.Team}}
+		{{roster-table memberList=this.membersActive content=content team=model.Team onMemberEdit="memberEdit"}}
 
 		<h4>Inactive Members({{this.membersInactive.length}})</h4>
-		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team}}
+		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team onMemberEdit="memberEdit"}}
 
 		<h4>Disabled Member Accounts({{this.membersDisabled.length}})</h4>
-		{{roster-table memberList=this.membersDisabled inactive=true content=content team=model.Team}}
+		{{roster-table memberList=this.membersDisabled inactive=true content=content team=model.Team onMemberEdit="memberEdit"}}
 
 	{{else}}
 		{{roster-table memberList=content.Members content=content model=model}}
@@ -241,7 +241,13 @@
 						<td>{{mem.RadioID}}</td>
 					{{/if}}
 					
-					<td>{{mem.FirstName}} {{mem.LastName}}</td>
+					<td>
+						{{#if content.loggedInMember.CanLookup}}
+							<i class="fa fa-pencil action" title="Edit Member" {{action "memberEdit" mem team}}></i>
+						{{/if}}
+						{{mem.FirstName}} {{mem.LastName}}
+						
+					</td>
 					<td>
 						{{#if mem.cellDisplay}}
 							<a {{bind-attr href=mem.cellTelLink}}>{{mem.cellFormatted}}</a>
@@ -273,8 +279,11 @@
 								{{mem.lastContact}}
 							{{/if}}
 
+
+						{{#if content.loggedInMember.CanLookup}}
 							<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
 							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem team}} {{bind-attr title="mem.enabledTitle"}}></i>
+						{{/if}}
 						</td>
 					{{/if}}
 				</tr>

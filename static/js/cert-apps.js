@@ -27,6 +27,7 @@ CERTApps.Router.map(function()
 	this.route('landing', { path: 'landing' });
 	this.resource('member', function()
 		{	
+			this.route("edit", { path: "/:memberID" });
 			this.route('update');
 			this.route('create');
 		});
@@ -311,12 +312,11 @@ CERTApps.TeamRoute = Ember.Route.extend(
 
 });
 
-
 CERTApps.RosterTableComponent = Ember.Component.extend({
 	actions:
 	{
 		changedCalledBy: function(member, team) {
-			console.group("CERTApps.TeamIdRosterRoute actions.changedCalledBy");
+			console.group("CERTApps.RosterTableComponent actions.changedCalledBy");
 			console.log("calledBy", member.get("calledBy"));
 			console.log("team, team");
 
@@ -360,7 +360,7 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 		},
 
 		toggleActive: function(mem, team) {
-			console.group("CERTApps.TeamIdRosterIndexControlle actions.toggleActive");
+			console.group("CERTApps.RosterTableComponent actions.toggleActive");
 			console.log("mem, team", mem, team);
 
 			var p = mem.toggleActive(team);
@@ -374,7 +374,7 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 		},
 
 		toggleEnabled: function(mem, team) {
-			console.group("CERTApps.TeamIdRosterIndexControlle actions.toggleEnabled");
+			console.group("CERTApps.RosterTableComponent actions.toggleEnabled");
 			console.log("mem, team", mem, team);
 
 			var p = mem.toggleEnabled(team);
@@ -385,6 +385,15 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 			});
 
 			console.groupEnd();
+		},
+
+		memberEdit: function(mem, team) {
+			console.group("CERTApps.RosterTableComponent actions.memberEdit");
+			console.log("mem, team", mem, team);
+
+			this.sendAction("onMemberEdit", mem, team);
+
+			console.groupEnd();			
 		}
 	}
 });
@@ -397,6 +406,15 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 			console.log("CERTApps.TeamIdRosterRoute actions.addMember transitionTo with", team);
 			//this.transitionTo("member.create", team);
 			this.transitionTo("member.create");
+		},
+
+		memberEdit: function(mem, team) {
+			console.group("CERTApps.RosterTableComponent actions.editMember");
+			console.log("mem, team", mem, team);
+
+			this.transitionTo("member.edit", mem);
+
+			console.groupEnd();
 		}
 	},
 
@@ -4938,9 +4956,8 @@ CERTApps.MemberCreateView = Ember.View.extend({
 });
 
 CERTApps.MemberCreateRoute = Ember.Route.extend({
-	setupController: function(controller, model)
-	{
-		console.group('CERTApps.EventRoute setupController')
+	setupController: function(controller, model) {
+		console.group('CERTApps.MemberCreateRoute setupController')
 
 		var team = this.modelFor("application").Team;
 		var data = {
@@ -4963,4 +4980,48 @@ CERTApps.MemberCreateRoute = Ember.Route.extend({
 
 		return model;
 	},
+});
+
+CERTApps.MemberEditView = Ember.View.extend({
+	templateName: 'member/update'
+});
+
+CERTApps.MemberEditRoute = Ember.Route.extend({
+
+	model: function(params) {
+		console.group('CERTApps.MemberEditRoute setupController')
+		console.log("params", params)
+
+		throw "Need to implement single member fetch";
+
+		console.groupEnd();		
+	},
+
+	setupController: function(controller, model) {
+		console.group('CERTApps.MemberEditRoute setupController')
+
+		var team = this.modelFor("application").Team;
+
+		console.log("team", team);
+
+		model = { member: model, team: team };
+
+		console.log("model", model);
+
+		controller.set("model", model);
+
+		console.groupEnd();
+
+		return model;
+	},
+
+	serialize: function(model) {
+		console.group("CERTApps.MemberEditRoute serialize");
+		console.log("model, this", model, this);
+
+		return {memberID: model.KeyID};
+
+		console.groupEnd();
+
+	}
 });
