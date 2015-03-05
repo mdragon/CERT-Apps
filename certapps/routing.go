@@ -39,6 +39,7 @@ func init() {
 	http.Handle("/api/comfort-station/", newHandler(apiComfortStation))
 	http.Handle("/api/comfort-stations/", newHandler(apiComfortStationsAll))
 
+	http.Handle("/api/member", newHandler(memberData))
 	http.Handle("/api/member/save", newHandler(apiMemberSave))
 	http.Handle("/api/member/toggle-active", newHandler(apiMemberToggleActive))
 	http.Handle("/api/member/toggle-enabled", newHandler(apiMemberToggleEnabled))
@@ -56,7 +57,6 @@ func init() {
 	http.Handle("/event/reminders/send", newHandler(remindersSend))
 	http.Handle("/event/save", newHandler(eventSave))
 	http.Handle("/events", newHandler(events))
-	http.Handle("/member", newHandler(memberData))
 	http.Handle("/response", newHandler(response))
 	http.Handle("/response/save", newHandler(responseSave))
 	http.Handle("/responses/create", newHandler(responsesCreate))

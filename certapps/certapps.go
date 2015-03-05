@@ -395,6 +395,7 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		member, _ := getMemberFromUser(c, u)
 
 		memKey := r.FormValue("member")
+		c.Debugf("will look up other member if not empty: %q", memKey)
 		if memKey != "" {
 			intKey, _ := strconv.ParseInt(memKey, 0, 0)
 			context.Member, err = getMemberByIntKey2(c, intKey, member)

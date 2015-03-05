@@ -118,14 +118,8 @@ CERTApps.ApplicationRoute = CERTApps.BaseRoute.extend(
 		console.group("CERTApps.ApplicationRouter model");
 		console.log('params, args', params, arguments);
 
-		var settings = 
-		{
-			url: '/member',
-		};
+		var a = CERTApps.Member.lookup();
 
-		console.log('requesting data', settings)
-
-		var a = CERTApps.ajax(settings);
 		var t = a.then(function(obj)
 		{ 
 			var obj = this.moveUpData(obj); 
@@ -1318,6 +1312,33 @@ CERTApps.Member.reopenClass({
 		var p = CERTApps.ajax(options);
 
 		return p;
+	},
+
+	lookup: function(id) {
+		console.group("CERTApps.Member.lookup");
+		console.log("id", id);
+
+		var data = '';
+
+		if( id ) {
+			data = "member=" + id.toString();
+		}
+
+		var settings = 
+		{
+			url: '/api/member?' + data,
+			data: null
+		};
+
+		var a = CERTApps.ajax(settings);
+		var t = a.then( function(data) {
+			CERTApps.moveUpData(data);
+
+			return data;
+		});
+		console.groupEnd();
+
+		return t;
 	}
 })
 
@@ -4992,9 +5013,17 @@ CERTApps.MemberEditRoute = Ember.Route.extend({
 		console.group('CERTApps.MemberEditRoute setupController')
 		console.log("params", params)
 
-		throw "Need to implement single member fetch";
+		var p = CERTApps.Member.lookup(params.memberID);
 
-		console.groupEnd();		
+		var t = p.then( function(data) {
+			var memberData = data.Member;
+			var model = CERTApps.Member.create(memberData);
+
+			return model;
+		});
+		console.groupEnd();
+
+		return t;
 	},
 
 	setupController: function(controller, model) {
