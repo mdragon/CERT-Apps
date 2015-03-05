@@ -28,6 +28,7 @@ CERTApps.Router.map(function()
 	this.resource('member', function()
 		{	
 			this.route('update');
+			this.route('create');
 		});
 	this.route('team', function()
 		{
@@ -232,21 +233,13 @@ CERTApps.MemberRoute = Ember.Route.extend(
 
 		var appModel = this.modelFor('application');
 		//var model = null;
-		var model = appModel.Member;
+		var model = { member: appModel.Member };
 
 		console.log('appModel, model', appModel, model);
 		console.groupEnd();
 
 		return model;
 	},
-
-	setupController: function(controller, model)
-	{
-		console.group("CERTApps.MemberRoute setupController");
-		console.log('model, controller, args', model, controller, arguments);
-		console.groupEnd();
-	}	
-
 });
 
 
@@ -400,6 +393,11 @@ CERTApps.TeamIdRosterRoute = CERTApps.BaseRoute.extend(
 {
 	actions:
 	{
+		addMember: function(team) {
+			console.log("CERTApps.TeamIdRosterRoute actions.addMember transitionTo with", team);
+			//this.transitionTo("member.create", team);
+			this.transitionTo("member.create");
+		}
 	},
 
 	model: function(params)
@@ -882,26 +880,24 @@ CERTApps.TeamIdRosterCallsRoute = Ember.Route.extend(
 
 CERTApps.Member = CERTApps.BaseObject.extend(
 {
-	save: function()
+	save: function(team)
 	{
 		console.group("CERTApps.Member save")
 
 		this.cleanData();
 
-		console.log('saving', this);
+		console.log('saving this, team', this, team);
 
 		var settings = 
 		{
-			url: '/member/save',
-			type: 'json',
-			dataType: 'json',
+			url: '/api/member/save',
 			method: 'post',
-			data: JSON.stringify(this) + "\r\n"
+			data: {Member: this, Team: team}
 		};
 
 		console.log('save member request', settings)
 
-		var a = $.ajax(settings);
+		var a = CERTApps.ajax(settings);
 		a.then(function(obj){ 
 			obj = this.moveUpData(obj);
 
@@ -4638,11 +4634,11 @@ CERTApps.CreateMemberButtonView = Ember.Component.extend({
 
 CERTApps.MemberEditComponent = Ember.Component.extend({
 	actions: {
-		saveContact: function(member) {
+		saveContact: function(member, team) {
 			console.group('CERTApps.MemberRoute actions.saveContact');
 			console.log('member, args', member, arguments);
 
-			member.save()
+			member.save(team);
 
 			console.groupEnd();
 		}
@@ -4935,4 +4931,36 @@ CERTApps.TeamEditComponent = Ember.Component.extend({
 			console.groupEnd();
 		}
 	}
+});
+
+CERTApps.MemberCreateView = Ember.View.extend({
+	templateName: 'member/update'
+});
+
+CERTApps.MemberCreateRoute = Ember.Route.extend({
+	setupController: function(controller, model)
+	{
+		console.group('CERTApps.EventRoute setupController')
+
+		var team = this.modelFor("application").Team;
+		var data = {
+			city: team.get("city"),
+			state: team.get("state"),
+			zip: team.get("zip"),
+			active: true,
+			enabled: true,
+		};
+
+		console.log("data, team", data, team);
+
+		model = { member: CERTApps.Member.create(data), team: team };
+
+		console.log("model", model);
+
+		controller.set("model", model);
+
+		console.groupEnd();
+
+		return model;
+	},
 });

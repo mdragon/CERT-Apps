@@ -192,6 +192,8 @@
 	<h3>{{model.Team.Name}} Roster</h3>
 
 	{{#if content.loggedInMember.CanLookup}}
+		<button {{action "addMember" model.Team}}><i class="fa fa-user-plus"></i> Add Member</button><br/>
+
 		<h4>Active Members({{this.membersActive.length}})</h4>
 		{{roster-table memberList=this.membersActive content=content team=model.Team}}
 
@@ -342,8 +344,15 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="member/update">
-	Update your contact information:
-	{{member-edit member=content}}
+	{{log "member/update"}}
+	{{log model.member}}
+	{{log model}}
+	{{#if model.member.keyId}}
+		Update contact information
+	{{else}}
+		Create new member
+	{{/if}}
+	{{member-edit member=model.member team=model.team}}
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/calls">
@@ -834,6 +843,8 @@ Landing index
 </script>
 
 <script type="text/x-handlebars" data-template-name="components/member-edit">
+	{{log "components/member-edit"}}
+	{{log member}}
 	<form>
 		<div class="panel panel-default">
 			<div class="panel-heading">
@@ -883,7 +894,7 @@ Landing index
 		</div>
 
 		{{#unless member.hideSave }}
-			<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
+			<button {{action 'saveContact' member team}}><i class="fa fa-save"></i> Save</button>
 		{{/unless}}
 	</form>
 </script>

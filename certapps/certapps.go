@@ -770,22 +770,35 @@ type MemberSaveContext struct {
 	Whee string
 }
 
-func memberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func apiMemberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
-	var saveMember Member
+	var postData struct {
+		Member *Member
+		Team   *Team
+	}
+
+	c.Infof("memberSave")
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&saveMember)
+	jsonDecodeErr := decoder.Decode(&postData)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
-		c.Infof("JSON mem: %+v", saveMember)
+		c.Infof("JSON postData: %+v", postData)
 	} else {
 
 	}
 
-	saveMem(&saveMember, nil, c, u, w, r)
+	origID := postData.Member.KeyID
+
+	saveMem(postData.Member, nil, c, u, w, r)
+
+	if postData.Team != nil && origID == 0 {
+		teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
+		c.Debugf("adding member: %d,  to team: %d", postData.Member.KeyID, postData.Team.KeyID)
+		postData.Member.addToTeam(teamKey, c)
+	}
 }
 
 func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) {
