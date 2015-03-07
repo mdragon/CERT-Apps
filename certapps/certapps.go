@@ -610,13 +610,7 @@ func getMemberByIntKey2(c appengine.Context, key int64, currentMem *Member) (*Me
 
 		err = datastore.Get(c, k, &m)
 
-		if err != nil {
-			index := strings.Index(err.Error(), "cannot load field \"HomeAddress\"")
-			c.Debugf("Index: %d, Err: %+v", index, err)
-			if index > -1 {
-				err = nil
-			}
-		}
+		err = checkCannotLoadField(err, nil)
 
 		if err != nil {
 			c.Errorf("datastore.Get member error: %v", err)
@@ -2469,6 +2463,8 @@ func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Contex
 
 	err := datastore.Get(c, t.Key, t)
 
+	err = checkCannotLoadField(err, c)
+
 	if noErrMsg(err, nil, c, fmt.Sprintf("Getting CertificationClass %d", id)) {
 		t.setKey(t.Key)
 
@@ -2661,6 +2657,8 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 	c.Infof("Got membersQ and members for calling GetAll: %+v", memberQ)
 	keys, err := memberQ.GetAll(c, &members)
 
+	err = checkCannotLoadField(err, c)
+
 	for idx, _ := range members {
 		m := members[idx]
 		k := keys[idx]
@@ -2732,4 +2730,18 @@ func parseJSON(object interface{}, r *http.Request, c appengine.Context) error {
 	}
 
 	return jsonDecodeErr
+}
+
+func checkCannotLoadField(err error, c appengine.Context) error {
+	if err != nil {
+		index := strings.Index(err.Error(), "cannot load field")
+		index2 := strings.Index(err.Error(), "HomeAddress")
+
+		c.Debugf("err: %s, index: %d", err.Error(), index)
+		if index > -1 && index2 > -1 {
+			err = nil
+		}
+	}
+
+	return err
 }

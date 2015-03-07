@@ -1391,7 +1391,8 @@ CERTApps.TimesObject = CERTApps.BaseObject.extend(
 		if( date )
 		{
 			var pieces = date.split('/');
-			var dateParsed = '20' + pieces[2] + '-' + pieces[0] + '-' + pieces[1];
+			if( pieces[2].length == 2 ) pieces[2] = "20" + pieces[2];
+			var dateParsed = pieces[2] + '-' + pieces[0] + '-' + pieces[1];
 			console.log('formatted date', dateParsed);
 
 			var timeParsed = time;
@@ -3502,7 +3503,7 @@ CERTApps.CertsTopicsOfferings = CERTApps.BaseObject.extend(
 
 CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 {
-	model: function(params, transition)
+/*	model: function(params, transition)
 	{
 		console.group('CERTApps.CertificationCreateRoute model');
 		console.log('params, transition', params, transition);
@@ -3514,7 +3515,7 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 
 		return t;
 	},
-
+*/
 	serialize: function(model)
 	{
 		console.group('CERTApps.CertificationCreateRoute serialize');
@@ -3530,10 +3531,12 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 	setupController: function(controller, model)
 	{
 		console.group('CERTApps.CertificationCreateRoute setupController');
-		console.log('controller, model', controller, model);
 
+		var model = model || {};
+		model.certification = CERTApps.Certification.create();
 		model.newTopic = CERTApps.TrainingTopic.create();
 
+		console.log('controller, model', controller, model);
 		controller.set('model', model);
 
 		console.groupEnd();
@@ -3929,7 +3932,7 @@ CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
 			console.group("CERTApps.CertificationClassRoute actions.saveA");
 
 			var app = this.modelFor("application");
-			var team = this.modelFor("team");
+			var team = this.modelFor("team") || app.get("Team");
 
 			var p = null;
 			if( app )
@@ -4057,7 +4060,7 @@ CERTApps.CertificationClassIndexRoute = CERTApps.BaseRoute.extend(
 		console.log('params, transition', params, transition);
 
 		var app = this.modelFor("application");
-		var team = this.modelFor("team");
+		var team = this.modelFor("team") || app.get("Team");
 
 		var p = CERTApps.CertificationClass.getAll(team.get("KeyID"));
 

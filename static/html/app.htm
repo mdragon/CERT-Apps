@@ -632,9 +632,9 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="certification/tupdate">
-	{{input value=certification.name placeholder="Name" size="50"}}<br/>
-	Valid for {{input value=certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
-	<button {{action 'saveA' content}}><i class="fa fa-save"></i> Save</button>
+	{{input value=model.certification.name placeholder="Name" size="50"}}<br/>
+	Valid for {{input value=model.certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
+	<button {{action 'saveA' model.certification}}><i class="fa fa-save"></i> Save</button>
 
 	<div class="">
 		<div class="pull-left space-right" style="clear: left;">
