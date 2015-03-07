@@ -3201,7 +3201,40 @@ CERTApps.CertificationRoute = CERTApps.BaseRoute.extend(
 
 
 			console.groupEnd();
+		},
+
+		saveOffering: function(newOffering, model, topics)
+		{
+			console.group("CERTApps.certificationRoute actions.saveOffering");
+			console.log('newOffering, model.certification, topics', newOffering, model.certification, topics);
+
+			var p = newOffering.save(model.certification.KeyID);
+
+			p.then(
+				function(obj)
+				{					
+					var topic = CERTApps.CertificationClass.create(obj);
+
+					model.offerings.pushObject(topic)
+
+					newOffering.reset(topics);
+
+					window.setTimeout( function(){
+						this.set("statuses.save", "done");
+					},
+					5000);
+
+					//console.log("transitioning after saving topic", topic);
+
+					//this.transitionTo({queryParams: {lastTopic: topic.get('KeyID')}});
+					//this.transitionTo('certification.list');
+				}.bind(this)
+			);
+
+
+			console.groupEnd();
 		}
+
 	},
 
 	model: function(params, transition)
@@ -3575,6 +3608,7 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 		console.log('controller, model', controller, model);
 
 		model.newTopic = CERTApps.TrainingTopic.create({effectiveDate: moment()});
+		model.newOffering = CERTApps.CertificationClass.create();
 
 		controller.set('model', model);
 
@@ -3752,6 +3786,8 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 
 	effectiveDate: null,
 	sunsetDate: null,
+
+	included: true,
 	
 	init: function()
 	{
@@ -4202,7 +4238,7 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		// setter
 		if( arguments.length > 1 )
 		{
-			var dateVal = CERTApps.getDateAndTimeFormatted(value, "00:00:00");
+			var dateVal = moment(value);
 			this.set("scheduled", dateVal);
 		}
 
@@ -4212,9 +4248,9 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 		if(scheduled) 
 		{
-			var date = new Date(Date.parse(scheduled));
+			var date = moment(scheduled);
 
-			scheduled = CERTApps.getZeroPaddedDate(date);
+			scheduled = date.format("YYYY-MM-DD");
 		}
 
 		return scheduled;
@@ -4266,7 +4302,19 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		var len = this.get("attendees").length + this.get("searches").length;
 		console.log("len", len);
 		return len > 0;
-	}.property("attendees.length", "searches.length")
+	}.property("attendees.length", "searches.length"),
+
+	reset: function(topics) {
+		this.set("name", null);
+		this.set("scheduled", null);
+
+		if( topics )
+		{
+			topics.forEach( function(t) {
+				t.included = true;
+			});
+		}
+	}
 });
 
 CERTApps.getZeroPaddedDate = function(date)

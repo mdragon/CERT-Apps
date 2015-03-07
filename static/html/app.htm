@@ -697,7 +697,11 @@
 			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
 			{{input type="date" value=newOffering.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
-			<button {{action 'saveA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+			{{#each t in sortedTopics}}
+				<label>{{input type='checkbox' name=t.name checked=t.included placeholder='Show'}} {{t.name}}</label><br/>
+			{{/each}}
+
+			<button {{action 'saveOffering' newOffering certification sortedTopics }}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="clearfix"></div>
 	</div>
