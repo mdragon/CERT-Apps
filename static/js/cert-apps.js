@@ -2550,18 +2550,13 @@ CERTApps.MemberEvent.reopenClass(
 		var settings = 
 		{
 			url: '/response',
-			//type: 'json',
-			dataType: 'json',
-			method: 'get',
 			data: 
 			{
 				response: responseID || 0
 			}
 		};
 
-		console.log('get Response', settings)
-
-		var a = $.ajax(settings);
+		var a = CERTApps.ajax(settings);
 
 		var t = a.then(function(data)
 		{
@@ -2679,14 +2674,12 @@ CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 		var settings = 
 		{
 			url: '/events',
-			type: 'json',
-			dataType: 'json',
 			data: JSON.stringify(obj)
 		};
 
 		console.log('requesting data', settings)
 
-		var a = $.ajax(settings);
+		var a = CERTApps.ajax(settings);
 		var t = a.then(
 			function(obj)
 			{ 
