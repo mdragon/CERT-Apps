@@ -43,16 +43,16 @@ type RemindersToSend struct {
 }
 
 type Location struct {
-	Line1 string
-	Line2 string
-	City  string
-	State string
-	Zip   string
+	Line1 string `json:"line1"`
+	Line2 string `json:"line2"`
+	City  string `json:"city"`
+	State string `json:"state"`
+	Zip   string `json:"zip"`
 
-	Latitude        float64
-	Longitude       float64
-	PublicLatitude  float64
-	PublicLongitude float64
+	Latitude        float64 `json:"latitude"`
+	Longitude       float64 `json:"longitude"`
+	PublicLatitude  float64 `json:"publicLatitude"`
+	PublicLongitude float64 `json:"publicLongitude"`
 }
 
 type Team struct {
@@ -62,7 +62,8 @@ type Team struct {
 	MembersEmail  string
 	OfficersEmail string
 
-	GoogleAPIKey string
+	GoogleAPIKey     string
+	ForecastIOAPIKey string
 
 	Audit
 }
@@ -70,6 +71,7 @@ type Team struct {
 type TeamMember struct {
 	TeamKey   *datastore.Key
 	MemberKey *datastore.Key
+	CalledBy  *datastore.Key // who would call this member would call when phone tree is activated
 
 	Audit
 }
@@ -100,14 +102,14 @@ type Member struct {
 
 	RadioID string
 
-	HomeAddress *datastore.Key
+	Town    bool
+	OEM     bool
+	Officer bool
+	Active  bool
 
+	CalledBy int64 `json:"calledBy", datastore:"-"`
 	//TODO: this would need to move to TeamMember when multiple teams was supported
 	CanLookup bool `datastore:"-"`
-	Town      bool
-	OEM       bool
-	Officer   bool
-	Active    bool
 
 	Person
 }

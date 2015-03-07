@@ -4,8 +4,8 @@
 	<title>CERT Apps</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link href="//netdna.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+	<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+	<link href="//netdna.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="https://google-developers.appspot.com/maps/documentation/javascript/examples/default.css" rel="stylesheet">
 
 	<style type="text/css">
@@ -107,6 +107,11 @@
 			margin-right: 10px;
 		}
 
+		.roster>tbody>tr>td, .roster>tbody>tr>th, .roster>thead>tr>td
+		{
+			padding: 2px;
+		}
+
 	</style>
 </head>
 <body>
@@ -117,10 +122,13 @@
 </body>
 </html>
 
-<script type="text/javascript" src="../js/jquery-1.11.x.js"></script>
-<script type="text/javascript" src="../js/handlebars-v1.3.x.js"></script>
-<script type="text/javascript" src="../js/ember-v1.8.x.js"></script>
-<script type="text/javascript" src="../js/cert-apps.js"></script>
+<script type="text/javascript" src="/static/js/jquery-1.11.x.js"></script>
+<script type="text/javascript" src="/static/js/ember-template-compiler-v1.10.x.js"></script>
+<script type="text/javascript" src="/static/js/ember-v1.10.x.debug.js"></script>
+<script type="text/javascript" src="/static/js/models/common.js"></script>
+<script type="text/javascript" src="/static/js/models/comfort-station.js"></script>
+<script type="text/javascript" src="/static/js/cert-apps.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/x-handlebars">
 	<div class="nav">
@@ -129,13 +137,22 @@
 
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.comfortStation.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStation.create' content.Team}}Create{{/link-to}} | 
+
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
 				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
-				{{#link-to 'teamID.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
+				{{#link-to 'team.id.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
-			Team {{#link-to 'roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'roster.map' content.Team}}Map{{/link-to}} |
+			Team 
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.edit' content.Team}}Edit{{/link-to}} - 
+			{{/if}}
+			{{#link-to 'team.id.roster.index' content.Team}}Roster{{/link-to}} - {{#link-to 'team.id.roster.map' content.Team}}Map{{/link-to}} |
 
 			{{#link-to 'member.update'}}My Info{{/link-to}} | 
+			{{#if content.Member.CanLookup }}
+				{{#link-to 'team.id.roster.calls' content.Team}}My Calls{{/link-to}} | 
+			{{/if}}
 
 			{{#if content.Member.FirstName }}
 				Welcome, {{content.Member.FirstName}}
@@ -155,17 +172,46 @@
 	Test
 	{{outlet}}
 </script>
-	
+
 <script type="text/x-handlebars" data-template-name="team">
+	{{log "team"}}
+	{{log content}}
+	{{outlet}}
+</script>
+
+	
+<script type="text/x-handlebars" data-template-name="team/id">
+	{{log "team/id"}}
+	{{log content}}
 	<div style="width: 80%; margin: 0 auto;">
 		{{outlet}}
 	</div>
 </script>
 
-<script type="text/x-handlebars" data-template-name="roster/index">
-	<h3>{{content.Team.Name}} Roster</h3>
+<script type="text/x-handlebars" data-template-name="team/id/roster/index">
+	<h3>{{model.Team.Name}} Roster</h3>
 
-	<table class="table table-responsive table-striped table-condensed table-bordered",>
+	{{#if content.loggedInMember.CanLookup}}
+		<button {{action "addMember" model.Team}}><i class="fa fa-user-plus"></i> Add Member</button><br/>
+
+		<h4>Active Members({{this.membersActive.length}})</h4>
+		{{roster-table memberList=this.membersActive content=content team=model.Team onMemberEdit="memberEdit"}}
+
+		<h4>Inactive Members({{this.membersInactive.length}})</h4>
+		{{roster-table memberList=this.membersInactive inactive=true content=content team=model.Team onMemberEdit="memberEdit"}}
+
+		<h4>Disabled Member Accounts({{this.membersDisabled.length}})</h4>
+		{{roster-table memberList=this.membersDisabled inactive=true content=content team=model.Team onMemberEdit="memberEdit"}}
+
+	{{else}}
+		{{roster-table memberList=content.Members content=content model=model}}
+	{{/if}}
+
+	{{#link-to 'team.id.roster.import'}}Import Members{{/link-to}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="components/roster-table">
+	<table class="table table-responsive table-striped table-condensed table-bordered roster">
 		<thead>
 			<tr>
 				{{#if content.loggedInMember.CanLookup }}
@@ -177,42 +223,80 @@
 				{{#if content.loggedInMember.CanLookup }}
 					<th>Address</th>
 					<th>Home Phone</th>
+					<th>Called By</th>
+					{{#if inactive}}
+						<th>Last Active</th>
+					{{else}}
+						<th></th>
+					{{/if}}
 				{{/if}}
 			</tr>
 		</thead>
 		<tbody>
-			{{#each mem in content.Members }}
+			{{#each member in memberList itemController="rosterEntry"}}
+				{{#with member.model as mem}}
 				{{#if mem }}
 				<tr class="">
 					{{#if content.loggedInMember.CanLookup}}
 						<td>{{mem.RadioID}}</td>
 					{{/if}}
 					
-					<td>{{mem.FirstName}} {{mem.LastName}}</td>
+					<td>
+						{{#if content.loggedInMember.CanLookup}}
+							<i class="fa fa-pencil action" title="Edit Member" {{action "memberEdit" mem team}}></i>
+						{{/if}}
+						{{mem.FirstName}} {{mem.LastName}}
+						
+					</td>
 					<td>
 						{{#if mem.cellDisplay}}
-							{{mem.cellFormatted}}
+							<a {{bind-attr href=mem.cellTelLink}}>{{mem.cellFormatted}}</a>
 						{{/if}}
 					</td>
 					<td>
 						{{#if mem.emailDisplay}}
-							{{mem.Email}}
+							<a {{bind-attr href=mem.emailLink}}>{{mem.Email}}</a>
 						{{/if}}
 					</td>
 					{{#if content.loggedInMember.CanLookup}}
-						<td>{{mem.Line1}}{{mem.line2Display}}</td>
-						<td>{{mem.homePhoneFormatted}}</td>
+						<td>{{mem.line1}}{{mem.line2Display}}</td>
+						<td>
+							<a {{bind-attr href=mem.homePhoneTelLink}}>{{mem.homePhoneFormatted}}</a>
+						</td>
+						<td>
+							{{view "select" content=team.officers 
+							    optionValuePath="content.keyID"
+       							optionLabelPath="content.officerShortName"
+       							value=mem.calledBy
+       							prompt="--"
+       						}}
+
+       						<span style="width: 16px; height: 16px; display: inline-block;"><i {{bind-attr class=mem.calledByIcon}}></i></span>
+						</td>
+
+						<td>
+							{{#if inactive}}
+								{{mem.lastContact}}
+							{{/if}}
+
+
+						{{#if content.loggedInMember.CanLookup}}
+							{{#if mem.enabled }}
+								<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+							{{/if}}
+							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem team}} {{bind-attr title="mem.enabledTitle"}}></i>
+						{{/if}}
+						</td>
 					{{/if}}
 				</tr>
 				{{/if}}
+				{{/with}}
 			{{/each}}
 		</tbody>
 	</table>
-
-	{{#link-to 'roster.import'}}Import Members{{/link-to}}
 </script>
 
-<script type="text/x-handlebars" data-template-name="roster/import">
+<script type="text/x-handlebars" data-template-name="team/id/roster/import">
 	{{log "roster/import"}}
 	{{log content}}
 	<h3>Import Member Data for {{content.Team.Name}}</h3>
@@ -256,14 +340,12 @@
 	<button {{action 'save' content}}><i class="fa fa-save"></i> Save</button>
 </script>
 
-<script type="text/x-handlebars" data-template-name="roster/map">
-	{{log "roster/import"}}
+<script type="text/x-handlebars" data-template-name="team/id/roster/map">
+	{{log "team/id/roster/map"}}
 	{{log content}}
 
 	<div class="map-canvas"></div>
 </script>
-
-    <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/x-handlebars" data-template-name="member">
 	<div class="center-content">
@@ -273,11 +355,59 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="member/update">
-	Update your contact information:
-	{{member-edit member=content}}	
+	{{log "member/update"}}
+	{{log model.member}}
+	{{log model}}
+	{{#if model.member.keyId}}
+		Update contact information
+	{{else}}
+		Create new member
+	{{/if}}
+	{{member-edit member=model.member team=model.team}}
 </script>
 
-<script type="text/x-handlebars" data-template-name="teamID/events">
+<script type="text/x-handlebars" data-template-name="team/id/roster/calls">
+	<table class="table table-responsive table-striped table-condensed table-bordered roster">
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Cell</th>
+				{{#if content.loggedInMember.CanLookup }}
+					<th>Home Phone</th>
+				{{/if}}
+				<th>Email</th>
+			</tr>
+		</thead>
+		<tbody>
+			{{#if content.loggedInMember.CanLookup}}
+				{{#each member in content.membersToCall itemController="rosterEntry"}}
+					{{#with member.model as mem}}
+						{{#if mem }}
+						<tr class="">					
+							<td>{{mem.FirstName}} {{mem.LastName}}</td>
+								<td>
+									<a {{bind-attr href=mem.cellTelLink}}>{{mem.cellFormatted}}</a>
+								</td>
+								<td>
+									<a {{bind-attr href=mem.homePhoneTelLink}}>{{mem.homePhoneFormatted}}</a>
+								</td>
+							<td>
+								{{#if mem.emailDisplay}}
+									<a {{bind-attr href=mem.emailLink}}>{{mem.Email}}</a>
+								{{/if}}
+							</td>
+						</tr>
+						{{/if}}
+					{{/with}}
+				{{/each}}
+			{{else}}
+			<tr><td colspan="3">Must be setup as an Officer to use this page</td></tr>
+			{{/if}}
+		</tbody>
+	</table>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/events">
 	<div class="center-content">
 	<h4>Upcoming Events</h4>
 
@@ -412,8 +542,8 @@
 		<label>{{view CERTApps.ResponseRadioButton name="response" selectionBinding="content.value" value="Maybe"}} Maybe</label><br/>
 
 		<div class="details" style="display: none;">
-			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}
-			<lable>Depart: {{input name="departTime" value=content.departTime size=5}}
+			<label>Arrive: {{input name="arriveTime" value=content.arriveTime size=5}}</label>
+			<label>Depart: {{input name="departTime" value=content.departTime size=5}}</label>
 		</div>
 
 		<div class="submit-response" style="display: none;">
@@ -433,7 +563,7 @@
 
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-info"></i> Information</h4>
+				<h5><i class="fa fa-info"></i> Information</h5>
 			</div>
 			<div class="panel-body">
 				{{view Ember.Select content=content.possibleEventTypes value=content.Event.eventType prompt="Select Deployment Type"}}<br/>
@@ -444,19 +574,19 @@
 
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-globe"></i> Location</h4>
+				<h5><i class="fa fa-globe"></i> Location</h5>
 			</div>
 			<div class="panel-body">
 				<label>
 					<b>Event:</b>  <br/>
-					{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=70}}<br/>
+					{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.DeploymentAddress size=70}}<br/>
 				</label>
 
 				<label>
-					<b>Parking:</b> </br>
+					<b>Parking:</b> <br/>
 
 					<div class="parking-location" style="" >
-						{{input name="Line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
+						{{input name="line1" placeholder="1 Main St, 12345" value=content.Event.ParkingAddress size=70}}<br/>
 					</div>
 				</label>
 			</div>
@@ -464,7 +594,7 @@
 			
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-calendar"></i> Dates/Times</h4>
+				<h5><i class="fa fa-calendar"></i> Dates/Times</h5>
 			</div>
 			<div class="panel-body">
 				<b>Start:</b>
@@ -480,7 +610,7 @@
 		
 		<div class="panel panel-default">
 			<div class="panel-heading">
-				<h5><i class="fa fa-external-link"></i> Links</h4>
+				<h5><i class="fa fa-external-link"></i> Links</h5>
 			</div>
 			<div class="panel-body">
 				<label class="link1">{{content.Event.link1Label}} Link: {{input name="IAP" placeholder="" value=content.Event.Link1 size=70}}<br/></label>
@@ -502,9 +632,9 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="certification/tupdate">
-	{{input value=certification.name placeholder="Name" size="50"}}<br/>
-	Valid for {{input value=certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
-	<button {{action 'saveA' content}}><i class="fa fa-save"></i> Save</button>
+	{{input value=model.certification.name placeholder="Name" size="50"}}<br/>
+	Valid for {{input value=model.certification.monthsValidString size="5" type="number" min="1" step="1"}} months<br/>
+	<button {{action 'saveA' model.certification}}><i class="fa fa-save"></i> Save</button>
 
 	<div class="">
 		<div class="pull-left space-right" style="clear: left;">
@@ -591,7 +721,7 @@
 				</td>
 			</tr>
 		{{/each}}
-		<tbody>
+		</tbody>
 	</table>
 </script>
 
@@ -623,7 +753,7 @@
 				</td>
 			</tr>
 		{{/each}}
-		<tbody>
+		</tbody>
 	</table>
 </script>
 
@@ -715,7 +845,7 @@ Landing index
 
 <script type="text/x-handlebars" data-template-name="loading">
 	<div class="center-content" style="text-align: center">
-		<img src="../image/spinner.gif" /> Loading...
+		<i class="fa fa-spinner fa-2x fa-spin"></i> Loading...
 	</div>
 </script>
 
@@ -724,6 +854,8 @@ Landing index
 </script>
 
 <script type="text/x-handlebars" data-template-name="components/member-edit">
+	{{log "components/member-edit"}}
+	{{log member}}
 	<form>
 		<div class="panel panel-default">
 			<div class="panel-heading">
@@ -764,16 +896,165 @@ Landing index
 				<h4><i class="fa fa-home"></i> Home Address</h4>
 			</div>
 			<div class="panel-body">
-				{{input name="Line1" placeholder="Address" value=member.Line1 size='50'}}<br/>
-				{{input name="Line2" placeholder="Address Line 2" value=member.Line2 size='50'}}<br/>
-				{{input name="City" placeholder="City" value=member.City size='30'}}, 
-				{{input name="State" placeholder="State" value=member.State size='3'}}
-				{{input name="Zip" placeholder="Zip" value=member.Zip size='7'}}
+				{{input name="line1" placeholder="Address" value=member.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=member.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=member.city size='30'}}, 
+				{{input name="state" placeholder="State" value=member.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=member.zip size='7'}}
 			</div>
 		</div>
 
 		{{#unless member.hideSave }}
-			<button {{action 'saveContact' member}}><i class="fa fa-save"></i> Save</button>
+			<button {{action 'saveContact' member team}}><i class="fa fa-save"></i> Save</button>
+			<i {{bind-attr class=":fa member.savingIcon"}}></i>
+		{{/unless}}
+	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation">
+	<div class="center-content">
+		{{outlet}}
+	</div>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation/list">
+	{{log "team/id/comfortStation/list model"}}
+	{{log model}}
+	
+	<h3>Comfort Stations</h3>
+	<table class="table table-striped table-condensed">
+	<thead>
+		<tr>
+			<th><i class="fa fa-plus action" {{action "createComfortStation"}}></i></th><th>Name</th><th>Address</th><th>Contact</th><th>Email</th><th>Phone</th>
+		</tr>
+	</thead>
+	<tbody>
+		{{#each s in locations}}
+			<tr>
+				<td>
+					<i class="fa fa-pencil action" {{action editComfortStation s}}></i>
+
+					{{#if s.published}}
+						<i style="color: green;" class="fa fa-eye" title="Published"></i>
+					{{else}}
+						<i style="color: darkred;" class="fa fa-eye-slash" title="Not Published"></i>
+					{{/if}}
+				</td>
+				<td>{{s.name}}</td>
+				<td>{{s.line1}}{{s.line2Display}}</td>
+				<td>{{s.contact}}</td>
+				<td>{{s.email}}</td>
+				<td>{{s.phone}}</td>
+			</tr>
+		{{else}}
+			<tr>
+				<td colspan="6">No Comfort Stations have been created</td>
+			</tr>
+		{{/each}}
+	</tbody>
+	</table>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/comfortStation/update">
+	{{log "team/id/comfortStation/update content"}}
+	{{log content}}
+	
+	<h3>Comfort Station</h3>
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-home"></i> Information/Location</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Name" placeholder="Business/House of Worship Name" value=station.name size='50'}}<br/>
+				{{input type="checkbox" name="published" checked=station.published}} Published<br/>
+				<br/>
+				{{input name="line1" placeholder="Address" value=station.line1 size='50'}}<br/>
+				{{input name="line2" placeholder="Address Line 2" value=station.line2 size='50'}}<br/>
+				{{input name="city" placeholder="City" value=station.city size='30'}}, 
+				{{input name="state" placeholder="State" value=station.state size='3'}}
+				{{input name="zip" placeholder="Zip" value=station.zip size='7'}}
+
+
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-user"></i> Contact</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Contact" placeholder="Contact's Name" value=station.contact size="30"}}<br/>
+				{{input name="Email" placeholder="Email Address" value=station.email size="30"}}<br/>
+				{{input type="tel" name="Phone" placeholder="Phone" value=station.phone}}<br/>
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-file-text-o "></i> Notes</h4>
+			</div>
+			<div class="panel-body">
+				These will be displayed to the public.  Any notes about how to find your location, where to park, etc.
+				{{textarea value=station.notes cols="50" rows="4"}}
+			</div>
+		</div>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-pencil "></i> Editors</h4>
+			</div>
+			<div class="panel-body">
+				These people will be allowed to update the hours and open/closed status of your the Comfort Station.
+				
+			</div>
+		</div>
+
+		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="team/id/edit">
+	<h3>{{model.Team.Name}}</h3>
+	{{log "team/id/edit"}}
+	{{log content}}
+	{{log model}}
+
+	{{team-edit team=model.team}}
+</script>
+
+<script type="text/x-handlebars" data-template-name="components/team-edit">
+	<form>
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-users"></i> Details</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="Name" placeholder="Team Name" value=team.name}}<br/>
+				{{input name="Town" placeholder="City/Town" value=team.city}}, {{input name="State" placeholder="State" value=team.state size="5"}} {{input type="tel" name="Zip" placeholder="Zip" value=team.zip size="5"}} 
+			</div>
+		</div>
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-envelope"></i> Email</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="MemberList" placeholder="Member Email List" value=team.membersList size='30'}} <br/>
+				{{input name="OfficerList" placeholder="Officer Email List" value=team.officersList size='30'}} <br/>
+			</div>
+		</div>
+			
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-server"></i> Web API Keys</h4>
+			</div>
+			<div class="panel-body">
+				<label>{{input name="GoogleAPI" placeholder="Google API Key" value=team.googleAPIKey size='50'}} Google API Key </label><br/>
+				<label>{{input name="ForecastIO" placeholder="ForecastIO API Key" value=team.forecastIOAPIKey size='50'}} Forecast IO API Key</label>
+			</div>
+		</div>
+
+		{{#unless team.hideSave }}
+			<button {{action 'saveTeam' team}}><i class="fa fa-save"></i> Save</button>
 		{{/unless}}
 	</form>
 </script>

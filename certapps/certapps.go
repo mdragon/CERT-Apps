@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	textT "text/template"
 	"time"
 
 	"appengine"
@@ -23,8 +22,6 @@ import (
 	"appengine/user"
 )
 
-var jsonTemplate = textT.Must(textT.New("json").Parse("{\"data\": {{.Data}} }"))
-var jsonErrTemplate = textT.Must(textT.New("jsonErr").Parse("{\"error\": true, {{.Data}} }"))
 var zeroDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
 
 var delayEmailReminders2 = delay.Func("sendEmailReminders2", sendEmailReminders)
@@ -35,7 +32,7 @@ func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 
 	if u.Admin {
-		member, errM := getMemberFromUser(c, u, w, r)
+		member, errM := getMemberFromUser(c, u)
 
 		if noErrMsg(errM, w, c, "Loading member") {
 			member.Officer = true
@@ -43,7 +40,7 @@ func initialSetup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 			_, errM = datastore.Put(c, member.Key, member)
 			if noErrMsg(errM, w, c, "Making Member Officer") {
 
-				errT, team := getTeam(0, member, c, w, r)
+				errT, team := getTeam(0, member, c)
 
 				if noErrMsg(errT, w, c, "Loading team in initialSetup") {
 					//addErr := member.addToTeam(team.Key, c)
@@ -157,36 +154,40 @@ func audit(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	url, err := url.QueryUnescape(rawurl)
 
 	if u != nil {
-		mem, _ := getMemberFromUser(c, u, w, r)
+		mem, memErr := getMemberFromUser(c, u)
 
-		c.Debugf("Got member: %d", mem.Key.IntID())
+		if noErrMsg(memErr, w, c, "Getting Member from User") {
+			c.Debugf("Got member: %d", mem.Key.IntID())
 
-		audit := &MemberLogin{
-			MemberKey: mem.Key,
-			Login:     time.Now(),
-			IP:        r.RemoteAddr,
-		}
+			audit := &MemberLogin{
+				MemberKey: mem.Key,
+				Login:     time.Now(),
+				IP:        r.RemoteAddr,
+			}
 
-		aKey := datastore.NewKey(c, "Audit", "", 0, nil)
+			aKey := datastore.NewKey(c, "Audit", "", 0, nil)
 
-		c.Infof("Putting MemberLogin: %v", aKey)
-		_, aErr := datastore.Put(c, aKey, audit)
+			c.Infof("Putting MemberLogin: %v", aKey)
+			_, aErr := datastore.Put(c, aKey, audit)
 
-		if noErrMsg(aErr, w, c, "Trying to put MemberLogin") {
-			//l.CreatedBy = outMKey
-			//l.ModifiedBy = outMKey
+			if noErrMsg(aErr, w, c, "Trying to put MemberLogin") {
+				//l.CreatedBy = outMKey
+				//l.ModifiedBy = outMKey
 
-			// c.Infof("Putting Location: %v", lKey)
-			// outLKey, lErr := datastore.Put(c, lKey, l)
+				// c.Infof("Putting Location: %v", lKey)
+				// outLKey, lErr := datastore.Put(c, lKey, l)
 
-			// if noErrMsg(lErr, w, c, "Trying to put Location") {
-			c.Infof("no error on MemberLogin")
+				// if noErrMsg(lErr, w, c, "Trying to put Location") {
+				c.Infof("no error on MemberLogin")
 
-			mem.LastLogin = audit.Login
+				mem.LastLogin = audit.Login
 
-			_, mErr := datastore.Put(c, mem.Key, mem)
+				_, mErr := datastore.Put(c, mem.Key, mem)
 
-			checkErr(mErr, w, c, fmt.Sprintf("Failed to update Last Login for member: %d", mem.Key.IntID()))
+				checkErr(mErr, w, c, fmt.Sprintf("Failed to update Last Login for member: %d", mem.Key.IntID()))
+			}
+		} else {
+			c.Errorf("Could not load member from user %+v", u)
 		}
 	}
 
@@ -222,7 +223,7 @@ func auth(c appengine.Context, w http.ResponseWriter, r *http.Request) (appengin
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		//context.Member = getMemberFromUser(c, u, context, w, r)
+		//context.Member = getMemberFromUser(c, u, context)
 		context.LoggedIn = true
 
 		url, err := user.LogoutURL(c, returnUrl)
@@ -271,7 +272,7 @@ func teamRoster(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 			member = mainContext.Member
 			c.Debugf("using mainContext.Member")
 		} else {
-			member, _ = getMemberFromUser(c, u, w, r)
+			member, _ = getMemberFromUser(c, u)
 		}
 
 		teamKey := r.FormValue("team")
@@ -282,7 +283,7 @@ func teamRoster(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
 		var getTeamErr error
 		var team *Team
-		getTeamErr, team = getTeam(intKey, member, c, w, r)
+		getTeamErr, team = getTeam(intKey, member, c)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
 			context.Members = getMembersByTeam(team.Key.IntID(), member, c, w, r)
@@ -300,7 +301,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	_, u, context := auth(c, w, r)
 
 	if context.LoggedIn {
-		member, _ := getMemberFromUser(c, u, w, r)
+		member, _ := getMemberFromUser(c, u)
 
 		teamKey := r.FormValue("team")
 		if teamKey == "" {
@@ -309,7 +310,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		intKey, _ := strconv.ParseInt(teamKey, 0, 0)
 		var getTeamErr error
-		getTeamErr, context.Team = getTeam(intKey, member, c, w, r)
+		getTeamErr, context.Team = getTeam(intKey, member, c)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
 			if (context.Team == nil || context.Team.Key == nil) && intKey == 0 {
@@ -358,7 +359,7 @@ func teamData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 
-	var context MainAppContext
+	context := MainAppContext{}
 
 	returnUrl := r.Referer()
 	if returnUrl == "" {
@@ -379,7 +380,7 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 		c.Infof("not logged in: %v", url)
 	} else {
-		//context.Member = getMemberFromUser(c, u, context, w, r)
+		//context.Member = getMemberFromUser(c, u, context)
 		context.LoggedIn = true
 
 		url, err := user.LogoutURL(c, returnUrl)
@@ -391,12 +392,13 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		context.LogInOutLink = url
 		context.LogInOutText = "Log Out"
 
-		member, _ := getMemberFromUser(c, u, w, r)
+		member, _ := getMemberFromUser(c, u)
 
 		memKey := r.FormValue("member")
+		c.Debugf("will look up other member if not empty: %q", memKey)
 		if memKey != "" {
 			intKey, _ := strconv.ParseInt(memKey, 0, 0)
-			context.Member = getMemberByIntKey2(intKey, member, c, w, r)
+			context.Member, err = getMemberByIntKey2(c, intKey, member)
 		} else {
 			context.Member = member
 		}
@@ -410,47 +412,7 @@ func memberData(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func returnJSONorErrorToResponse(context interface{}, c appengine.Context, w http.ResponseWriter, r *http.Request) {
-	jsonC := JSONContext{}
-	bArr, memberJSONerr := json.Marshal(context)
-	if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-		//c.Debugf("getting length")
-		//n := bytes.Index(bArr, []byte{0})
-		n := len(bArr)
-
-		if n > 0 {
-			//c.Debugf("getting string for: %d bytes", n)
-			jsonC.Data = string(bArr[:n])
-
-			//c.Debugf("jsonTemplate.ExecuteTemplate: %+v", jsonC)
-			jsonTemplate.ExecuteTemplate(w, "json", jsonC)
-		} else {
-			c.Infof("whoops, no bytes in our array m:%d, when marshalling context: %+v", n, context)
-
-			errData := struct{ message string }{"No bytes after Marshalling context"}
-
-			bArr, memberJSONerr = json.Marshal(errData)
-			if noErrMsg(memberJSONerr, w, c, "json.Marshall of Member") {
-				c.Debugf("getting length for json of %+v", errData)
-				//n := bytes.Index(bArr, []byte{0})
-				n := len(bArr)
-
-				c.Debugf("length for member JSON bytes %d", n)
-				if n > 0 {
-					c.Debugf("getting string for: %d bytes", n)
-					jsonC.Data = string(bArr[:n])
-				} else {
-					jsonC.Data = "\"message\": \"could not form error JSON using template\""
-				}
-
-				c.Debugf("jsonErrTemplate.ExecuteTemplate: %+v", jsonC)
-				jsonErrTemplate.ExecuteTemplate(w, "jsonErr", jsonC)
-			}
-		}
-	}
-}
-
-func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter, r *http.Request) (*Member, error) {
+func getMemberFromUser(c appengine.Context, u *user.User) (*Member, error) {
 
 	var memberQ *datastore.Query
 	var member []Member
@@ -469,7 +431,12 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 
 	found := false
 
-	if noErrMsg(err, w, c, "members for id") {
+	if err != nil && strings.Index(err.Error(), "cannot load field") > -1 {
+		c.Debugf("overrode error because it was just a field error: %s", err.Error())
+		err = nil
+	}
+
+	if noErrMsg(err, nil, c, "members for id") {
 		c.Infof("checking len(members)")
 		if len(member) == 0 {
 			c.Infof("existing Member not found for user.ID: %v, count:%d", u.ID, len(member))
@@ -480,7 +447,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 			c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 			keys, err = memberQ.GetAll(c, &member)
 
-			if noErrMsg(err, w, c, "members for email") {
+			if noErrMsg(err, nil, c, "members for email") {
 				c.Infof("checking len(members)")
 				if len(member) == 0 {
 					c.Infof("existing Member not found for user.Email: %v, count:%d", lowerEmail, len(member))
@@ -490,7 +457,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 					c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 					keys, err = memberQ.GetAll(c, &member)
 
-					if noErrMsg(err, w, c, "members for email2") {
+					if noErrMsg(err, nil, c, "members for email2") {
 						if len(member) == 0 {
 							c.Infof("existing Member not found for user.Email2: %v, count:%d", lowerEmail, len(member))
 
@@ -526,7 +493,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 							outMKey, mErr := datastore.Put(c, mKey, m)
 							m.setKey(outMKey)
 
-							if noErrMsg(mErr, w, c, "Trying to put Member") {
+							if noErrMsg(mErr, nil, c, "Trying to put Member") {
 
 								c.Infof("no error on 1st member put")
 
@@ -534,7 +501,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 								m.ModifiedBy = outMKey
 
 								_, mErr2 := datastore.Put(c, outMKey, m)
-								if noErrMsg(mErr2, w, c, "Trying to put Member again") {
+								if noErrMsg(mErr2, nil, c, "Trying to put Member again") {
 									c.Infof("no error on 2nd member put")
 								}
 								//}
@@ -574,7 +541,7 @@ func getMemberFromUser(c appengine.Context, u *user.User, w http.ResponseWriter,
 				mem.Email = lowerEmail
 
 				_, err = datastore.Put(c, mem.Key, mem)
-				_ = checkErr(err, w, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", mem.Key, lowerEmail, mem))
+				_ = checkErr(err, nil, c, fmt.Sprintf("Updating Member: %v Email to User value: %v, %+v", mem.Key, lowerEmail, mem))
 			} else {
 				c.Debugf("email was already set: %v, not updating to: %v", mem.Email, u.Email)
 			}
@@ -629,32 +596,44 @@ func lookupOthers(member *Member) bool {
 	return member.CanLookup
 }
 
-func getMemberByIntKey2(key int64, currentMem *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) *Member {
+func getMemberByIntKey2(c appengine.Context, key int64, currentMem *Member) (*Member, error) {
 	allow := lookupOthers(currentMem)
-	c.Debugf("Lookup Member by key: %d, allowed to lookup? %s", key, allow)
+	c.Debugf("Lookup Member by key: %d, allowed to lookup? %t", key, allow)
 
 	var m Member
 	var retval *Member
+	var err error
 	retval = nil
+
 	if allow {
 		k := datastore.NewKey(c, "Member", "", key, nil)
-		if err := datastore.Get(c, k, &m); err != nil {
-			c.Errorf("datastore.Get member error: %v", err)
 
+		err = datastore.Get(c, k, &m)
+
+		err = checkCannotLoadField(err, nil)
+
+		if err != nil {
+			c.Errorf("datastore.Get member error: %v", err)
 		} else {
 			retval = &m
+			retval.setKey(k)
 		}
 	}
-	return retval
+	return retval, err
 }
 
-func getTeam(teamID int64, member *Member, c appengine.Context, w http.ResponseWriter, r *http.Request) (error, *Team) {
+func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {
 	var team Team
 	if teamID != 0 {
 		teamKey := datastore.NewKey(c, "Team", "", teamID, nil)
 		c.Debugf("Calling Get Team with Key: %+v", teamKey)
 		getTeamErr := datastore.Get(c, teamKey, &team)
-		if noErrMsg(getTeamErr, w, c, "Error Get Team with Key") {
+
+		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
+			getTeamErr = nil
+		}
+
+		if noErrMsg(getTeamErr, nil, c, "Error Get Team with Key") {
 			team.setKey(teamKey)
 		} else {
 			return fmt.Errorf("No team found for ID passed: %d", teamID), nil
@@ -669,7 +648,11 @@ func getTeam(teamID int64, member *Member, c appengine.Context, w http.ResponseW
 
 		keys, getTeamErr := teamQ.GetAll(c, &teams)
 
-		if noErrMsg(getTeamErr, w, c, "Failed while calling GetAll") {
+		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
+			getTeamErr = nil
+		}
+
+		if noErrMsg(getTeamErr, nil, c, "Calling GetAll for Team") {
 			lenTeams := len(teams)
 			if lenTeams == 1 {
 				team = teams[0]
@@ -707,10 +690,16 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 	}
 
 	var memberKeys []*datastore.Key
+
+	memberCallerByIntID := make(map[int64]int64)
 	c.Debugf("looping teamMembers which has: %d", len(teamMembers))
 	for _, tm := range teamMembers {
 		c.Debugf("teamMember: %+v", tm)
 		memberKeys = append(memberKeys, tm.MemberKey)
+		calledByKey := tm.CalledBy
+		if calledByKey != nil {
+			memberCallerByIntID[tm.MemberKey.IntID()] = calledByKey.IntID()
+		}
 	}
 	members := make([]Member, len(teamMembers))
 
@@ -721,7 +710,15 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 	c.Debugf("memberErr: %+v", memberErr)
 	if memberErr != nil {
 		if memberErr.Error() != "datastore: no such entity" {
-			checkErr(memberErr, w, c, "Error calling GetMulti with Keys")
+
+			if _, ok := memberErr.(*datastore.ErrFieldMismatch); ok {
+				memberErr = nil
+			}
+
+			if strings.Index(memberErr.Error(), "cannot load field \"HomeAddress\"") == -1 {
+
+				checkErr(memberErr, w, c, "Calling GetMulti with Keys")
+			}
 		}
 	}
 
@@ -734,13 +731,13 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 		if !lookup {
 			c.Infof("Doesn't have lookup rights, potentially resetting hidden email/cell")
 			if !m.ShowCell {
-				c.Debugf("Resetting Cell")
+				//c.Debugf("Resetting Cell")
 				m.Cell = "555-555-5555"
 
-				c.Debugf("Cell Reset: %+v", m)
+				//c.Debugf("Cell Reset: %+v", m)
 			}
 			if !m.ShowEmail {
-				c.Debugf("Resetting Email")
+				//c.Debugf("Resetting Email")
 				m.Email = "good-try@example.com"
 			}
 			m.Email2 = "good-try@example.com"
@@ -753,7 +750,11 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 			m.Latitude = 0.0
 			m.Longitude = 0.0
 		} else {
-			c.Debugf("Has lookup rights, not resetting hidden email/cell")
+			//c.Debugf("Has lookup rights, not resetting hidden email/cell")
+
+			val := memberCallerByIntID[m.KeyID]
+			//c.Debugf("setting CalledBy to: %d, for Member: %d", val, m.KeyID)
+			m.CalledBy = val
 		}
 	}
 
@@ -764,22 +765,35 @@ type MemberSaveContext struct {
 	Whee string
 }
 
-func memberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func apiMemberSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
-	var saveMember Member
+	var postData struct {
+		Member *Member
+		Team   *Team
+	}
+
+	c.Infof("memberSave")
 
 	decoder := json.NewDecoder(r.Body)
-	jsonDecodeErr := decoder.Decode(&saveMember)
+	jsonDecodeErr := decoder.Decode(&postData)
 
 	if jsonDecodeErr == io.EOF {
 		c.Infof("EOF, should it be?")
 	} else if noErrMsg(jsonDecodeErr, w, c, "Failed to parse member json from body") {
-		c.Infof("JSON mem: %+v", saveMember)
+		c.Infof("JSON postData: %+v", postData)
 	} else {
 
 	}
 
-	saveMem(&saveMember, nil, c, u, w, r)
+	origID := postData.Member.KeyID
+
+	saveMem(postData.Member, nil, c, u, w, r)
+
+	if postData.Team != nil && origID == 0 {
+		teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
+		c.Debugf("adding member: %d,  to team: %d", postData.Member.KeyID, postData.Team.KeyID)
+		postData.Member.addToTeam(teamKey, c)
+	}
 }
 
 func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -790,7 +804,7 @@ func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
-		curMember, _ = getMemberFromUser(c, u, w, r)
+		curMember, _ = getMemberFromUser(c, u)
 	}
 
 	teamKey := r.FormValue("team")
@@ -803,7 +817,7 @@ func resaveMembers(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	if intKey > 0 {
 		var getTeamErr error
 		var team *Team
-		getTeamErr, team = getTeam(intKey, curMember, c, w, r)
+		getTeamErr, team = getTeam(intKey, curMember, c)
 
 		if noErrMsg(getTeamErr, w, c, "GetTeam with Key: "+teamKey) {
 			members := getMembersByTeam(team.Key.IntID(), curMember, c, w, r)
@@ -824,7 +838,7 @@ func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user
 
 	if curMember == nil {
 		c.Debugf("Looking up curMember because it is nil")
-		curMember, _ = getMemberFromUser(c, u, w, r)
+		curMember, _ = getMemberFromUser(c, u)
 	}
 	c.Debugf("Looking up allow for curMember")
 	allow := lookupOthers(curMember)
@@ -837,7 +851,7 @@ func saveMem(saveMember *Member, curMember *Member, c appengine.Context, u *user
 	c.Debugf("Checking Keys || allow: %s, %d == %d?", allow, curMember.KeyID, saveMember.KeyID)
 	if curMember.KeyID == saveMember.KeyID || allow {
 
-		err = saveMember.locationGeocode(c, w, r)
+		err = saveMember.locationGeocode(c)
 		if err != nil {
 			c.Errorf("geocode err: %+v", err)
 		} else {
@@ -901,7 +915,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 
 	}
 
-	curMember, _ := getMemberFromUser(c, u, w, r)
+	curMember, _ := getMemberFromUser(c, u)
 	allow := lookupOthers(curMember)
 
 	if allow {
@@ -913,7 +927,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 			c.Debugf("Saving Imported Member: %+v", saveMember)
 			tk := datastore.NewKey(c, "Team", "", importData.TeamID, nil)
 
-			teamErr, team := getTeam(tk.IntID(), curMember, c, w, r)
+			teamErr, team := getTeam(tk.IntID(), curMember, c)
 
 			if noErrMsg(teamErr, w, c, "Lookup team") {
 
@@ -930,6 +944,7 @@ func membersImport(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 				}
 
 				saveMember.Enabled = true
+				saveMember.Active = true
 
 				_, mErr := saveMem(&saveMember, curMember, c, u, w, r)
 
@@ -1146,7 +1161,7 @@ func (event *Event) lookup(member *Member, c appengine.Context, u *user.User, w 
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 		if member == nil {
-			member, _ = getMemberFromUser(c, u, w, r)
+			member, _ = getMemberFromUser(c, u)
 		}
 
 		err = datastore.Get(c, event.Key, event)
@@ -1217,7 +1232,7 @@ func (me *MemberEvent) lookup(member *Member, c appengine.Context, u *user.User,
 			}
 
 			if member == nil {
-				member, _ = getMemberFromUser(c, u, w, r)
+				member, _ = getMemberFromUser(c, u)
 			}
 
 			err = datastore.Get(c, me.Key, me)
@@ -1261,7 +1276,7 @@ func (event *Event) responses(reminders *RemindersToSend, member *Member, c appe
 		event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 		if member == nil {
-			member, _ = getMemberFromUser(c, u, w, r)
+			member, _ = getMemberFromUser(c, u)
 		}
 
 		query := datastore.NewQuery("MemberEvent").Filter("EventKey =", event.Key)
@@ -1346,7 +1361,7 @@ func (event *Event) save(member *Member, team *Team, c appengine.Context, u *use
 	event.Key = datastore.NewKey(c, "Event", "", event.KeyID, nil)
 
 	if member == nil {
-		member, _ = getMemberFromUser(c, u, w, r)
+		member, _ = getMemberFromUser(c, u)
 	}
 
 	if lookupOthers(member) {
@@ -1430,7 +1445,7 @@ func (team *Team) events(member *Member, c appengine.Context, u *user.User, w ht
 	c.Infof("*Team.events %d", team.KeyID)
 
 	if member == nil {
-		member, _ = getMemberFromUser(c, u, w, r)
+		member, _ = getMemberFromUser(c, u)
 	}
 
 	if team.KeyID != 0 {
@@ -1593,7 +1608,7 @@ func responseSave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		postData.Response.EventKey = datastore.NewKey(c, "Event", "", postData.Event.KeyID, nil)
 		postData.Response.LastResponded = time.Now()
 
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		postData.Response.MemberKey = mem.Key
 
@@ -1656,7 +1671,7 @@ func responsesGenerate(event *Event, team *Team, u *user.User, c appengine.Conte
 			c.Errorf("Need to lookup Team")
 		}
 
-		mem, _ := getMemberFromUser(c, u, w, r)
+		mem, _ := getMemberFromUser(c, u)
 
 		if lookupOthers(mem) {
 			done := make(chan error)
@@ -1760,7 +1775,7 @@ func remindersSend(c appengine.Context, w http.ResponseWriter, r *http.Request) 
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		var responses []*MemberEvent
 		var errChan = make(chan error)
@@ -1936,7 +1951,7 @@ func locationLookupHandler(c appengine.Context, w http.ResponseWriter, r *http.R
 		err := errors.New("Must pass address as query string param")
 		checkErr(err, w, c, "")
 	} else {
-		gl, err := geocode(address, c, w, r)
+		gl, err := geocode(address, c)
 
 		if noErrMsg(err, w, c, "Geocode of address failed") {
 			c.Infof("GoogleLocation %+v", gl)
@@ -1951,26 +1966,31 @@ func locationLookupHandler(c appengine.Context, w http.ResponseWriter, r *http.R
 	}
 }
 
-func getGoogleAPIKey(c appengine.Context, w http.ResponseWriter, r *http.Request) (string, error) {
+func getGoogleAPIKey(teamId int64, c appengine.Context) (string, error) {
 	u := user.Current(c)
-	mem, _ := getMemberFromUser(c, u, w, r)
+	mem, _ := getMemberFromUser(c, u)
+	key := ""
 
-	teamErr, team := getTeam(0, mem, c, w, r)
+	err, team := getTeam(teamId, mem, c)
 
-	if teamErr != nil {
-		return "", teamErr
+	if err == nil {
+
+		key = team.GoogleAPIKey
+
+		c.Debugf("Found GoogleAPIKey %s", team.GoogleAPIKey)
+
+		if len(key) < 4 {
+			key = ""
+			err = errors.New("Google API Key seemed invalid as it was less than 4 letters")
+		}
 	}
 
-	key := team.GoogleAPIKey
-
-	c.Debugf("Found GoogleAPIKey %s", team.GoogleAPIKey)
-
-	return key, nil
+	return key, err
 }
 
-func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http.Request) (*GoogleLocationResults, error) {
+func geocode(address string, c appengine.Context) (*GoogleLocationResults, error) {
 	apiURL := "https://maps.googleapis.com/maps/api/geocode/json"
-	key, keyErr := getGoogleAPIKey(c, w, r)
+	key, keyErr := getGoogleAPIKey(0, c)
 
 	if keyErr == nil {
 		v := url.Values{}
@@ -2014,7 +2034,7 @@ func geocode(address string, c appengine.Context, w http.ResponseWriter, r *http
 	}
 }
 
-func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
+func (m *Member) locationGeocode(c appengine.Context) error {
 	var err error
 
 	m.Longitude = 0
@@ -2023,16 +2043,16 @@ func (m *Member) locationGeocode(c appengine.Context, w http.ResponseWriter, r *
 	m.PublicLongitude = 0
 
 	if m.Line1 != "" {
-		err = m.Location.geocode(c, w, r)
+		err = m.Location.geocode(c)
 	}
 
 	return err
 }
 
-func (l *Location) geocode(c appengine.Context, w http.ResponseWriter, r *http.Request) error {
+func (l *Location) geocode(c appengine.Context) error {
 	address := fmt.Sprintf("%s, %s, %s", l.Line1, l.City, l.Zip)
 
-	googleLoc, err := geocode(address, c, w, r)
+	googleLoc, err := geocode(address, c)
 
 	if err == nil {
 		l.Latitude = googleLoc.Results[0].Geometry.Location.Lat
@@ -2091,7 +2111,7 @@ func certificationSave(c appengine.Context, w http.ResponseWriter, r *http.Reque
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing event json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		saveErr := postData.Certification.save(mem, c)
 
@@ -2126,7 +2146,7 @@ func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Reques
 
 	c.Infof("certificationGet %d", id)
 
-	mem, _ = getMemberFromUser(c, u, w, r)
+	mem, _ = getMemberFromUser(c, u)
 
 	results, err := getCertAndTopics(c, id, mem)
 
@@ -2145,7 +2165,7 @@ func certificationsGetAll(c appengine.Context, w http.ResponseWriter, r *http.Re
 
 	c.Infof("certificationsGet")
 
-	mem, _ = getMemberFromUser(c, u, w, r)
+	mem, _ = getMemberFromUser(c, u)
 
 	if mem != nil {
 
@@ -2378,7 +2398,7 @@ func apiTrainingTopicSave(c appengine.Context, w http.ResponseWriter, r *http.Re
 	} else if noErrMsg(jsonDecodeErr, w, c, "Parsing json from body") {
 		c.Infof("JSON from request: %+v", postData)
 
-		mem, _ = getMemberFromUser(c, u, w, r)
+		mem, _ = getMemberFromUser(c, u)
 
 		certKey := datastore.NewKey(c, "Certification", "", postData.Certification.KeyID, nil)
 		postData.TrainingTopic.CertificationKey = certKey
@@ -2436,12 +2456,14 @@ func (obj *CertificationClass) save(member *Member, c appengine.Context) error {
 func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Context) error {
 	if member == nil {
 		//TODO: Should lookup member here
-		//member = getMemberFromUser(c, u, w, r)
+		//member = getMemberFromUser(c, u)
 	}
 
 	t.Key = datastore.NewKey(c, "CertificationClass", "", id, nil)
 
 	err := datastore.Get(c, t.Key, t)
+
+	err = checkCannotLoadField(err, c)
 
 	if noErrMsg(err, nil, c, fmt.Sprintf("Getting CertificationClass %d", id)) {
 		t.setKey(t.Key)
@@ -2635,6 +2657,8 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 	c.Infof("Got membersQ and members for calling GetAll: %+v", memberQ)
 	keys, err := memberQ.GetAll(c, &members)
 
+	err = checkCannotLoadField(err, c)
+
 	for idx, _ := range members {
 		m := members[idx]
 		k := keys[idx]
@@ -2706,4 +2730,18 @@ func parseJSON(object interface{}, r *http.Request, c appengine.Context) error {
 	}
 
 	return jsonDecodeErr
+}
+
+func checkCannotLoadField(err error, c appengine.Context) error {
+	if err != nil {
+		index := strings.Index(err.Error(), "cannot load field")
+		index2 := strings.Index(err.Error(), "HomeAddress")
+
+		c.Debugf("err: %s, index: %d", err.Error(), index)
+		if index > -1 && index2 > -1 {
+			err = nil
+		}
+	}
+
+	return err
 }
