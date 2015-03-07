@@ -3527,7 +3527,7 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 
 		var model = model || {};
 		model.certification = CERTApps.Certification.create();
-		model.newTopic = CERTApps.TrainingTopic.create();
+		model.newTopic = CERTApps.TrainingTopic.create({effectiveDate: moment()});
 
 		console.log('controller, model', controller, model);
 		controller.set('model', model);
@@ -3574,7 +3574,7 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.CertificationUpdateRoute setupController');
 		console.log('controller, model', controller, model);
 
-		model.newTopic = CERTApps.TrainingTopic.create();
+		model.newTopic = CERTApps.TrainingTopic.create({effectiveDate: moment()});
 
 		controller.set('model', model);
 
@@ -3749,6 +3749,9 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	name: null,
 	monthsValid: null,
 	isLastEdited: null,
+
+	effectiveDate: null,
+	sunsetDate: null,
 	
 	init: function()
 	{
@@ -3759,6 +3762,12 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	{
 		console.group("CERTApps.TrainingTopic save");
 		console.log('saving TrainingTopic', this);
+
+		this.set("effectiveDate", moment(this.get("effectiveDate")).format());
+		if( this.get("sunsetDate") )
+		{
+			this.set("sunsetDate", moment(this.get("sunsetDate")).format());
+		}
 
 		var settings = 
 		{
@@ -3804,7 +3813,30 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	{
 		this.set("name", "");
 		this.set("KeyID", 0);
-	}
+	},
+
+	effectiveDateMoment: function() {
+		var parsed = moment(this.get("effectiveDate"));
+		var retval = parsed.format("MM/DD/YY");
+
+		if( parsed.year() == 0 )
+		{
+			retval = null;
+		}
+		return retval;
+	}.property("effectiveDate"),
+
+	sunsetDateMoment: function() {
+		var parsed = moment(this.get("sunsetDate"));
+		var retval = parsed.format("MM/DD/YY");
+
+		if( parsed.year() == 0 )
+		{
+			retval = null;
+		}
+		return retval;	
+	}.property("sunsetDate")
+
 });
 
 CERTApps.TrainingTopic.reopenClass(
@@ -3913,7 +3945,7 @@ CERTApps.TrainingTopic.reopenClass(
 		console.groupEnd();
 
 		return p2;
-	}
+	},
 });
 
 CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
