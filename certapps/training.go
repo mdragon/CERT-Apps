@@ -100,6 +100,8 @@ func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *
 
 			keys, err := query.GetAll(c, &results)
 
+			err = checkCannotLoadField(err, c)
+
 			if noErrMsg(err, w, c, "Getting All CertificationClasses for Team") {
 				for idx, _ := range results {
 					e := results[idx]
@@ -156,6 +158,8 @@ func apiCertificationClassAttendeeAdd(c appengine.Context, w http.ResponseWriter
 			c.Infof("JSON from request: KeyIDs Member: %d, CClass: %d", postData.Member.KeyID, postData.CClass.KeyID)
 
 			classLookupErr := postData.CClass.lookup(postData.CClass.KeyID, mem, c)
+
+			classLookupErr = checkCannotLoadField(classLookupErr, c)
 
 			if noErrMsg(classLookupErr, w, c, "Looking up Certification Class") {
 				postData.Member.Key = datastore.NewKey(c, "Member", "", postData.Member.KeyID, nil)

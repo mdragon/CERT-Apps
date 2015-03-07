@@ -62,7 +62,8 @@ type Team struct {
 	MembersEmail  string
 	OfficersEmail string
 
-	GoogleAPIKey string
+	GoogleAPIKey     string
+	ForecastIOAPIKey string
 
 	Audit
 }
@@ -70,6 +71,7 @@ type Team struct {
 type TeamMember struct {
 	TeamKey   *datastore.Key
 	MemberKey *datastore.Key
+	CalledBy  *datastore.Key // who would call this member would call when phone tree is activated
 
 	Audit
 }
@@ -100,14 +102,14 @@ type Member struct {
 
 	RadioID string
 
-	HomeAddress *datastore.Key
+	Town    bool
+	OEM     bool
+	Officer bool
+	Active  bool
 
+	CalledBy int64 `json:"calledBy", datastore:"-"`
 	//TODO: this would need to move to TeamMember when multiple teams was supported
 	CanLookup bool `datastore:"-"`
-	Town      bool
-	OEM       bool
-	Officer   bool
-	Active    bool
 
 	Person
 }

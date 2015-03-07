@@ -5,43 +5,69 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/mjibson/appstats"
+	"appengine"
+	//	"github.com/mjibson/appstats"
 )
 
+type handler struct {
+	f func(appengine.Context, http.ResponseWriter, *http.Request)
+}
+
+func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	h.f(c, w, r)
+}
+
+func NewHandler(f func(appengine.Context, http.ResponseWriter, *http.Request)) http.Handler {
+	return handler{
+		f: f,
+	}
+}
+
+func newHandler(f func(appengine.Context, http.ResponseWriter, *http.Request)) http.Handler {
+	//return appstats.NewHandler(f)
+	return NewHandler(f)
+}
+
 func init() {
-	http.Handle("/api/trainingTopic/save", appstats.NewHandler(apiTrainingTopicSave))
-	http.Handle("/api/certificationClass", appstats.NewHandler(apiCertificationClassGet))
-	http.Handle("/api/certificationClass/all", appstats.NewHandler(apiCertificationClassGetAll))
-	http.Handle("/api/certificationClass/save", appstats.NewHandler(apiCertificationClassSave))
-	http.Handle("/api/certificationClass/attendee/add", appstats.NewHandler(apiCertificationClassAttendeeAdd))
+	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
+	http.Handle("/api/certificationClass", newHandler(apiCertificationClassGet))
+	http.Handle("/api/certificationClass/all", newHandler(apiCertificationClassGetAll))
+	http.Handle("/api/certificationClass/save", newHandler(apiCertificationClassSave))
+	http.Handle("/api/certificationClass/attendee/add", newHandler(apiCertificationClassAttendeeAdd))
 
-	http.Handle("/api/comfort-station/", appstats.NewHandler(apiComfortStation))
-	http.Handle("/api/comfort-stations/", appstats.NewHandler(apiComfortStationsAll))
+	http.Handle("/api/comfort-station/", newHandler(apiComfortStation))
+	http.Handle("/api/comfort-stations/", newHandler(apiComfortStationsAll))
 
-	http.Handle("/api/member/search", appstats.NewHandler(apiMemberSearch))
+	http.Handle("/api/member", newHandler(memberData))
+	http.Handle("/api/member/save", newHandler(apiMemberSave))
+	http.Handle("/api/member/toggle-active", newHandler(apiMemberToggleActive))
+	http.Handle("/api/member/toggle-enabled", newHandler(apiMemberToggleEnabled))
+	http.Handle("/api/member/search", newHandler(apiMemberSearch))
+	http.Handle("/api/member/calledBy", newHandler(apiMemberCalledBy))
 
-	http.Handle("/audit", appstats.NewHandler(audit))
-	http.Handle("/certification", appstats.NewHandler(certificationGet))
-	http.Handle("/certifications/all", appstats.NewHandler(certificationsGetAll))
-	http.Handle("/certification/save", appstats.NewHandler(certificationSave))
-	http.Handle("/eventA", appstats.NewHandler(eventA))
-	http.Handle("/event", appstats.NewHandler(event))
-	http.Handle("/event/reminders/send", appstats.NewHandler(remindersSend))
-	http.Handle("/event/save", appstats.NewHandler(eventSave))
-	http.Handle("/events", appstats.NewHandler(events))
-	http.Handle("/member", appstats.NewHandler(memberData))
-	http.Handle("/member/save", appstats.NewHandler(memberSave))
-	http.Handle("/response", appstats.NewHandler(response))
-	http.Handle("/response/save", appstats.NewHandler(responseSave))
-	http.Handle("/responses/create", appstats.NewHandler(responsesCreate))
-	http.Handle("/team", appstats.NewHandler(teamData))
-	http.Handle("/team/roster", appstats.NewHandler(teamRoster))
-	http.Handle("/team/roster/import", appstats.NewHandler(membersImport))
-	http.Handle("/fix/teamMembers/without/Memeber", appstats.NewHandler(fixData))
-	http.Handle("/fix/members/geocode", appstats.NewHandler(resaveMembers))
-	http.Handle("/address", appstats.NewHandler(locationLookupHandler))
-	http.Handle("/setup", appstats.NewHandler(initialSetup))
-	http.Handle("/", appstats.NewHandler(root))
+	http.Handle("/api/team/save", newHandler(apiTeamSave))
+
+	http.Handle("/audit", newHandler(audit))
+	http.Handle("/certification", newHandler(certificationGet))
+	http.Handle("/certifications/all", newHandler(certificationsGetAll))
+	http.Handle("/certification/save", newHandler(certificationSave))
+	http.Handle("/eventA", newHandler(eventA))
+	http.Handle("/event", newHandler(event))
+	http.Handle("/event/reminders/send", newHandler(remindersSend))
+	http.Handle("/event/save", newHandler(eventSave))
+	http.Handle("/events", newHandler(events))
+	http.Handle("/response", newHandler(response))
+	http.Handle("/response/save", newHandler(responseSave))
+	http.Handle("/responses/create", newHandler(responsesCreate))
+	http.Handle("/team", newHandler(teamData))
+	http.Handle("/team/roster", newHandler(teamRoster))
+	http.Handle("/team/roster/import", newHandler(membersImport))
+	http.Handle("/fix/teamMembers/without/Member", newHandler(fixData))
+	http.Handle("/fix/members/geocode", newHandler(resaveMembers))
+	http.Handle("/address", newHandler(locationLookupHandler))
+	http.Handle("/setup", newHandler(initialSetup))
+	http.Handle("/", newHandler(root))
 
 	rand.Seed(time.Now().UnixNano())
 }
