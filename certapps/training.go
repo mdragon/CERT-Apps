@@ -144,7 +144,7 @@ func apiCertificationClassAttendeeAdd(c appengine.Context, w http.ResponseWriter
 		Member *Member
 	}
 
-	c.Infof("certificationClassAddAttendee")
+	c.Infof("apiCertificationClassAddAttendee")
 
 	mem, memberErr := getMemberFromUser(c, u)
 
