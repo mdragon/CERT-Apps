@@ -672,8 +672,8 @@
 			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
-			<h4>Offerings</h4>
-			{{#if offierings }}
+			<h4>Classes</h4>
+			{{#if classes }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<tr>
@@ -681,7 +681,7 @@
 						</tr>
 					</thead>
 					<tbody>
-					{{#each o in offerings}}
+					{{#each o in classes}}
 						<tr>
 							<td>{{o.name}}</td>
 							<td>{{o.scheduledDateOnly}}</td>
@@ -691,17 +691,17 @@
 					</tbody>
 				</table>
 			{{else}}
-				No Offerings yet, start by adding one below <br/>
+				No Classes yet, start by adding one below <br/>
 			{{/if}}
 
-			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
-			{{input type="date" value=newOffering.scheduledDateOnly placeholder="Date" size="10"}}<br/>
+			{{input value=newClass.name placeholder="Name" size="30"}}<br/>
+			{{input type="date" value=newClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
 			{{#each t in sortedTopics}}
 				<label>{{input type='checkbox' name=t.name checked=t.included placeholder='Show'}} {{t.name}}</label><br/>
 			{{/each}}
 
-			<button {{action 'saveOffering' newOffering certification sortedTopics }}><i class="fa fa-save"></i> Add</button>
+			<button {{action 'saveClass' newClass certification sortedTopics model}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="clearfix"></div>
 	</div>

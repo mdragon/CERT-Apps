@@ -2113,7 +2113,7 @@ func certificationSave(c appengine.Context, w http.ResponseWriter, r *http.Reque
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func apiCertificationGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
@@ -2130,7 +2130,7 @@ func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Reques
 
 	mem, _ = getMemberFromUser(c, u)
 
-	results, err := getCertAndTopics(c, id, mem)
+	results, err := getCertAndTopicsAndClasses(c, id, mem)
 
 	if noErrMsg(err, w, c, "Certification lookup") {
 
@@ -2655,6 +2655,70 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 	}
 
 	return members, err
+}
+
+func getCertAndTopicsAndClasses(c appengine.Context, id int64, member *Member) (*CertificationAndTopicsAndClasses, error) {
+	errC := make(chan error)
+	certAndTopicsC := make(chan *CertificationAndTopics)
+	classesC := make(chan []*CertificationClass)
+
+	certKey := datastore.NewKey(c, "Certification", "", id, nil)
+
+	go func() {
+		certAndTopics, err := getCertAndTopics(c, id, member)
+		certAndTopicsC <- certAndTopics
+		errC <- err
+	}()
+
+	certAndTopics := <-certAndTopicsC
+
+	go func() {
+		query := datastore.NewQuery("CertificationClass").Filter("Deleted =", false).Filter("CertificationKey = ", certKey)
+
+		var lookupResults []*CertificationClass
+		keys, err := query.GetAll(c, &lookupResults)
+
+		for idx, _ := range lookupResults {
+			e := lookupResults[idx]
+			key := keys[idx]
+
+			c.Debugf("found CeritifcationClass %d, %d, %d", idx, e.KeyID, key.IntID())
+			c.Debugf("\t for cert %d", e.CertificationKey.IntID())
+
+			e.setKey(key)
+		}
+		classesC <- lookupResults
+		errC <- err
+	}()
+
+	classes := <-classesC
+
+	err1 := <-errC
+	err2 := <-errC
+
+	err1 = checkCannotLoadField(err1, c)
+	err2 = checkCannotLoadField(err2, c)
+
+	if noErrMsg(err1, nil, c, "getCertAndTopicsAndClasses 1") {
+		if noErrMsg(err2, nil, c, "getCertAndTopicsAndClasses 2") {
+			results := processClasses(c, certAndTopics, classes)
+
+			return results, nil
+		} else {
+			return nil, err2
+		}
+	}
+
+	return nil, err1
+}
+
+func processClasses(c appengine.Context, certAndTopic *CertificationAndTopics, classes []*CertificationClass) *CertificationAndTopicsAndClasses {
+	results := &CertificationAndTopicsAndClasses{}
+
+	results.CertificationAndTopics = *certAndTopic
+	results.Classes = classes
+
+	return results
 }
 
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {

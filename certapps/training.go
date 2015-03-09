@@ -15,8 +15,9 @@ func apiCertificationClassSave(c appengine.Context, w http.ResponseWriter, r *ht
 	var context interface{}
 	var mem *Member
 	var postData struct {
-		CClass *CertificationClass
-		Team   *Team
+		CClass        *CertificationClass
+		Team          *Team
+		Certification *Certification
 	}
 
 	c.Infof("certificationClassSave")
@@ -35,7 +36,10 @@ func apiCertificationClassSave(c appengine.Context, w http.ResponseWriter, r *ht
 		mem, _ = getMemberFromUser(c, u)
 
 		teamKey := datastore.NewKey(c, "Team", "", postData.Team.KeyID, nil)
+		certKey := datastore.NewKey(c, "Certification", "", postData.Certification.KeyID, nil)
+
 		postData.CClass.TeamKey = teamKey
+		postData.CClass.CertificationKey = certKey
 
 		saveErr := postData.CClass.save(mem, c)
 

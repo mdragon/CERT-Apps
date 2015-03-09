@@ -245,6 +245,11 @@ type CertificationAndTopics struct {
 	Topics        []*TrainingTopic
 }
 
+type CertificationAndTopicsAndClasses struct {
+	CertificationAndTopics
+	Classes []*CertificationClass `json:"classes"`
+}
+
 // API types
 
 type GoogleLocationResults struct {
