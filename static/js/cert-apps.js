@@ -3871,7 +3871,7 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 		var parsed = moment(this.get("sunsetDate"));
 		var retval = parsed.format("MM/DD/YY");
 
-		if( parsed.year() == 0 )
+		if( ! parsed.isValid() || parsed.year() === 0)
 		{
 			retval = null;
 		}
@@ -4252,6 +4252,7 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		// setter
 		if( arguments.length > 1 )
 		{
+			console.log("scheduledDateOnly setter", key, value, prior);
 			var dateVal = moment(value);
 			this.set("scheduled", dateVal);
 		}
@@ -4271,6 +4272,20 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 	}.property("scheduled"),
 
+	scheduledDateOnlyDisp: function()
+	{
+		var scheduled = this.get("scheduled");
+
+		if(scheduled) 
+		{
+			var date = moment(scheduled);
+
+			scheduled = date.format("MM/DD/YYYY");
+		}
+
+		return scheduled;
+
+	}.property("scheduled"),
 	addAttendee: function(member, search)
 	{
 		console.group("CERTApps.CertificationClass addAttendee");
@@ -4328,7 +4343,11 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 				t.set("included", true);
 			});
 		}
-	}
+	},
+
+	certificationName: function() {
+		return this.get("certification.name");
+	}.property("certification.name")
 });
 
 CERTApps.getZeroPaddedDate = function(date)
@@ -4478,13 +4497,26 @@ CERTApps.CertificationClass.reopenClass(
 		p2 = p.then(function(data)
 		{
 			var list = Ember.A([]);
+			var map = {};
 
+			if( data.Certifications ) {				
+				data.Certifications.forEach( function(certData){
+					var cert = CERTApps.Certification.create(certData);
+
+					map[cert.get("Key")] = cert;
+				});
+			}
+			
 			if( data.CClasses )
 			{
 				for( var x = data.CClasses.length - 1; x >= 0; x-- )
 				{
 					t = data.CClasses[x];
 					tObj = CERTApps.CertificationClass.create(t);
+
+					var cert = map[tObj.get("CertificationKey")];
+
+					tObj.set("certification", cert);
 
 					list.pushObject(tObj);
 				}

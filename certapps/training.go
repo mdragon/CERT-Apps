@@ -84,6 +84,51 @@ func apiCertificationClassGet(c appengine.Context, w http.ResponseWriter, r *htt
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
+func (team *Team) getCertificationClasses(c appengine.Context) ([]*CertificationClass, error) {
+	if team.Key == nil {
+		team.Key = datastore.NewKey(c, "Team", "", team.KeyID, nil)
+	}
+	var results []*CertificationClass
+
+	query := datastore.NewQuery("CertificationClass").Filter("TeamKey =", team.Key)
+
+	keys, err := query.GetAll(c, &results)
+
+	err = checkCannotLoadField(err, c)
+
+	if noErrMsg(err, nil, c, "Getting All CertificationClasses for Team") {
+		for idx, _ := range results {
+			e := results[idx]
+			key := keys[idx]
+
+			e.setKey(key)
+		}
+	}
+
+	return results, err
+}
+
+func getCertifications(c appengine.Context) ([]*Certification, error) {
+	var results []*Certification
+
+	query := datastore.NewQuery("Certification")
+
+	keys, err := query.GetAll(c, &results)
+
+	err = checkCannotLoadField(err, c)
+
+	if noErrMsg(err, nil, c, "Getting All Certifications") {
+		for idx, _ := range results {
+			e := results[idx]
+			key := keys[idx]
+
+			e.setKey(key)
+		}
+	}
+
+	return results, err
+}
+
 func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
@@ -97,28 +142,43 @@ func apiCertificationClassGetAll(c appengine.Context, w http.ResponseWriter, r *
 		mem, _ = getMemberFromUser(c, u)
 
 		if mem != nil {
-			var results []*CertificationClass
-			var teamKey = datastore.NewKey(c, "Team", "", id, nil)
+			team := &Team{Audit: Audit{KeyID: id}}
 
-			query := datastore.NewQuery("CertificationClass").Filter("TeamKey =", teamKey)
+			classesC := make(chan []*CertificationClass)
+			certsC := make(chan []*Certification)
+			errC := make(chan error)
 
-			keys, err := query.GetAll(c, &results)
+			go func() {
+				classes, err := team.getCertificationClasses(c)
 
-			err = checkCannotLoadField(err, c)
+				classesC <- classes
+				errC <- err
+			}()
 
-			if noErrMsg(err, w, c, "Getting All CertificationClasses for Team") {
-				for idx, _ := range results {
-					e := results[idx]
-					key := keys[idx]
+			classes := <-classesC
 
-					e.setKey(key)
+			go func() {
+				certs, err := getCertifications(c)
+
+				certsC <- certs
+				errC <- err
+			}()
+
+			certifications := <-certsC
+
+			err1 := <-errC
+			err2 := <-errC
+
+			if noErrMsg(err1, w, c, "apiCertificationClassGetAll error 1") {
+				if noErrMsg(err2, w, c, "apiCertificationClassGetAll error 2") {
+					context = struct {
+						CClasses       []*CertificationClass
+						Certifications []*Certification
+					}{
+						classes,
+						certifications,
+					}
 				}
-			}
-
-			context = struct {
-				CClasses []*CertificationClass
-			}{
-				results,
 			}
 		} else {
 			context = struct {

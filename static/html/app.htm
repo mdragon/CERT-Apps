@@ -141,7 +141,7 @@
 				{{#link-to 'team.id.comfortStation.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStation.create' content.Team}}Create{{/link-to}} | 
 
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
-				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'certification.class'}}Classes{{/link-to}} <!--- {!#link-to 'certification.class.tcreate'}}Create{{!/link-to}}--> | 
 				{{#link-to 'team.id.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
 			Team 
@@ -684,7 +684,7 @@
 					{{#each o in classes}}
 						<tr>
 							<td>{{o.name}}</td>
-							<td>{{o.scheduledDateOnly}}</td>
+							<td>{{o.scheduledDateOnlyDisp}}</td>
 							<td>{{o.shortLocation}}</td>
 						</tr>
 					{{/each}}
@@ -743,13 +743,15 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="certification/class/index">
+	{{log "certification/class/index"}}
+	{{log content}}
 	<h4>Certification Classes</h4>
 
 	<table class="table table-condensed table-striped">
 		<thead>
 			<tr>
 				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
-				<th>Name</th><th>Scheduled</th><th>Location</th>
+				<th>Class Name</th><th>Certification</th><th>Scheduled</th><th>Location</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -759,6 +761,9 @@
 					<i {{action "editA" c}} class="fa fa-pencil action"></i>
 				</td>
 				<td>{{c.name}}</td>
+				{{log "Certification"}}
+				{{log c}}
+				<td>{{c.certificationName}}</td>
 				<td>{{c.scheduledDateOnly}}</td>
 				<td>{{c.shortLocation}}</td>
 				<td>
