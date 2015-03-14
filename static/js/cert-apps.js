@@ -2701,7 +2701,14 @@ CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 		return t;
 	},
 
-	setupController: function(controller, model)
+	afterModel: function(model) {
+		var team = this.modelFor('team');
+		console.log('model, team', model, team);
+
+		model.team = team;
+	},
+
+/*	setupController: function(controller, model)
 	{
 		console.group('CERTApps.TeamIDEventsRoute setupController')
 
@@ -2712,7 +2719,7 @@ CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 
 		return;		
 	},
-
+*/
 	serialize: function(model)
 	{
 		console.group("CERTApps.TeamIDEventsRoute serialize");
@@ -2814,7 +2821,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 	{
 		submitResponse: function(response)
 		{
-			console.group('CERTApps.ResponseRoute.actions submitResponse')
+			console.group('CERTApps.ResponseIndexRoute.actions submitResponse')
 
 			var ev = this.modelFor('eventID');
 
@@ -2834,7 +2841,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	model: function(params, transition)
 	{
-		console.group('CERTApps.EventIDResponseRoute model');
+		console.group('CERTApps.ResponseIndexRoute model');
 
 		console.log('params, args', params, arguments);
 
@@ -2846,7 +2853,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 			console.log('looking up response for params', params, e);
 			a = CERTApps.MemberEvent.lookup(params.responseID, e);
 
-			a.then(function(obj){ console.log('CERTApps.EventIDResponseRoute model returning', obj)});
+			a.then(function(obj){ console.log('CERTApps.ResponseIndexRoute model returning', obj)});
 		} else {
 			// for when you haven't passed a responseID on the URL
 			
@@ -2879,7 +2886,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps.EventIDResponseRoute setupController')
+		console.group('CERTApps.ResponseIndexRoute setupController')
 		console.log('controller, model', controller, model);
 
 		//if( model.Event ) model = model.Event;
@@ -2914,7 +2921,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	serialize: function(model)
 	{
-		console.group("CERTApps.EventIDResponseRoute serialize");
+		console.group("CERTApps.ResponseIndexRoute serialize");
 
 		console.log('model', model);
 
@@ -2924,6 +2931,8 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 		var obj = { responseID: e.get('KeyID') };
 
 		console.log('seralized to', obj);
+		console.warn("but that ID's from an event not a response?", e);
+		throw "Need to figure out how we get the response ID in here too, or do we not need it?, how smart did we make the response route"
 
 		console.groupEnd();
 

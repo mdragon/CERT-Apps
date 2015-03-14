@@ -86,6 +86,11 @@
 			cursor: pointer;
 		}
 
+		.action
+		{
+			color: black !important;
+		}
+
 		.action:hover
 		{
 			cursor: pointer;
@@ -409,15 +414,15 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/events">
+{{log "team/id/events"}}
+{{log content}}
 	<div class="center-content">
 	<h4>Upcoming Events</h4>
-
-	{{#if upcoming}}
 
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
 				<tr>
-					<th></th>
+					<th>{{#link-to 'event.create' content.team}}<i class="fa fa-plus action"></i>{{/link-to}}</th>
 					<th></th>
 					<th></th>
 					<th></th>
@@ -464,12 +469,13 @@
 							<i {{action 'sendReminders' e}} class="fa fa-envelope-o action"></i>
 						</td>
 					</tr>
+				{{else}}
+					<tr>
+						<td colspan="9">No upcoming events</td>
+					</tr>
 				{{/each}}
 			</tbody>
 		</table>
-	{{else}}
-		No upcoming events
-	{{/if}}
 
 	<h4>Recent Events</h4>
 
