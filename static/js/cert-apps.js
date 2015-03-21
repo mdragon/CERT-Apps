@@ -2265,7 +2265,7 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 
 		console.log('params', params);
  
-		var model = {team: this.modelFor('team')};
+		var model = this.modelFor('team');
 		
 		console.log('model', model);
 
@@ -2343,7 +2343,28 @@ CERTApps.Team = CERTApps.BaseObject.extend({
 		);
 
 		return t;
-	}
+	},
+
+	uiSaving: Ember.computed.equal("uiStatuses.saving", "saving"),
+	uiSaveSuccess: Ember.computed.equal("uiStatuses.saving", "success"),
+	uiSaveFailure: Ember.computed.equal("uiStatuses.saving", "failed"),
+
+	savingIcon: function() {
+		var retval = "";
+		if( this.get("uiSaving") ) {
+			retval = "fa-spin fa-spinner";
+		} else {
+			if( this.get("uiSaveSuccess") ) {
+				retval = "fa-check-circle text-success";
+			} else {
+				if( this.get("uiSaveFailure") ) {
+					retval = "fa-close text-danger";
+				}
+			}
+		}
+
+		return retval;
+	}.property("uiSaving", "uiSaveSuccess", "uiSaveFailure")
 
 });
 
@@ -5136,7 +5157,17 @@ CERTApps.TeamEditComponent = Ember.Component.extend({
 			console.group('CERTApps.TeamEditComponent actions.saveTeam');
 			console.log('team', team);
 
-			team.save()
+			var p = team.save()
+
+			p.then(
+				function(){
+					window.setTimeout(
+						function() {
+							team.set("uiStatuses.saving", "done");
+						},
+						5000
+					);
+			});
 
 			console.groupEnd();
 		}
