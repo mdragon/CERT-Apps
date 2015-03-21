@@ -675,7 +675,7 @@
 
 			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
 			<label>Effective Date: {{input type="date" value=newTopic.effectiveDate}}</label><br/>
-			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
+			<button {{action 'saveTopicA' newTopic content }} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
 			<h4>Classes</h4>
@@ -707,7 +707,7 @@
 				<label>{{input type='checkbox' name=t.name checked=t.included placeholder='Show'}} {{t.name}}</label><br/>
 			{{/each}}
 
-			<button {{action 'saveClass' newClass certification sortedTopics model}}><i class="fa fa-save"></i> Add</button>
+			<button {{action 'saveClass' newClass certification sortedTopics model}} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="clearfix"></div>
 	</div>

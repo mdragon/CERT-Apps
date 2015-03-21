@@ -3377,7 +3377,18 @@ CERTApps.Certification = CERTApps.BaseObject.extend(
 		}
 
 		return this.get('monthsValid');
-	}.property('monthsValid')
+	}.property('monthsValid'),
+
+	neverBeenSaved: function() {
+		var retval = true;
+
+		var key = this.get("keyID");
+		if( key && key !== 0 ) {
+			retval = false;
+		}
+
+		return retval;
+	}.property("keyID")
 });
 
 CERTApps.Certification.reopenClass(
