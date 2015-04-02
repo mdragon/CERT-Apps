@@ -434,7 +434,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{{#each e in upcoming}}
+				{{#each e in model.upcoming}}
 					<tr>
 						<td>
 							<i {{action 'userResponseForm' e}} class="fa fa-reply action"></i>
@@ -479,7 +479,7 @@
 
 	<h4>Recent Events</h4>
 
-	{{#if recent }}
+	{{#if model.recent }}
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
 				<tr>
@@ -491,7 +491,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{{#each e in recent}}
+				{{#each e in model.recent}}
 					<tr>
 						<td>
 							<i {{action 'eventEdit' e}} class="fa fa-pencil action"></i>
@@ -646,7 +646,7 @@
 	<div class="">
 		<div class="pull-left space-right" style="clear: left;">
 			<h4>Topics</h4>
-			{{#if topics }}
+			{{#if model.topics }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<tr>
@@ -655,7 +655,7 @@
 						</tr>
 					</thead>
 					<tbody>
-					{{#each t in sortedTopics}}
+					{{#each t in model.sortedTopics}}
 						<tr>
 							<td>{{t.name}}</td>
 							<td>
@@ -673,13 +673,13 @@
 				No Topics yet, start by adding one below <br/>
 			{{/if}}
 
-			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
-			<label>Effective Date: {{input type="date" value=newTopic.effectiveDate}}</label><br/>
-			<button {{action 'saveTopicA' newTopic content }} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
+			{{input value=model.newTopic.name placeholder="Name" size="30"}}<br/>
+			<label>Effective Date: {{input type="date" value=model.newTopic.effectiveDate}}</label><br/>
+			<button {{action 'saveTopicA' model.newTopic content }} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
 			<h4>Classes</h4>
-			{{#if classes }}
+			{{#if model.classes }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<tr>
@@ -687,7 +687,7 @@
 						</tr>
 					</thead>
 					<tbody>
-					{{#each o in classes}}
+					{{#each o in model.classes}}
 						<tr>
 							<td>{{o.name}}</td>
 							<td>{{o.scheduledDateOnlyDisp}}</td>
@@ -700,14 +700,14 @@
 				No Classes yet, start by adding one below <br/>
 			{{/if}}
 
-			{{input value=newClass.name placeholder="Name" size="30"}}<br/>
-			{{input type="date" value=newClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
+			{{input value=model.newClass.name placeholder="Name" size="30"}}<br/>
+			{{input type="date" value=model.newClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
-			{{#each t in sortedTopics}}
+			{{#each t in model.sortedTopics}}
 				<label>{{input type='checkbox' name=t.name checked=t.included placeholder='Show'}} {{t.name}}</label><br/>
 			{{/each}}
 
-			<button {{action 'saveClass' newClass certification sortedTopics model}} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
+			<button {{action 'saveClass' model.newClass model.certification model.sortedTopics model}} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="clearfix"></div>
 	</div>
@@ -953,7 +953,7 @@ Landing index
 		</tr>
 	</thead>
 	<tbody>
-		{{#each s in locations}}
+		{{#each s in model.locations}}
 			<tr>
 				<td>
 					<i class="fa fa-pencil action" {{action editComfortStation s}}></i>
@@ -985,6 +985,7 @@ Landing index
 	
 	<h3>Comfort Station</h3>
 	<form>
+		{{#with model.station as station}}
 		<div class="panel panel-default">
 			<div class="panel-heading">
 				<h4><i class="fa fa-home"></i> Information/Location</h4>
@@ -1032,7 +1033,8 @@ Landing index
 			</div>
 		</div>
 
-		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+		<button {{action "saveComfortStation" station model.team}}><i class="fa fa-save"></i> Save</button>
+		{{/with}}
 	</form>
 </script>
 
