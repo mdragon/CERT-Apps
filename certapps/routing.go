@@ -69,5 +69,8 @@ func init() {
 	http.Handle("/setup", newHandler(initialSetup))
 	http.Handle("/", newHandler(root))
 
+	http.Handle("/whereami", newHandler(whereAmI))
+	http.Handle("/whereami/save", newHandler(whereAmISave))
+
 	rand.Seed(time.Now().UnixNano())
 }
