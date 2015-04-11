@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	//	"html/template"
+	"html/template"
 	"io"
 	//"io/ioutil"
 	"math/rand"
@@ -2745,3 +2745,85 @@ func checkCannotLoadField(err error, c appengine.Context) error {
 
 	return err
 }
+
+func whereAmI(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	data := WhereAmI{}
+
+	err := whereTemplate.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type WhereAmI struct {
+	Name     string
+	Lat      float32
+	Long     float32
+	Entered  time.Time
+	EventKey datastore.Key
+}
+
+func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	data := WhereAmI{}
+
+	var errLat, errLong error
+
+	data.Name = r.FormValue("name")
+	f64, errLat := strconv.ParseFloat(r.FormValue("lat"), 32)
+	if errLat == nil {
+		data.Lat = float32(f64)
+	}
+	f64, errLong = strconv.ParseFloat(r.FormValue("long"), 32)
+	if errLong == nil {
+		data.Long = float32(f64)
+	}
+
+	data.Entered = time.Now()
+
+	// save the data
+
+	key := datastore.NewKey(c, "WhereAmI", "", 0, nil)
+	datastore.Put(c, key, &data)
+
+	//redirect with queryString?
+
+	err := whereTemplate.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+const whereTemplateHTML = `
+<html>
+	<head>
+		<title>Where Am I?</title>
+		<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+		<link href="//netdna.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+	</head>
+	<body style="margin-left: 5px; margin-top: 2px;">
+		Enter your Name, click "Update Location" then when it loads your Lat/Long click "Save"<br/>
+		You can then later repeat clicking "Update Location" and then click "Save" to Save updated locations.
+		<span id="error"></span>
+		<form name="data" method="post" action="/whereami/save">
+			<input type="text" name="name" value="{{.Name}}" placeholder="Name"/></span><br/>
+			Latutide, Longitude: <span id="lat"></span>, <span id="long"></span>
+			<span id="at"></span><br/> 
+			<button onclick="updateLocation(); return false;">Update Location</button>
+
+			<input type="hidden" name="lat"/> 
+			<input type="hidden" name="long"/>
+			<input type="submit" name="submit" value="Save"/>
+
+			{{ if gt (len .Name) 0 }}
+			<br/>
+			Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}
+			{{end}}
+			
+		</form>
+	</body>
+	<script src="/static/js/whereami.js" type="text/javascript">
+	</script>
+</html>
+`
+
+var whereTemplate = template.Must(template.New("where").Parse(whereTemplateHTML))
