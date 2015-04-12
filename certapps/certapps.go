@@ -2760,7 +2760,15 @@ type WhereAmI struct {
 	Lat      float32
 	Long     float32
 	Entered  time.Time
-	EventKey datastore.Key
+	EventKey *datastore.Key
+	Error    string `datastore:"-"`
+}
+
+type WhereAmIEvent struct {
+	Name    string
+	Start   time.Time
+	Finish  time.Time
+	TeamKey *datastore.Key
 }
 
 func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -2768,6 +2776,7 @@ func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 
 	var errLat, errLong error
 
+	//parse
 	data.Name = r.FormValue("name")
 	f64, errLat := strconv.ParseFloat(r.FormValue("lat"), 32)
 	if errLat == nil {
@@ -2778,14 +2787,51 @@ func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 		data.Long = float32(f64)
 	}
 
-	data.Entered = time.Now()
+	var strUpdated = r.FormValue("updated")
+	if strUpdated != "" {
+		date, errDate := time.Parse(time.RFC3339, strUpdated)
+
+		if errDate == nil {
+			data.Entered = date
+		} else {
+			data.Error = errDate.Error()
+		}
+	}
+
+	//TODO: add team later
+	q := datastore.NewQuery("WhereAmIEvent").Filter("Start <=", time.Now()).Filter("Finish >=", time.Now()).Limit(1)
+
+	var events []*WhereAmIEvent
+	keys, qErr := q.GetAll(c, events)
+
+	if qErr == nil {
+		if len(keys) > 0 {
+			data.EventKey = keys[0]
+		}
+	}
+
+	//validate
+	if data.Lat+data.Long == 0.0 && data.Error == "" {
+		data.Error = "No Latitude/Longitude provided"
+	}
+
+	if data.Name == "" && data.Error == "" {
+		data.Error = "No Name provided"
+	}
+
+	if data.Entered.IsZero() && data.Error == "" {
+		data.Error = "Could not parse time provided for location fix"
+	}
+
+	if time.Now().Sub(data.Entered).Seconds() > 30.0 && data.Error == "" {
+		data.Error = "Location fix was too old, please \"Update Location\" and then \"Save\" again"
+	}
 
 	// save the data
-
-	key := datastore.NewKey(c, "WhereAmI", "", 0, nil)
-	datastore.Put(c, key, &data)
-
-	//redirect with queryString?
+	if data.Error == "" {
+		key := datastore.NewKey(c, "WhereAmI", "", 0, nil)
+		datastore.Put(c, key, &data)
+	}
 
 	err := whereTemplate.Execute(w, data)
 	if err != nil {
@@ -2794,16 +2840,25 @@ func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 const whereTemplateHTML = `
-<html>
+<!DOCTYPE html>
+<html lang="en">
 	<head>
 		<title>Where Am I?</title>
 		<link href="/static/css/bootstrap.min.css" rel="stylesheet">
 		<link href="//netdna.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<style>
+			.alert {
+				padding-top: 4px;
+				padding-bottom: 4px;
+			}
+		</style>
 	</head>
 	<body style="margin-left: 5px; margin-top: 2px;">
 		Enter your Name, click "Update Location" then when it loads your Lat/Long click "Save"<br/>
-		You can then later repeat clicking "Update Location" and then click "Save" to Save updated locations.
-		<span id="error"></span>
+		You can then later repeat clicking "Update Location" and then click "Save" to Save updated locations.<br/>
+		<span id="error" class="alert alert-error"></span>
 		<form name="data" method="post" action="/whereami/save">
 			<input type="text" name="name" value="{{.Name}}" placeholder="Name"/></span><br/>
 			Latutide, Longitude: <span id="lat"></span>, <span id="long"></span>
@@ -2812,11 +2867,16 @@ const whereTemplateHTML = `
 
 			<input type="hidden" name="lat"/> 
 			<input type="hidden" name="long"/>
-			<input type="submit" name="submit" value="Save"/>
-
-			{{ if gt (len .Name) 0 }}
+			<input type="hidden" name="updated"/>
+			<input type="submit" name="submit" value="Save"/><br/>
 			<br/>
-			Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}
+
+			{{if .Error}} 
+				
+				<span class="alert alert-danger">{{.Error}}</span><br/>
+			{{else}}
+				
+				<span class="alert alert-success">Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}</span>
 			{{end}}
 			
 		</form>
