@@ -25,68 +25,55 @@ CERTApps.BaseObject = CERTModels.BaseObject.extend();
 CERTApps.Router.map(function() 
 {
 	this.route('landing', { path: 'landing' });
-	this.resource('member', function()
-		{	
-			this.route("edit", { path: "/:memberID" });
-			this.route('update');
-			this.route('create');
+	this.resource('member', function() {	
+		this.route("edit", { path: "/:memberID" });
+		this.route('update');
+		this.route('create');
+	});
+	this.route('team', function() {
+		this.route("id", { path: ':teamID' 	}, function() {
+			this.route("comfortStation", function() {
+				this.route("list");
+				this.route("create", { path: '/'});
+				this.route("update", { path: ':stationID'});
+			});
+
+			this.resource('event', function() {
+				this.route("create", { path: '/' });
+				this.route("update", { path: ':eventID' });
+			});
+
+			this.route("roster", function()	{
+				this.route('import');
+				this.route('map');
+				this.route("calls");
+			});
+
+			this.route('events');
+			this.route("edit");
 		});
-	this.route('team', function()
-		{
-			this.route("id", { path: ':teamID' 	}, function()
-			{
-				this.route("comfortStation", function()
-				{
-					this.route("list");
-					this.route("create", { path: '/'});
-					this.route("update", { path: ':stationID'});
-				});
-
-				this.resource('event', function()
-				{
-					this.route("create", { path: '/' });
-					this.route("update", { path: ':eventID' });
-				});
-
-				this.route("roster", function()
-				{
-					this.route('import');
-					this.route('map');
-					this.route("calls");
-				});
-
-				this.route('events');
-				this.route("edit");
-
+	});
+	this.resource('eventDetails', { path: 'event' }, function() {
+		this.resource('eventID', { path: ':eventID' }, function() {
+			this.resource('response',  function() {
+				this.route('index', { path: ':responseID' });
 			});
 		});
-	this.resource('eventDetails', { path: 'event' }, function()
-		{
-			this.resource('eventID', { path: ':eventID' }, function()
-				{
-					this.resource('response',  function()
-						{
-							this.route('index', { path: ':responseID' });
-						});
-				});
+	});
+	this.resource('directResponse', { path: 'response'}, function() {
+		this.route('index', { path: ':responseID' })
+	});
+	this.route("certification", function() {
+		this.route("list");
+		this.route("tcreate");
+		this.route("tupdate", { path: ":certificationID" }, function() {
+		
 		});
-	this.resource('directResponse', { path: 'response'}, function()
-		{
-			this.route('index', { path: ':responseID' })
-		});
-	this.route("certification", function()
-		{
-			this.route("list");
+		this.route("class", function() {
 			this.route("tcreate");
-			this.route("tupdate", { path: ":certificationID" }, function()
-				{
-				});
-			this.route("class", function()
-				{
-					this.route("tcreate");
-					this.route("tupdate", { path: ":cClassID" });
-				});
+			this.route("tupdate", { path: ":cClassID" });
 		});
+	});
 
 	// this.resource('response', function()
 	// 	{
