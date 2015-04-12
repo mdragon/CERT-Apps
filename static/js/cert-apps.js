@@ -2265,7 +2265,7 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 
 		console.log('params', params);
  
-		var model = {team: this.modelFor('team')};
+		var model = this.modelFor('team');
 		
 		console.log('model', model);
 
@@ -2343,7 +2343,28 @@ CERTApps.Team = CERTApps.BaseObject.extend({
 		);
 
 		return t;
-	}
+	},
+
+	uiSaving: Ember.computed.equal("uiStatuses.saving", "saving"),
+	uiSaveSuccess: Ember.computed.equal("uiStatuses.saving", "success"),
+	uiSaveFailure: Ember.computed.equal("uiStatuses.saving", "failed"),
+
+	savingIcon: function() {
+		var retval = "";
+		if( this.get("uiSaving") ) {
+			retval = "fa-spin fa-spinner";
+		} else {
+			if( this.get("uiSaveSuccess") ) {
+				retval = "fa-check-circle text-success";
+			} else {
+				if( this.get("uiSaveFailure") ) {
+					retval = "fa-close text-danger";
+				}
+			}
+		}
+
+		return retval;
+	}.property("uiSaving", "uiSaveSuccess", "uiSaveFailure")
 
 });
 
@@ -2701,7 +2722,14 @@ CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 		return t;
 	},
 
-	setupController: function(controller, model)
+	afterModel: function(model) {
+		var team = this.modelFor('team');
+		console.log('model, team', model, team);
+
+		model.team = team;
+	},
+
+/*	setupController: function(controller, model)
 	{
 		console.group('CERTApps.TeamIDEventsRoute setupController')
 
@@ -2712,7 +2740,7 @@ CERTApps.TeamIdEventsRoute = CERTApps.BaseRoute.extend(
 
 		return;		
 	},
-
+*/
 	serialize: function(model)
 	{
 		console.group("CERTApps.TeamIDEventsRoute serialize");
@@ -2814,7 +2842,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 	{
 		submitResponse: function(response)
 		{
-			console.group('CERTApps.ResponseRoute.actions submitResponse')
+			console.group('CERTApps.ResponseIndexRoute.actions submitResponse')
 
 			var ev = this.modelFor('eventID');
 
@@ -2834,7 +2862,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	model: function(params, transition)
 	{
-		console.group('CERTApps.EventIDResponseRoute model');
+		console.group('CERTApps.ResponseIndexRoute model');
 
 		console.log('params, args', params, arguments);
 
@@ -2846,7 +2874,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 			console.log('looking up response for params', params, e);
 			a = CERTApps.MemberEvent.lookup(params.responseID, e);
 
-			a.then(function(obj){ console.log('CERTApps.EventIDResponseRoute model returning', obj)});
+			a.then(function(obj){ console.log('CERTApps.ResponseIndexRoute model returning', obj)});
 		} else {
 			// for when you haven't passed a responseID on the URL
 			
@@ -2879,7 +2907,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	setupController: function(controller, model)
 	{
-		console.group('CERTApps.EventIDResponseRoute setupController')
+		console.group('CERTApps.ResponseIndexRoute setupController')
 		console.log('controller, model', controller, model);
 
 		//if( model.Event ) model = model.Event;
@@ -2914,7 +2942,7 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 
 	serialize: function(model)
 	{
-		console.group("CERTApps.EventIDResponseRoute serialize");
+		console.group("CERTApps.ResponseIndexRoute serialize");
 
 		console.log('model', model);
 
@@ -2924,6 +2952,8 @@ CERTApps.ResponseIndexRoute = CERTApps.BaseRoute.extend(
 		var obj = { responseID: e.get('KeyID') };
 
 		console.log('seralized to', obj);
+		console.warn("but that ID's from an event not a response?", e);
+		throw "Need to figure out how we get the response ID in here too, or do we not need it?, how smart did we make the response route"
 
 		console.groupEnd();
 
@@ -3201,7 +3231,41 @@ CERTApps.CertificationRoute = CERTApps.BaseRoute.extend(
 
 
 			console.groupEnd();
+		},
+
+		saveClass: function(newClass, certification, topics, model)
+		{
+			console.group("CERTApps.certificationRoute actions.saveClass");
+			console.log('arguments', {newClass: newClass, certification: certification, topics: topics, team: team, model: model});
+
+			var team = this.modelFor("team") || this.modelFor("application").get("Team");
+
+			var p = newClass.save(team, certification);
+
+			p.then(
+				function(obj)
+				{
+					var classObj = CERTApps.CertificationClass.create(obj);
+
+					model.classes.pushObject(classObj)
+
+					newClass.reset(topics);
+
+					window.setTimeout( function(){
+						newClass.set("statuses.save", "done");
+					},
+					5000);
+
+					//console.log("transitioning after saving topic", topic);
+
+					//this.transitionTo({queryParams: {lastTopic: topic.get('KeyID')}});
+					//this.transitionTo('certification.list');
+				}.bind(this)
+			);
+
+			console.groupEnd();
 		}
+
 	},
 
 	model: function(params, transition)
@@ -3246,6 +3310,7 @@ CERTApps.Certification = CERTApps.BaseObject.extend(
 	name: null,
 	monthsValid: null,
 	isLastEdited: null,
+
 	
 	init: function()
 	{
@@ -3312,7 +3377,18 @@ CERTApps.Certification = CERTApps.BaseObject.extend(
 		}
 
 		return this.get('monthsValid');
-	}.property('monthsValid')
+	}.property('monthsValid'),
+
+	neverBeenSaved: function() {
+		var retval = true;
+
+		var key = this.get("keyID");
+		if( key && key !== 0 ) {
+			retval = false;
+		}
+
+		return retval;
+	}.property("keyID")
 });
 
 CERTApps.Certification.reopenClass(
@@ -3324,16 +3400,12 @@ CERTApps.Certification.reopenClass(
 
 		var settings = 
 		{
-			url: '/certification',
-			type: 'json',
-			dataType: 'json',
+			url: '/api/certification',
 			method: "GET",
-			data: { id: id }
+			data: "id=" + id
 		};
 
-		console.log('requesting', settings)
-
-		var a = $.ajax(settings);
+		var a = CERTApps.ajax(settings);
 		var p = a.then(function(data)
 		{ 
 			var obj = CERTApps.moveUpData(data); 
@@ -3361,7 +3433,7 @@ CERTApps.Certification.reopenClass(
 
 	parseJSON: function(data)
 	{
-		var obj = CERTApps.CertsTopicsOfferings.create();
+		var obj = CERTApps.CertsTopicsClasses.create();
 
 		if( data.Certification )
 		{
@@ -3390,12 +3462,19 @@ CERTApps.Certification.reopenClass(
 			console.info("Data returned by server did not have TrainingTopic value");
 		}
 
-		if( data.Offerings )
+		if( data.classes )
 		{
-			obj.offerings = CERTApps.Offerings.create(data.Offerings);
+			obj.classes.clear();
+
+			data.classes.forEach(function(cData)
+			{
+				var c = CERTApps.CertificationClass.create(cData);
+
+				obj.classes.pushObject(c);
+			});
 		} else
 		{
-			console.info("Data returned by server did not have Offerings value");
+			console.info("data returned by server did not have classes value");
 		}
 
 		return obj;
@@ -3458,15 +3537,15 @@ CERTApps.Certification.reopenClass(
 	}
 });
 
-CERTApps.CertsTopicsOfferings = CERTApps.BaseObject.extend(
+CERTApps.CertsTopicsClasses = CERTApps.BaseObject.extend(
 {
 	topics: null,
 	certification: null,
-	offerings: null,
+	classes: null,
 
 	init: function()
 	{
-		topics = Ember.A([]);
+		this.set("classes", Ember.A([]));
 	},
 
 	sortedTopics: function()
@@ -3527,7 +3606,7 @@ CERTApps.CertificationTcreateRoute = CERTApps.BaseRoute.extend(
 
 		var model = model || {};
 		model.certification = CERTApps.Certification.create();
-		model.newTopic = CERTApps.TrainingTopic.create();
+		model.newTopic = CERTApps.TrainingTopic.create({effectiveDate: moment()});
 
 		console.log('controller, model', controller, model);
 		controller.set('model', model);
@@ -3574,7 +3653,8 @@ CERTApps.CertificationTupdateRoute = CERTApps.BaseRoute.extend(
 		console.group('CERTApps.CertificationUpdateRoute setupController');
 		console.log('controller, model', controller, model);
 
-		model.newTopic = CERTApps.TrainingTopic.create();
+		model.newTopic = CERTApps.TrainingTopic.create({effectiveDate: moment()});
+		model.newClass = CERTApps.CertificationClass.create();
 
 		controller.set('model', model);
 
@@ -3749,6 +3829,11 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	name: null,
 	monthsValid: null,
 	isLastEdited: null,
+
+	effectiveDate: null,
+	sunsetDate: null,
+
+	included: true,
 	
 	init: function()
 	{
@@ -3759,6 +3844,12 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	{
 		console.group("CERTApps.TrainingTopic save");
 		console.log('saving TrainingTopic', this);
+
+		this.set("effectiveDate", moment(this.get("effectiveDate")).format());
+		if( this.get("sunsetDate") )
+		{
+			this.set("sunsetDate", moment(this.get("sunsetDate")).format());
+		}
 
 		var settings = 
 		{
@@ -3804,7 +3895,30 @@ CERTApps.TrainingTopic = CERTApps.BaseObject.extend(
 	{
 		this.set("name", "");
 		this.set("KeyID", 0);
-	}
+	},
+
+	effectiveDateMoment: function() {
+		var parsed = moment(this.get("effectiveDate"));
+		var retval = parsed.format("MM/DD/YY");
+
+		if( parsed.year() == 0 )
+		{
+			retval = null;
+		}
+		return retval;
+	}.property("effectiveDate"),
+
+	sunsetDateMoment: function() {
+		var parsed = moment(this.get("sunsetDate"));
+		var retval = parsed.format("MM/DD/YY");
+
+		if( ! parsed.isValid() || parsed.year() === 0)
+		{
+			retval = null;
+		}
+		return retval;	
+	}.property("sunsetDate")
+
 });
 
 CERTApps.TrainingTopic.reopenClass(
@@ -3913,7 +4027,7 @@ CERTApps.TrainingTopic.reopenClass(
 		console.groupEnd();
 
 		return p2;
-	}
+	},
 });
 
 CERTApps.CertificationClassRoute = CERTApps.BaseRoute.extend(
@@ -4106,6 +4220,8 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 	attendees: null,
 	searches: null,
+
+	statuses: null,
 	
 	init: function()
 	{
@@ -4113,12 +4229,19 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 		if( this.get("attendees") == null ) this.set("attendees", Ember.A([]));
 		this.set("searches", Ember.A([]));
+
+		this.set("statuses", {});
 	},
 
-	save: function(teamID)
+	save: function(team, certification)
 	{
 		console.group("CERTApps.CertificationClass save");
-		console.log('for teamID, saving CertificationClass', teamID, this);
+		console.log("this, team, certification",  this, team, certification);
+
+		var teamID = team.get("KeyID");
+		var certificationID = certification.get("KeyID");
+
+		console.log('for teamID, certificatonID, saving CertificationClass', teamID, certificationID, this);
 
 		var scheduled = this.get("scheduled")
 		if(  scheduled && Ember.$.trim(scheduled) == "" ) this.set("scheduled", null);
@@ -4128,7 +4251,7 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		{
 			var t = CERTApps.ajax({
 				url: '/api/certificationClass/save',
-				data: { CClass: this, Team: { KeyID: teamID } }
+				data: { CClass: this, Team: { KeyID: teamID }, Certification: {KeyID: certificationID} }
 			});
 			p = t.then(function(data)
 			{
@@ -4170,7 +4293,8 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		// setter
 		if( arguments.length > 1 )
 		{
-			var dateVal = CERTApps.getDateAndTimeFormatted(value, "00:00:00");
+			console.log("scheduledDateOnly setter", key, value, prior);
+			var dateVal = moment(value);
 			this.set("scheduled", dateVal);
 		}
 
@@ -4180,15 +4304,29 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 
 		if(scheduled) 
 		{
-			var date = new Date(Date.parse(scheduled));
+			var date = moment(scheduled);
 
-			scheduled = CERTApps.getZeroPaddedDate(date);
+			scheduled = date.format("YYYY-MM-DD");
 		}
 
 		return scheduled;
 
 	}.property("scheduled"),
 
+	scheduledDateOnlyDisp: function()
+	{
+		var scheduled = this.get("scheduled");
+
+		if(scheduled) 
+		{
+			var date = moment(scheduled);
+
+			scheduled = date.format("MM/DD/YYYY");
+		}
+
+		return scheduled;
+
+	}.property("scheduled"),
 	addAttendee: function(member, search)
 	{
 		console.group("CERTApps.CertificationClass addAttendee");
@@ -4234,7 +4372,23 @@ CERTApps.CertificationClass = CERTApps.BaseObject.extend(
 		var len = this.get("attendees").length + this.get("searches").length;
 		console.log("len", len);
 		return len > 0;
-	}.property("attendees.length", "searches.length")
+	}.property("attendees.length", "searches.length"),
+
+	reset: function(topics) {
+		this.set("name", null);
+		this.set("scheduled", null);
+
+		if( topics )
+		{
+			topics.forEach( function(t) {
+				t.set("included", true);
+			});
+		}
+	},
+
+	certificationName: function() {
+		return this.get("certification.name");
+	}.property("certification.name")
 });
 
 CERTApps.getZeroPaddedDate = function(date)
@@ -4384,13 +4538,26 @@ CERTApps.CertificationClass.reopenClass(
 		p2 = p.then(function(data)
 		{
 			var list = Ember.A([]);
+			var map = {};
 
+			if( data.Certifications ) {				
+				data.Certifications.forEach( function(certData){
+					var cert = CERTApps.Certification.create(certData);
+
+					map[cert.get("Key")] = cert;
+				});
+			}
+			
 			if( data.CClasses )
 			{
 				for( var x = data.CClasses.length - 1; x >= 0; x-- )
 				{
 					t = data.CClasses[x];
 					tObj = CERTApps.CertificationClass.create(t);
+
+					var cert = map[tObj.get("CertificationKey")];
+
+					tObj.set("certification", cert);
 
 					list.pushObject(tObj);
 				}
@@ -5001,7 +5168,17 @@ CERTApps.TeamEditComponent = Ember.Component.extend({
 			console.group('CERTApps.TeamEditComponent actions.saveTeam');
 			console.log('team', team);
 
-			team.save()
+			var p = team.save()
+
+			p.then(
+				function(){
+					window.setTimeout(
+						function() {
+							team.set("uiStatuses.saving", "done");
+						},
+						5000
+					);
+			});
 
 			console.groupEnd();
 		}

@@ -86,6 +86,11 @@
 			cursor: pointer;
 		}
 
+		.action
+		{
+			color: black !important;
+		}
+
 		.action:hover
 		{
 			cursor: pointer;
@@ -125,6 +130,7 @@
 <script type="text/javascript" src="/static/js/jquery-1.11.x.js"></script>
 <script type="text/javascript" src="/static/js/ember-template-compiler.js"></script>
 <script type="text/javascript" src="/static/js/ember.debug.js"></script>
+<script type="text/javascript" src="/static/js/moment.min.js"></script>
 <script type="text/javascript" src="/static/js/models/common.js"></script>
 <script type="text/javascript" src="/static/js/models/comfort-station.js"></script>
 <script type="text/javascript" src="/static/js/cert-apps.js"></script>
@@ -140,7 +146,7 @@
 				{{#link-to 'team.id.comfortStation.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStation.create' content.Team}}Create{{/link-to}} | 
 
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
-				{{#link-to 'certification.class'}}Classes{{/link-to}} - {{#link-to 'certification.class.tcreate'}}Create{{/link-to}} | 
+				{{#link-to 'certification.class'}}Classes{{/link-to}} <!--- {!#link-to 'certification.class.tcreate'}}Create{{!/link-to}}--> | 
 				{{#link-to 'team.id.events' content.Team}}Events{{/link-to}} - {{#link-to 'event.create' content.Team}}Create {{/link-to}} | 
 			{{/if}}
 			Team 
@@ -408,15 +414,15 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/events">
+{{log "team/id/events"}}
+{{log content}}
 	<div class="center-content">
 	<h4>Upcoming Events</h4>
-
-	{{#if upcoming}}
 
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
 				<tr>
-					<th></th>
+					<th>{{#link-to 'event.create' content.team}}<i class="fa fa-plus action"></i>{{/link-to}}</th>
 					<th></th>
 					<th></th>
 					<th></th>
@@ -428,7 +434,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{{#each e in upcoming}}
+				{{#each e in model.upcoming}}
 					<tr>
 						<td>
 							<i {{action 'userResponseForm' e}} class="fa fa-reply action"></i>
@@ -463,16 +469,17 @@
 							<i {{action 'sendReminders' e}} class="fa fa-envelope-o action"></i>
 						</td>
 					</tr>
+				{{else}}
+					<tr>
+						<td colspan="9">No upcoming events</td>
+					</tr>
 				{{/each}}
 			</tbody>
 		</table>
-	{{else}}
-		No upcoming events
-	{{/if}}
 
 	<h4>Recent Events</h4>
 
-	{{#if recent }}
+	{{#if model.recent }}
 		<table class="table table-striped table-condensed table-responsive">
 			<thead>
 				<tr>
@@ -484,7 +491,7 @@
 				</tr>
 			</thead>
 			<tbody>
-				{{#each e in recent}}
+				{{#each e in model.recent}}
 					<tr>
 						<td>
 							<i {{action 'eventEdit' e}} class="fa fa-pencil action"></i>
@@ -639,17 +646,25 @@
 	<div class="">
 		<div class="pull-left space-right" style="clear: left;">
 			<h4>Topics</h4>
-			{{#if topics }}
+			{{#if model.topics }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<tr>
 							<th>Name</th>
+							<th>Effective</th>
 						</tr>
 					</thead>
 					<tbody>
-					{{#each t in sortedTopics}}
+					{{#each t in model.sortedTopics}}
 						<tr>
 							<td>{{t.name}}</td>
+							<td>
+								{{t.effectiveDateMoment}}
+
+								{{#if t.sunsetDateMoment}}
+									- {{t.sunsetDateMoment}}
+								{{/if}}
+							</td>
 						</tr>
 					{{/each}}
 					</tbody>
@@ -658,13 +673,13 @@
 				No Topics yet, start by adding one below <br/>
 			{{/if}}
 
-			{{input value=newTopic.name placeholder="Name" size="30"}}<br/>
-			<label>Effective Date: {{input type="date" value=newTopic.effectiveDate}}</label><br/>
-			<button {{action 'saveTopicA' newTopic content }}><i class="fa fa-save"></i> Add</button>
+			{{input value=model.newTopic.name placeholder="Name" size="30"}}<br/>
+			<label>Effective Date: {{input type="date" value=model.newTopic.effectiveDate}}</label><br/>
+			<button {{action 'saveTopicA' model.newTopic content }} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="pull-left" style="clear: right;">
-			<h4>Offerings</h4>
-			{{#if offierings }}
+			<h4>Classes</h4>
+			{{#if model.classes }}
 				<table class="table table-condensed table-striped table-responsive">
 					<thead>
 						<tr>
@@ -672,23 +687,27 @@
 						</tr>
 					</thead>
 					<tbody>
-					{{#each o in offerings}}
+					{{#each o in model.classes}}
 						<tr>
 							<td>{{o.name}}</td>
-							<td>{{o.scheduledDateOnly}}</td>
+							<td>{{o.scheduledDateOnlyDisp}}</td>
 							<td>{{o.shortLocation}}</td>
 						</tr>
 					{{/each}}
 					</tbody>
 				</table>
 			{{else}}
-				No Offerings yet, start by adding one below <br/>
+				No Classes yet, start by adding one below <br/>
 			{{/if}}
 
-			{{input value=newOffering.name placeholder="Name" size="30"}}<br/>
-			{{input type="date" value=newOffering.scheduledDateOnly placeholder="Date" size="10"}}<br/>
+			{{input value=model.newClass.name placeholder="Name" size="30"}}<br/>
+			{{input type="date" value=model.newClass.scheduledDateOnly placeholder="Date" size="10"}}<br/>
 
-			<button {{action 'saveA' newTopic certification }}><i class="fa fa-save"></i> Add</button>
+			{{#each t in model.sortedTopics}}
+				<label>{{input type='checkbox' name=t.name checked=t.included placeholder='Show'}} {{t.name}}</label><br/>
+			{{/each}}
+
+			<button {{action 'saveClass' model.newClass model.certification model.sortedTopics model}} {{bind-attr disabled="model.certification.neverBeenSaved"}}><i class="fa fa-save"></i> Add</button>
 		</div>
 		<div class="clearfix"></div>
 	</div>
@@ -730,13 +749,15 @@
 </script>
 
 <script type="text/x-handlebars" data-template-name="certification/class/index">
+	{{log "certification/class/index"}}
+	{{log content}}
 	<h4>Certification Classes</h4>
 
 	<table class="table table-condensed table-striped">
 		<thead>
 			<tr>
 				<th><i {{action "createA"}} class="fa fa-plus action"></i></th>
-				<th>Name</th><th>Scheduled</th><th>Location</th>
+				<th>Class Name</th><th>Certification</th><th>Scheduled</th><th>Location</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -746,6 +767,9 @@
 					<i {{action "editA" c}} class="fa fa-pencil action"></i>
 				</td>
 				<td>{{c.name}}</td>
+				{{log "Certification"}}
+				{{log c}}
+				<td>{{c.certificationName}}</td>
 				<td>{{c.scheduledDateOnly}}</td>
 				<td>{{c.shortLocation}}</td>
 				<td>
@@ -929,7 +953,7 @@ Landing index
 		</tr>
 	</thead>
 	<tbody>
-		{{#each s in locations}}
+		{{#each s in model.locations}}
 			<tr>
 				<td>
 					<i class="fa fa-pencil action" {{action editComfortStation s}}></i>
@@ -961,6 +985,7 @@ Landing index
 	
 	<h3>Comfort Station</h3>
 	<form>
+		{{#with model.station as station}}
 		<div class="panel panel-default">
 			<div class="panel-heading">
 				<h4><i class="fa fa-home"></i> Information/Location</h4>
@@ -1008,7 +1033,8 @@ Landing index
 			</div>
 		</div>
 
-		<button {{action "saveComfortStation" station team}}><i class="fa fa-save"></i> Save</button>
+		<button {{action "saveComfortStation" station model.team}}><i class="fa fa-save"></i> Save</button>
+		{{/with}}
 	</form>
 </script>
 
@@ -1018,7 +1044,7 @@ Landing index
 	{{log content}}
 	{{log model}}
 
-	{{team-edit team=model.team}}
+	{{team-edit team=model}}
 </script>
 
 <script type="text/x-handlebars" data-template-name="components/team-edit">
@@ -1055,6 +1081,7 @@ Landing index
 
 		{{#unless team.hideSave }}
 			<button {{action 'saveTeam' team}}><i class="fa fa-save"></i> Save</button>
+			<i {{bind-attr class=":fa team.savingIcon"}}></i>
 		{{/unless}}
 	</form>
 </script>

@@ -431,10 +431,7 @@ func getMemberFromUser(c appengine.Context, u *user.User) (*Member, error) {
 
 	found := false
 
-	if err != nil && strings.Index(err.Error(), "cannot load field") > -1 {
-		c.Debugf("overrode error because it was just a field error: %s", err.Error())
-		err = nil
-	}
+	err = checkCannotLoadField(err, c)
 
 	if noErrMsg(err, nil, c, "members for id") {
 		c.Infof("checking len(members)")
@@ -629,9 +626,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {
 		c.Debugf("Calling Get Team with Key: %+v", teamKey)
 		getTeamErr := datastore.Get(c, teamKey, &team)
 
-		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
-			getTeamErr = nil
-		}
+		getTeamErr = checkCannotLoadField(getTeamErr, c)
 
 		if noErrMsg(getTeamErr, nil, c, "Error Get Team with Key") {
 			team.setKey(teamKey)
@@ -648,9 +643,7 @@ func getTeam(teamID int64, member *Member, c appengine.Context) (error, *Team) {
 
 		keys, getTeamErr := teamQ.GetAll(c, &teams)
 
-		if _, ok := getTeamErr.(*datastore.ErrFieldMismatch); ok {
-			getTeamErr = nil
-		}
+		getTeamErr = checkCannotLoadField(getTeamErr, c)
 
 		if noErrMsg(getTeamErr, nil, c, "Calling GetAll for Team") {
 			lenTeams := len(teams)
@@ -707,20 +700,9 @@ func getMembersByTeam(teamID int64, member *Member, c appengine.Context, w http.
 
 	memberErr := datastore.GetMulti(c, memberKeys, members)
 
+	memberErr = checkCannotLoadField(memberErr, c)
+
 	c.Debugf("memberErr: %+v", memberErr)
-	if memberErr != nil {
-		if memberErr.Error() != "datastore: no such entity" {
-
-			if _, ok := memberErr.(*datastore.ErrFieldMismatch); ok {
-				memberErr = nil
-			}
-
-			if strings.Index(memberErr.Error(), "cannot load field \"HomeAddress\"") == -1 {
-
-				checkErr(memberErr, w, c, "Calling GetMulti with Keys")
-			}
-		}
-	}
 
 	lookup := lookupOthers(member)
 	for idx := range members {
@@ -2131,7 +2113,7 @@ func certificationSave(c appengine.Context, w http.ResponseWriter, r *http.Reque
 	returnJSONorErrorToResponse(context, c, w, r)
 }
 
-func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+func apiCertificationGet(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 	u := user.Current(c)
 	var context interface{}
 	var mem *Member
@@ -2148,7 +2130,7 @@ func certificationGet(c appengine.Context, w http.ResponseWriter, r *http.Reques
 
 	mem, _ = getMemberFromUser(c, u)
 
-	results, err := getCertAndTopics(c, id, mem)
+	results, err := getCertAndTopicsAndClasses(c, id, mem)
 
 	if noErrMsg(err, w, c, "Certification lookup") {
 
@@ -2240,6 +2222,9 @@ func getAllCertsAndTopics(c appengine.Context) ([]*CertificationAndTopics, error
 	err1 := <-errC
 	err2 := <-errC
 
+	err1 = checkCannotLoadField(err1, c)
+	err2 = checkCannotLoadField(err2, c)
+
 	return processCertsAndTopics(c, certs, topics), err1, err2
 }
 
@@ -2284,6 +2269,9 @@ func getCertAndTopics(c appengine.Context, id int64, member *Member) (*Certifica
 
 	err1 := <-errC
 	err2 := <-errC
+
+	err1 = checkCannotLoadField(err1, c)
+	err2 = checkCannotLoadField(err2, c)
 
 	if noErrMsg(err1, nil, c, "getCertAndTopics 1") {
 		if noErrMsg(err2, nil, c, "getCertAndTopics 2") {
@@ -2476,17 +2464,18 @@ func (t *CertificationClass) lookup(id int64, member *Member, c appengine.Contex
 			}
 
 			if err = datastore.GetMulti(c, t.Attendees, t.MembersAttending); err != nil {
+				err = checkCannotLoadField(err, c)
+
 				if me, ok := err.(appengine.MultiError); ok {
 					for i, merr := range me {
+						merr = checkCannotLoadField(merr, c)
+
 						if merr == datastore.ErrNoSuchEntity {
 							c.Errorf("Member with Key: %d not found when finding Atendees", t.Attendees[i])
 						}
 					}
-				} else {
-					return err
 				}
 			}
-
 		}
 	}
 
@@ -2668,6 +2657,70 @@ func memberQuery(field string, value string, equality bool, c appengine.Context)
 	return members, err
 }
 
+func getCertAndTopicsAndClasses(c appengine.Context, id int64, member *Member) (*CertificationAndTopicsAndClasses, error) {
+	errC := make(chan error)
+	certAndTopicsC := make(chan *CertificationAndTopics)
+	classesC := make(chan []*CertificationClass)
+
+	certKey := datastore.NewKey(c, "Certification", "", id, nil)
+
+	go func() {
+		certAndTopics, err := getCertAndTopics(c, id, member)
+		certAndTopicsC <- certAndTopics
+		errC <- err
+	}()
+
+	certAndTopics := <-certAndTopicsC
+
+	go func() {
+		query := datastore.NewQuery("CertificationClass").Filter("Deleted =", false).Filter("CertificationKey = ", certKey)
+
+		var lookupResults []*CertificationClass
+		keys, err := query.GetAll(c, &lookupResults)
+
+		for idx, _ := range lookupResults {
+			e := lookupResults[idx]
+			key := keys[idx]
+
+			c.Debugf("found CeritifcationClass %d, %d, %d", idx, e.KeyID, key.IntID())
+			c.Debugf("\t for cert %d", e.CertificationKey.IntID())
+
+			e.setKey(key)
+		}
+		classesC <- lookupResults
+		errC <- err
+	}()
+
+	classes := <-classesC
+
+	err1 := <-errC
+	err2 := <-errC
+
+	err1 = checkCannotLoadField(err1, c)
+	err2 = checkCannotLoadField(err2, c)
+
+	if noErrMsg(err1, nil, c, "getCertAndTopicsAndClasses 1") {
+		if noErrMsg(err2, nil, c, "getCertAndTopicsAndClasses 2") {
+			results := processClasses(c, certAndTopics, classes)
+
+			return results, nil
+		} else {
+			return nil, err2
+		}
+	}
+
+	return nil, err1
+}
+
+func processClasses(c appengine.Context, certAndTopic *CertificationAndTopics, classes []*CertificationClass) *CertificationAndTopicsAndClasses {
+	results := &CertificationAndTopicsAndClasses{}
+
+	results.CertificationAndTopics = *certAndTopic
+	results.Classes = classes
+
+	return results
+}
+
 func checkErr(err error, w http.ResponseWriter, c appengine.Context, msg string) bool {
 	retval := false
 	if err != nil {
@@ -2734,11 +2787,31 @@ func parseJSON(object interface{}, r *http.Request, c appengine.Context) error {
 
 func checkCannotLoadField(err error, c appengine.Context) error {
 	if err != nil {
-		index := strings.Index(err.Error(), "cannot load field")
-		index2 := strings.Index(err.Error(), "HomeAddress")
+		index1 := -1
+		if _, ok := err.(*datastore.ErrFieldMismatch); ok {
+			index1 = 8787
+		}
+		if index1 == -1 {
+			index1 = strings.Index(err.Error(), "cannot load field")
 
-		c.Debugf("err: %s, index: %d", err.Error(), index)
-		if index > -1 && index2 > -1 {
+		}
+		index2 := strings.Index(err.Error(), "HomeAddress")
+		if index2 == -1 {
+			index2 = strings.Index(err.Error(), "CalledBy")
+		}
+
+		//TrainingTopic
+		if index2 == -1 {
+			index2 = strings.Index(err.Error(), "SunsetDate")
+		}
+		if index2 == -1 {
+			index2 = strings.Index(err.Error(), "EffectiveDate")
+		}
+
+		if c != nil {
+			c.Debugf("Resetting err: %s, index1: %d, index2: %d", err.Error(), index1, index2)
+		}
+		if index2 > -1 {
 			err = nil
 		}
 	}

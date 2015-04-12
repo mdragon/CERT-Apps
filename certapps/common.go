@@ -107,7 +107,7 @@ type Member struct {
 	Officer bool
 	Active  bool
 
-	CalledBy int64 `json:"calledBy", datastore:"-"`
+	CalledBy int64 `json:"calledBy" datastore:"-"`
 	//TODO: this would need to move to TeamMember when multiple teams was supported
 	CanLookup bool `datastore:"-"`
 
@@ -194,8 +194,10 @@ type CertificationClass struct {
 	Location
 
 	Attendees []*datastore.Key `json:"-"`
+	Topics    []*datastore.Key `json:"-"`
 
-	MembersAttending []Member `json:"attendees", datastore:"-"`
+	MembersAttending []Member        `json:"attendees" datastore:"-"`
+	TrainingTopics   []TrainingTopic `json:"topics" datastore:"-"`
 
 	Audit
 }
@@ -241,6 +243,11 @@ type TeamCertification struct {
 type CertificationAndTopics struct {
 	Certification *Certification
 	Topics        []*TrainingTopic
+}
+
+type CertificationAndTopicsAndClasses struct {
+	CertificationAndTopics
+	Classes []*CertificationClass `json:"classes"`
 }
 
 // API types

@@ -30,7 +30,8 @@ func newHandler(f func(appengine.Context, http.ResponseWriter, *http.Request)) h
 }
 
 func init() {
-	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
+	http.Handle("/api/certification", newHandler(apiCertificationGet))
+
 	http.Handle("/api/certificationClass", newHandler(apiCertificationClassGet))
 	http.Handle("/api/certificationClass/all", newHandler(apiCertificationClassGetAll))
 	http.Handle("/api/certificationClass/save", newHandler(apiCertificationClassSave))
@@ -48,8 +49,9 @@ func init() {
 
 	http.Handle("/api/team/save", newHandler(apiTeamSave))
 
+	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
+
 	http.Handle("/audit", newHandler(audit))
-	http.Handle("/certification", newHandler(certificationGet))
 	http.Handle("/certifications/all", newHandler(certificationsGetAll))
 	http.Handle("/certification/save", newHandler(certificationSave))
 	http.Handle("/eventA", newHandler(eventA))
