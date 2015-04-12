@@ -2275,13 +2275,13 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 */
 	serialize: function(model)
 	{
-		console.group("CERTApps.TeamIdRoute serialize");
+		//console.group("CERTApps.TeamIdRoute serialize");
 
 		var params = { teamID: model.get('KeyID') };
 
 		//console.log('params, model', params, model);
-		console.log('params', params);
-		console.groupEnd();
+		//console.log('params', params);
+		//console.groupEnd();
 
 		return params;
 	}
