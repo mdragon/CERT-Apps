@@ -2948,8 +2948,9 @@ const whereTemplateHTML = `
 				
 				<span class="alert alert-danger">{{.Error}}</span><br/>
 			{{else}}
-				
-				<span class="alert alert-success">Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}</span>
+				{{if not .Entered.IsZero }}
+					<span class="alert alert-success">Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}</span>
+				{{end}}
 			{{end}}
 			
 		</form>
