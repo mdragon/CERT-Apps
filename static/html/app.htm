@@ -249,7 +249,7 @@
 					
 					<td>
 						{{#if content.loggedInMember.CanLookup}}
-							<i class="fa fa-pencil action" title="Edit Member" {{action "memberEdit" mem team}}></i>
+							<i class="fa fa-pencil action" title="Edit Member" {{action "memberEdit" mem parentController.team}}></i>
 						{{/if}}
 						{{mem.FirstName}} {{mem.LastName}}
 						
@@ -270,7 +270,7 @@
 							<a {{bind-attr href=mem.homePhoneTelLink}}>{{mem.homePhoneFormatted}}</a>
 						</td>
 						<td>
-							{{view "select" content=team.officers 
+							{{view "select" content=parentController.team.officers 
 							    optionValuePath="content.keyID"
        							optionLabelPath="content.officerShortName"
        							value=mem.calledBy
@@ -288,9 +288,9 @@
 
 						{{#if content.loggedInMember.CanLookup}}
 							{{#if mem.enabled }}
-								<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem team}} {{bind-attr title="mem.activeTitle"}}></i>
+								<i {{bind-attr class="mem.activeIcon :fa"}} {{action "toggleActive" mem parentController.team}} {{bind-attr title="mem.activeTitle"}}></i>
 							{{/if}}
-							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem team}} {{bind-attr title="mem.enabledTitle"}}></i>
+							<i {{bind-attr class="mem.enabledIcon :fa"}} {{action "toggleEnabled" mem parentController.team}} {{bind-attr title="mem.enabledTitle"}}></i>
 						{{/if}}
 						</td>
 					{{/if}}
