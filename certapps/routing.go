@@ -51,6 +51,8 @@ func init() {
 
 	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
 
+	http.Handle("/api/where/lookup", newHandler(apiWhereLookup))
+
 	http.Handle("/audit", newHandler(audit))
 	http.Handle("/certifications/all", newHandler(certificationsGetAll))
 	http.Handle("/certification/save", newHandler(certificationSave))

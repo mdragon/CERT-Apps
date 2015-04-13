@@ -25,68 +25,57 @@ CERTApps.BaseObject = CERTModels.BaseObject.extend();
 CERTApps.Router.map(function() 
 {
 	this.route('landing', { path: 'landing' });
-	this.resource('member', function()
-		{	
-			this.route("edit", { path: "/:memberID" });
-			this.route('update');
-			this.route('create');
+	this.resource('member', function() {	
+		this.route("edit", { path: "/:memberID" });
+		this.route('update');
+		this.route('create');
+	});
+	this.route('team', function() {
+		this.route("id", { path: ':teamID' 	}, function() {
+			this.route("comfortStation", function() {
+				this.route("list");
+				this.route("create", { path: '/'});
+				this.route("update", { path: ':stationID'});
+			});
+
+			this.resource('event', function() {
+				this.route("create", { path: '/' });
+				this.route("update", { path: ':eventID' });
+			});
+
+			this.route("roster", function()	{
+				this.route('import');
+				this.route('map');
+				this.route("calls");
+			});
+
+			this.route('events');
+			this.route("edit");
 		});
-	this.route('team', function()
-		{
-			this.route("id", { path: ':teamID' 	}, function()
-			{
-				this.route("comfortStation", function()
-				{
-					this.route("list");
-					this.route("create", { path: '/'});
-					this.route("update", { path: ':stationID'});
-				});
-
-				this.resource('event', function()
-				{
-					this.route("create", { path: '/' });
-					this.route("update", { path: ':eventID' });
-				});
-
-				this.route("roster", function()
-				{
-					this.route('import');
-					this.route('map');
-					this.route("calls");
-				});
-
-				this.route('events');
-				this.route("edit");
-
+	});
+	this.resource('eventDetails', { path: 'event' }, function() {
+		this.resource('eventID', { path: ':eventID' }, function() {
+			this.resource('response',  function() {
+				this.route('index', { path: ':responseID' });
 			});
 		});
-	this.resource('eventDetails', { path: 'event' }, function()
-		{
-			this.resource('eventID', { path: ':eventID' }, function()
-				{
-					this.resource('response',  function()
-						{
-							this.route('index', { path: ':responseID' });
-						});
-				});
+	});
+	this.resource('directResponse', { path: 'response'}, function() {
+		this.route('index', { path: ':responseID' })
+	});
+	this.route("certification", function() {
+		this.route("list");
+		this.route("tcreate");
+		this.route("tupdate", { path: ":certificationID" }, function() {
+		
 		});
-	this.resource('directResponse', { path: 'response'}, function()
-		{
-			this.route('index', { path: ':responseID' })
-		});
-	this.route("certification", function()
-		{
-			this.route("list");
+		this.route("class", function() {
 			this.route("tcreate");
-			this.route("tupdate", { path: ":certificationID" }, function()
-				{
-				});
-			this.route("class", function()
-				{
-					this.route("tcreate");
-					this.route("tupdate", { path: ":cClassID" });
-				});
+			this.route("tupdate", { path: ":cClassID" });
 		});
+	});
+	//this.route("where", { path: "where/:teamID" });
+	this.route("where");
 
 	// this.resource('response', function()
 	// 	{
@@ -2288,13 +2277,13 @@ CERTApps.TeamIdRoute = CERTApps.BaseRoute.extend(
 */
 	serialize: function(model)
 	{
-		console.group("CERTApps.TeamIdRoute serialize");
+		//console.group("CERTApps.TeamIdRoute serialize");
 
 		var params = { teamID: model.get('KeyID') };
 
 		//console.log('params, model', params, model);
-		console.log('params', params);
-		console.groupEnd();
+		//console.log('params', params);
+		//console.groupEnd();
 
 		return params;
 	}
@@ -5266,4 +5255,182 @@ CERTApps.MemberEditRoute = Ember.Route.extend({
 		console.groupEnd();
 
 	}
+});
+
+CERTApps.Where = CERTApps.BaseObject.extend({
+	name: null,
+	lat: null,
+	long: null,
+	entered: null,
+
+	enteredMoment: function()
+	{
+		return moment(this.get("entered"));
+	}.property("entered"),
+
+	enteredRelativeDate: function()
+	{
+		return this.get("enteredMoment").fromNow();
+	}.property("enteredMoment")
+});
+CERTApps.Where.reopenClass(
+{
+	lookup: function(params)
+	{
+		console.group("CERTApps.Where.lookup");
+		console.log("params");
+		var options = {
+			url: "/api/where/lookup"
+		};
+
+		var p = CERTApps.ajax(options);
+
+		var t = p.then( function(data)
+		{
+			return CERTApps.moveUpData(data);
+		});
+
+		var t2 = t.then(function(data) {
+			var results = CERTApps.WhereResults.create();
+
+			if( data.Entries ) {
+				for(var i = data.Entries.length - 1; i >= 0; i-- ) {
+					var item = data.Entries[i];
+					var e = CERTApps.Where.create(item);
+
+					results.entries.pushObject(e);
+				}
+			}
+
+			return results;
+		});
+		
+		console.groupEnd();
+		return t2;
+	}
+});
+
+CERTApps.WhereResults = CERTApps.BaseObject.extend({
+	entries: null,
+
+	init: function() {
+		this.set("entries", Ember.A([]));
+	},
+
+	sortedEntries: function() {
+		return this.get("entries");
+	}.property("entries.@each")
+});
+
+CERTApps.WhereRoute = CERTApps.BaseRoute.extend({
+	model: function(params)
+	{
+		console.group("CERTApps.WhereRoute model");
+		console.log("params", params);
+
+		var p = CERTApps.Where.lookup();
+
+		console.groupEnd();
+		return p;
+	},
+
+	// model: function(params)
+	// {
+	// 	console.group("CERTApps.TeamIdComfortStationListRoute model");
+	// 	console.log('params', params);
+
+	// 	var team = this.modelFor('team');
+
+	// 	var p = CERTModels.ComfortStation.fetchForTeam(team.get("KeyID"));
+		
+	// 	var p2 = p.then( function(obj)
+	// 	{
+	// 		var model = { locations: Ember.A([]) };
+
+	// 		if( obj ) {
+	// 			if( obj.locations )
+	// 			{
+	// 				obj.locations.forEach(function comfortStationListRouteModelForEach(obj) {
+	// 					var cs = CERTModels.ComfortStation.create(obj);
+
+	// 					model.locations.pushObject(cs);
+	// 				}.bind(this)
+	// 				);
+	// 			}
+	// 		}
+	// 		console.log('CERTApps.TeamIdComfortStationListRoute.model, params', model, params)
+	// 		return model;
+	// 	});
+
+	// 	console.groupEnd();
+
+	// 	return p2;
+	// },
+
+	afterModel: function(model)
+	{
+		console.group("CERTApps.WhereRoute afterModel");
+
+		var team = this.modelFor('team');
+		model.team = team;
+
+		console.log('model', model);
+		console.groupEnd();
+
+		return model;
+	},
+
+	// serialize: function(model)
+	// {
+	// 	console.group('CERTApps.WhereRoute serialize');
+		
+	// 	var params = {teamID: model.team.KeyID};
+		
+	// 	console.log('params, model', params, model);
+	// 	console.groupEnd()
+	// 	return params;
+	// },
+});
+
+CERTApps.WhereView = Ember.View.extend(
+{
+	didInsertElement: function()	
+	{
+		console.group('CERTApps.RosterMap didInsertElement');
+		console.log('arguments', arguments);
+		console.log('this', this);
+
+        var myLatLng = new google.maps.LatLng(40.795, -74.28);
+        var mapOptions = {
+          zoom: 13,
+          center: myLatLng,
+          minZoom: 13,
+          mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+
+        var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
+        var map = new google.maps.Map(mapCanvas, mapOptions);
+
+        this.get("controller.model.entries").forEach( function(item) {
+        	pos = {lat: item.lat, lng: item.long};
+        	title = item.get("name") + " - " + item.get("enteredRelativeDate");
+
+        	console.log('putting item on map', pos, item);
+
+        	var icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png";
+
+        	if( !item.get("active") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png";
+    		if( item.get("Officer") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/grn-pushpin.png";
+
+			var marker = new google.maps.Marker({
+				position: pos,
+				map: map,
+				animation: google.maps.Animation.DROP,
+				icon: icon,
+				title: title
+			});
+        });
+
+        console.groupEnd();
+    }
 });
