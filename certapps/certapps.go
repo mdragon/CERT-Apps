@@ -2829,19 +2829,23 @@ func whereAmI(c appengine.Context, w http.ResponseWriter, r *http.Request) {
 }
 
 type WhereAmI struct {
-	Name     string
-	Lat      float32
-	Long     float32
-	Entered  time.Time
-	EventKey *datastore.Key
-	Error    string `datastore:"-"`
+	Name     string         `json:"name"`
+	Lat      float32        `json:"lat"`
+	Long     float32        `json:"long"`
+	Entered  time.Time      `json:"entered"`
+	EventKey *datastore.Key `json:"eventKey"`
+	Error    string         `datastore:"-" json:"error"`
+
+	Audit
 }
 
 type WhereAmIEvent struct {
-	Name    string
-	Start   time.Time
-	Finish  time.Time
-	TeamKey *datastore.Key
+	Name    string         `json:"name"`
+	Start   time.Time      `json:"start"`
+	Finish  time.Time      `json:"finish"`
+	TeamKey *datastore.Key `json:"teamKey"`
+
+	Audit
 }
 
 func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
@@ -2961,3 +2965,29 @@ const whereTemplateHTML = `
 `
 
 var whereTemplate = template.Must(template.New("where").Parse(whereTemplateHTML))
+
+func apiWhereLookup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+
+	//TODO: add team later
+	q := datastore.NewQuery("WhereAmI")
+
+	var entries []*WhereAmI
+	keys, qErr := q.GetAll(c, &entries)
+
+	if noErrMsg(qErr, w, c, "Loading WhereAmI entries") {
+		for idx, _ := range entries {
+			e := entries[idx]
+			k := keys[idx]
+
+			e.setKey(k)
+		}
+	}
+
+	context := struct {
+		Entries []*WhereAmI
+	}{
+		entries,
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
+}
