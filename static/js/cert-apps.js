@@ -5315,11 +5315,14 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 	filterNames: null,
 	nameList: null,
 	mostRecent: true,
+	markers: null,
+	map: null,
 
 	init: function() {
 		this.set("entries", Ember.A([]));
 		this.set("nameList", Ember.A([]));
 		this.set("filterNames", Ember.A([]));
+		this.set("markers", Ember.A([]));
 	},
 
 	entriesSorted: function() {
@@ -5368,7 +5371,49 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 		console.log("filtered", filtered);
 		console.groupEnd();
 		return filtered;
-	}.property("entries.@each", "mostRecent")
+	}.property("entries.@each", "mostRecent"),
+
+	setMarkers: function() {
+		console.group("CERTApps.WhereResults setMarkers");
+
+		var filtered = this.get("entriesFiltered");
+		var map = this.get("map");
+		var markers = this.get("markers");
+
+		// clear the existing markers
+		markers.forEach(function(marker) {
+			console.log("markers.forEach marker", marker);
+			marker.setMap(null);
+		});
+
+		markers.clear();
+
+		filtered.forEach(function(item) {
+			console.log("filtered.forEach item", item);
+
+			pos = {lat: item.lat, lng: item.long};
+	    	title = item.get("name") + " - " + item.get("enteredRelativeDate");
+
+	    	console.log('putting item on map', pos, item);
+
+	    	var icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png";
+
+	    	if( !item.get("active") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png";
+			if( item.get("Officer") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/grn-pushpin.png";
+
+			var marker = new google.maps.Marker({
+				position: pos,
+				map: map,
+				animation: google.maps.Animation.DROP,
+				icon: icon,
+				title: title
+			});
+
+			console.log("adding marker to list", marker);
+			markers.pushObject(marker);
+		});
+
+	}.observes("entriesFiltered.@each")
 });
 
 CERTApps.WhereRoute = CERTApps.BaseRoute.extend({
@@ -5458,27 +5503,25 @@ CERTApps.WhereView = Ember.View.extend(
         }
 
         var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
-        var map = new google.maps.Map(mapCanvas, mapOptions);
+        var model = this.get("controller.model");
+        console.log("forcing call to setMarkers")
+        model.setMarkers();
+        var map = this.get("controller.model.map");
 
-        this.get("controller.model.entriesFiltered").forEach( function(item) {
-        	pos = {lat: item.lat, lng: item.long};
-        	title = item.get("name") + " - " + item.get("enteredRelativeDate");
+        if( ! map ) {
+        	map = new google.maps.Map(mapCanvas, mapOptions);
+	        this.set("controller.model.map", map);
+        }
+        var markers = this.get("controller.model.markers");
 
-        	console.log('putting item on map', pos, item);
-
-        	var icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/green-dot.png";
-
-        	if( !item.get("active") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/blue-dot.png";
-    		if( item.get("Officer") ) icon = "//www.google.com/intl/en_us/mapfiles/ms/micons/grn-pushpin.png";
-
-			var marker = new google.maps.Marker({
-				position: pos,
-				map: map,
-				animation: google.maps.Animation.DROP,
-				icon: icon,
-				title: title
-			});
-        });
+        if( markers )
+        {
+	        markers.forEach(function(marker){
+	        	console.log("setting marker map now that map is inserted");
+	        	marker.setMap(map);
+	        });
+        }
+        // });
 
         console.groupEnd();
     }
