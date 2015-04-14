@@ -51,6 +51,8 @@ func init() {
 
 	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
 
+	http.Handle("/api/where/lookup", newHandler(apiWhereLookup))
+
 	http.Handle("/audit", newHandler(audit))
 	http.Handle("/certifications/all", newHandler(certificationsGetAll))
 	http.Handle("/certification/save", newHandler(certificationSave))
@@ -70,6 +72,9 @@ func init() {
 	http.Handle("/address", newHandler(locationLookupHandler))
 	http.Handle("/setup", newHandler(initialSetup))
 	http.Handle("/", newHandler(root))
+
+	http.Handle("/whereami", newHandler(whereAmI))
+	http.Handle("/whereami/save", newHandler(whereAmISave))
 
 	rand.Seed(time.Now().UnixNano())
 }

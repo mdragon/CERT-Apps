@@ -143,6 +143,9 @@
 
 		{{#if content.LoggedIn }}
 			{{#if content.Member.CanLookup }}
+				{{#link-to "where"}}Where Are They?{{/link-to}} | 
+			{{/if}}
+			{{#if content.Member.CanLookup }}
 				{{#link-to 'team.id.comfortStation.list' content.Team}}Comfort Stations{{/link-to}} - {{#link-to 'team.id.comfortStation.create' content.Team}}Create{{/link-to}} | 
 
 				{{#link-to 'certification.list'}}Certifications{{/link-to}} - {{#link-to 'certification.tcreate'}}Create{{/link-to}} | 
@@ -1084,4 +1087,31 @@ Landing index
 			<i {{bind-attr class=":fa team.savingIcon"}}></i>
 		{{/unless}}
 	</form>
+</script>
+
+<script type="text/x-handlebars" data-template-name="where">
+	{{log "where"}}
+	{{log content}}
+
+	<div class="center-content">
+		<h3>Where Are They?</h3>
+
+		<div class="map-canvas"></div>
+
+		<div>
+			<label>Only most recent for each Name? {{input type="checkbox" checked=content.mostRecent}}</label>
+		</div>
+
+		<table class="table table-striped table-condensed table-bordered table-responsive">
+		<tbody>
+		{{#each entry in content.entriesFiltered}}
+			<tr>
+				<td>{{entry.name}}</td>
+				<td>{{entry.lat}}, {{entry.long}}</td>
+				<td><span {{bind-attr title=entry.entered}}>{{entry.enteredRelativeDate}}</span></td>
+			</tr>
+		{{/each}}
+		</tbody>
+		</table>
+	</div>
 </script>

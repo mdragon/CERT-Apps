@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	//	"html/template"
+	"html/template"
 	"io"
 	//"io/ioutil"
 	"math/rand"
@@ -2817,4 +2817,177 @@ func checkCannotLoadField(err error, c appengine.Context) error {
 	}
 
 	return err
+}
+
+func whereAmI(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	data := WhereAmI{}
+
+	err := whereTemplate.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type WhereAmI struct {
+	Name     string         `json:"name"`
+	Lat      float32        `json:"lat"`
+	Long     float32        `json:"long"`
+	Entered  time.Time      `json:"entered"`
+	EventKey *datastore.Key `json:"eventKey"`
+	Error    string         `datastore:"-" json:"error"`
+
+	Audit
+}
+
+type WhereAmIEvent struct {
+	Name    string         `json:"name"`
+	Start   time.Time      `json:"start"`
+	Finish  time.Time      `json:"finish"`
+	TeamKey *datastore.Key `json:"teamKey"`
+
+	Audit
+}
+
+func whereAmISave(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+	data := WhereAmI{}
+
+	var errLat, errLong error
+
+	//parse
+	data.Name = r.FormValue("name")
+	f64, errLat := strconv.ParseFloat(r.FormValue("lat"), 32)
+	if errLat == nil {
+		data.Lat = float32(f64)
+	}
+	f64, errLong = strconv.ParseFloat(r.FormValue("long"), 32)
+	if errLong == nil {
+		data.Long = float32(f64)
+	}
+
+	var strUpdated = r.FormValue("updated")
+	if strUpdated != "" {
+		date, errDate := time.Parse(time.RFC3339, strUpdated)
+
+		if errDate == nil {
+			data.Entered = date
+		} else {
+			data.Error = errDate.Error()
+		}
+	}
+
+	//TODO: add team later
+	q := datastore.NewQuery("WhereAmIEvent").Filter("Start <=", time.Now()).Filter("Finish >=", time.Now()).Limit(1)
+
+	var events []*WhereAmIEvent
+	keys, qErr := q.GetAll(c, events)
+
+	if qErr == nil {
+		if len(keys) > 0 {
+			data.EventKey = keys[0]
+		}
+	}
+
+	//validate
+	if data.Lat+data.Long == 0.0 && data.Error == "" {
+		data.Error = "No Latitude/Longitude provided"
+	}
+
+	if data.Name == "" && data.Error == "" {
+		data.Error = "No Name provided"
+	}
+
+	if data.Entered.IsZero() && data.Error == "" {
+		data.Error = "Could not parse time provided for location fix"
+	}
+
+	if time.Now().Sub(data.Entered).Seconds() > 30.0 && data.Error == "" {
+		data.Error = "Location fix was too old, please \"Update Location\" and then \"Save\" again"
+	}
+
+	// save the data
+	if data.Error == "" {
+		key := datastore.NewKey(c, "WhereAmI", "", 0, nil)
+		datastore.Put(c, key, &data)
+	}
+
+	err := whereTemplate.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+const whereTemplateHTML = `
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Where Am I?</title>
+		<link href="/static/css/bootstrap.min.css" rel="stylesheet">
+		<link href="//netdna.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+
+		<style>
+			.alert {
+				padding-top: 4px;
+				padding-bottom: 4px;
+			}
+		</style>
+	</head>
+	<body style="margin-left: 5px; margin-top: 2px;">
+		Enter your Name, click "Update Location" then when it loads your Lat/Long click "Save"<br/>
+		You can then later repeat clicking "Update Location" and then click "Save" to Save updated locations.<br/>
+		<span id="error" class="alert alert-error"></span>
+		<form name="data" method="post" action="/whereami/save">
+			<input type="text" name="name" value="{{.Name}}" placeholder="Name"/></span><br/>
+			Latutide, Longitude: <span id="lat"></span>, <span id="long"></span>
+			<span id="at"></span><br/> 
+			<button onclick="updateLocation(); return false;">Update Location</button>
+
+			<input type="hidden" name="lat"/> 
+			<input type="hidden" name="long"/>
+			<input type="hidden" name="updated"/>
+			<input type="submit" name="submit" value="Save"/><br/>
+			<br/>
+
+			{{if .Error}} 
+				
+				<span class="alert alert-danger">{{.Error}}</span><br/>
+			{{else}}
+				{{if not .Entered.IsZero }}
+					<span class="alert alert-success">Last Saved Latitude, Longitude: {{.Lat}}, {{.Long}} at {{.Entered}}</span>
+				{{end}}
+			{{end}}
+			
+		</form>
+	</body>
+	<script src="/static/js/whereami.js" type="text/javascript">
+	</script>
+</html>
+`
+
+var whereTemplate = template.Must(template.New("where").Parse(whereTemplateHTML))
+
+func apiWhereLookup(c appengine.Context, w http.ResponseWriter, r *http.Request) {
+
+	//TODO: add team later
+	q := datastore.NewQuery("WhereAmI")
+
+	var entries []*WhereAmI
+	keys, qErr := q.GetAll(c, &entries)
+
+	if noErrMsg(qErr, w, c, "Loading WhereAmI entries") {
+		for idx, _ := range entries {
+			e := entries[idx]
+			k := keys[idx]
+
+			e.setKey(k)
+		}
+	}
+
+	context := struct {
+		Entries []*WhereAmI
+	}{
+		entries,
+	}
+
+	returnJSONorErrorToResponse(context, c, w, r)
 }
