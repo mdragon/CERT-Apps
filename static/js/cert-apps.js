@@ -5312,14 +5312,63 @@ CERTApps.Where.reopenClass(
 
 CERTApps.WhereResults = CERTApps.BaseObject.extend({
 	entries: null,
+	filterNames: null,
+	nameList: null,
+	mostRecent: true,
 
 	init: function() {
 		this.set("entries", Ember.A([]));
+		this.set("nameList", Ember.A([]));
+		this.set("filterNames", Ember.A([]));
 	},
 
-	sortedEntries: function() {
-		return this.get("entries");
-	}.property("entries.@each")
+	entriesSorted: function() {
+		return this.get("entriesFiltered");
+	}.property("entriesFiltered.@each"),
+
+	entriesFiltered: function() {
+		console.group("entriesFiltered");
+
+		var list = this.get("entries");
+		var filtered = Ember.A([]);
+
+		var names = this.get("nameList");
+		names.clear();
+		var namesMap = {};
+
+		console.groupCollapsed("list.forEach");
+		list.forEach( function(item) {
+			console.log("item", item);
+
+			if( ! namesMap[item.name] ) {
+				namesMap[item.name] = item;
+				names.pushObject(item.name)
+			} else {
+				var old = namesMap[item.name];
+				if( item.get("enteredMoment").diff(old.get("enteredMoment")) > 0 )
+				{
+					console.log("newer item found replacing", item, old);
+					namesMap[item.name] = item;
+				}
+			}
+		});
+		console.groupEnd();
+
+		names.sort();
+
+		if( this.get("mostRecent") ) {
+			for( var i in namesMap )
+			{
+				var item = namesMap[i];
+				filtered.pushObject(item);
+			}
+		} else {
+			filtered = this.get("entries");
+		}
+		console.log("filtered", filtered);
+		console.groupEnd();
+		return filtered;
+	}.property("entries.@each", "mostRecent")
 });
 
 CERTApps.WhereRoute = CERTApps.BaseRoute.extend({
@@ -5411,7 +5460,7 @@ CERTApps.WhereView = Ember.View.extend(
         var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
         var map = new google.maps.Map(mapCanvas, mapOptions);
 
-        this.get("controller.model.entries").forEach( function(item) {
+        this.get("controller.model.entriesFiltered").forEach( function(item) {
         	pos = {lat: item.lat, lng: item.long};
         	title = item.get("name") + " - " + item.get("enteredRelativeDate");
 
