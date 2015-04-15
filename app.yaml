@@ -11,3 +11,6 @@ handlers:
   upload: static/favicon.ico
 - url: /.*
   script: _go_app
+# for endpoints
+- url: /_ah/spi/.*
+  script: _go_app

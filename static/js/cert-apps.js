@@ -5279,7 +5279,7 @@ CERTApps.Where.reopenClass(
 	{
 		console.group("CERTApps.Where.lookup");
 		console.log("params");
-		var options = {
+/*		var options = {
 			url: "/api/where/lookup"
 		};
 
@@ -5289,13 +5289,16 @@ CERTApps.Where.reopenClass(
 		{
 			return CERTApps.moveUpData(data);
 		});
+*/
+		var t = gapi.client.where.list();
 
 		var t2 = t.then(function(data) {
+			console.log("t2 then", data);
 			var results = CERTApps.WhereResults.create();
 
-			if( data.Entries ) {
-				for(var i = data.Entries.length - 1; i >= 0; i-- ) {
-					var item = data.Entries[i];
+			if( data.result.entries ) {
+				for(var i = data.result.entries.length - 1; i >= 0; i-- ) {
+					var item = data.result.entries[i];
 					var e = CERTApps.Where.create(item);
 
 					results.entries.pushObject(e);
@@ -5413,6 +5416,7 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 			markers.pushObject(marker);
 		});
 
+		console.groupEnd();
 	}.observes("entriesFiltered.@each")
 });
 
