@@ -127,15 +127,6 @@
 </body>
 </html>
 
-<script type="text/javascript" src="/static/js/jquery-1.11.x.js"></script>
-<script type="text/javascript" src="/static/js/ember-template-compiler.js"></script>
-<script type="text/javascript" src="/static/js/ember.debug.js"></script>
-<script type="text/javascript" src="/static/js/moment.min.js"></script>
-<script type="text/javascript" src="/static/js/models/common.js"></script>
-<script type="text/javascript" src="/static/js/models/comfort-station.js"></script>
-<script type="text/javascript" src="/static/js/cert-apps.js"></script>
-<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
-
 <script type="text/x-handlebars">
 	<div class="nav">
 		{{log "nav content"}}
@@ -1115,3 +1106,30 @@ Landing index
 		</table>
 	</div>
 </script>
+
+<script type="text/javascript" src="/static/js/jquery-1.11.x.js"></script>
+<script type="text/javascript" src="/static/js/ember-template-compiler.js"></script>
+<script type="text/javascript" src="/static/js/ember.debug.js"></script>
+<script type="text/javascript" src="/static/js/moment.min.js"></script>
+<script type="text/javascript" src="/static/js/models/common.js"></script>
+<script type="text/javascript" src="/static/js/models/comfort-station.js"></script>
+<script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+
+<script type="text/javascript">
+var gapiPromise;
+
+function endpointInit() {
+	console.log("endpointInit", arguments);
+
+	var ROOT = 'https://cert-apps.appspot.com/_ah/api';
+	if( window.location.host.indexOf("localhost") > -1 ) {
+		ROOT = "http://localhost:8080/_ah/api"
+	}
+
+	console.log("hooking endpoint to ROOT", ROOT);	
+	gapiPromise = gapi.client.load('where', 'v1', null, ROOT);
+}
+</script>
+<script src="https://apis.google.com/js/client.js?onload=endpointInit"></script>
+
+<script type="text/javascript" src="/static/js/cert-apps.js"></script>
