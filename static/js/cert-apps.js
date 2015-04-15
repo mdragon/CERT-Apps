@@ -5290,26 +5290,31 @@ CERTApps.Where.reopenClass(
 			return CERTApps.moveUpData(data);
 		});
 */
-		var t = gapi.client.where.list();
+		var p = gapiPromise.then( function() {
+			var t = gapi.client.where.list();
 
-		var t2 = t.then(function(data) {
-			console.log("t2 then", data);
-			var results = CERTApps.WhereResults.create();
+			var t2 = t.then(function(data) {
+				console.log("t2 then", data);
+				var results = CERTApps.WhereResults.create();
 
-			if( data.result.entries ) {
-				for(var i = data.result.entries.length - 1; i >= 0; i-- ) {
-					var item = data.result.entries[i];
-					var e = CERTApps.Where.create(item);
+				if( data.result.entries ) {
+					for(var i = data.result.entries.length - 1; i >= 0; i-- ) {
+						var item = data.result.entries[i];
+						var e = CERTApps.Where.create(item);
 
-					results.entries.pushObject(e);
+						results.entries.pushObject(e);
+					}
 				}
-			}
 
-			return results;
+				return results;
+			});
+			
+			return t2;
 		});
-		
+
 		console.groupEnd();
-		return t2;
+
+		return p;
 	}
 });
 

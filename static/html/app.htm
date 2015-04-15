@@ -1116,6 +1116,8 @@ Landing index
 <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
 
 <script type="text/javascript">
+var gapiPromise;
+
 function endpointInit() {
 	console.log("endpointInit", arguments);
 
@@ -1123,9 +1125,9 @@ function endpointInit() {
 	if( window.location.host.indexOf("localhost") > -1 ) {
 		ROOT = "http://localhost:8080/_ah/api"
 	}
-	gapi.client.load('where', 'v1', function() {
-	  console.log("api endpoint loaded", gapi.client);
-	}, ROOT);
+
+	console.log("hooking endpoint to ROOT", ROOT);	
+	gapiPromise = gapi.client.load('where', 'v1', null, ROOT);
 }
 </script>
 <script src="https://apis.google.com/js/client.js?onload=endpointInit"></script>
