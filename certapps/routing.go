@@ -1,12 +1,15 @@
 package certapps
 
 import (
+	"log"
 	"math/rand"
 	"net/http"
 	"time"
 
 	"appengine"
 	//	"github.com/mjibson/appstats"
+
+	"github.com/GoogleCloudPlatform/go-endpoints/endpoints"
 )
 
 type handler struct {
@@ -51,7 +54,7 @@ func init() {
 
 	http.Handle("/api/trainingTopic/save", newHandler(apiTrainingTopicSave))
 
-	http.Handle("/api/where/lookup", newHandler(apiWhereLookup))
+	//http.Handle("/api/where/lookup", newHandler(apiWhereLookup))
 
 	http.Handle("/audit", newHandler(audit))
 	http.Handle("/certifications/all", newHandler(certificationsGetAll))
@@ -75,6 +78,27 @@ func init() {
 
 	http.Handle("/whereami", newHandler(whereAmI))
 	http.Handle("/whereami/save", newHandler(whereAmISave))
+
+	whereService := &WhereAmIService{}
+	// was api, err
+	_, err := endpoints.RegisterService(whereService, "where", "v1", "Where Am I? API", true)
+	if err != nil {
+		log.Fatalf("Register service: %v", err)
+	}
+
+	// register := func(orig, name, method, path, desc string) {
+	// 	m := api.MethodByName(orig)
+	// 	if m == nil {
+	// 		log.Fatalf("Missing method %s", orig)
+	// 	}
+	// 	i := m.Info()
+	// 	i.Name, i.HTTPMethod, i.Path, i.Desc = name, method, path, desc
+	// }
+
+	// register("List", "greets.list", "GET", "greetings", "List most recent greetings.")
+	// register("Add", "greets.add", "PUT", "greetings", "Add a greeting.")
+	// register("Count", "greets.count", "GET", "greetings/count", "Count all greetings.")
+	endpoints.HandleHTTP()
 
 	rand.Seed(time.Now().UnixNano())
 }
