@@ -5263,6 +5263,12 @@ CERTApps.Where = CERTApps.BaseObject.extend({
 	long: null,
 	entered: null,
 
+	include: true,
+	
+	init: function() {
+		this.set("include", true);
+	},
+
 	enteredMoment: function()
 	{
 		return moment(this.get("entered"));
@@ -5271,7 +5277,18 @@ CERTApps.Where = CERTApps.BaseObject.extend({
 	enteredRelativeDate: function()
 	{
 		return this.get("enteredMoment").fromNow();
-	}.property("enteredMoment")
+	}.property("enteredMoment"),
+
+	toggleText: function() {
+		var retval = "Including";
+
+		if( this.get("include") == false ) {
+			retval = "Excluding";
+		}
+
+		return retval;
+	}.property("include")
+
 });
 CERTApps.Where.reopenClass(
 {
@@ -5353,7 +5370,8 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 
 			if( ! namesMap[item.name] ) {
 				namesMap[item.name] = item;
-				names.pushObject(item.name)
+
+				names.pushObject(item)
 			} else {
 				var old = namesMap[item.name];
 				if( item.get("enteredMoment").diff(old.get("enteredMoment")) > 0 )
@@ -5365,7 +5383,28 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 		});
 		console.groupEnd();
 
-		names.sort();
+		var namesListMap = {};
+		names.forEach( function(item) {
+			namesListMap[item.name] = item;
+		});
+
+		console.groupCollapsed("list.forEach for exclude");
+		var exclude = this.get("exclude");
+		list.forEach( function(item) {
+			console.log("item", item);
+
+			var name = item.get("name");
+			var referencePerson = namesListMap[name];
+
+			item.set("include", referencePerson.get("include"));
+			console.log("checked if name is excluded", name, referencePerson.get("include"), item.get("include"));
+		});
+		console.groupEnd();
+		//throw ("this works for single records, not for multiples");
+
+		names.sort(function (a,b) {
+			return a.name > b.name;
+		});
 
 		if( this.get("mostRecent") ) {
 			for( var i in namesMap )
@@ -5376,10 +5415,15 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 		} else {
 			filtered = this.get("entries");
 		}
+
+		var included = filtered.filterBy("include", true)
+
 		console.log("filtered", filtered);
+		console.log("included", included);
+
 		console.groupEnd();
-		return filtered;
-	}.property("entries.@each", "mostRecent"),
+		return included;
+	}.property("entries.@each.include", "mostRecent"),
 
 	setMarkers: function() {
 		console.group("CERTApps.WhereResults setMarkers");
@@ -5426,6 +5470,16 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 });
 
 CERTApps.WhereRoute = CERTApps.BaseRoute.extend({
+	actions: {
+		toggleInclude: function(person) {
+			console.group("CERTApps.WhereRoute actions.toggleInclude");
+
+			person.toggleProperty("include");
+			
+			console.groupEnd();
+		}
+	},
+
 	model: function(params)
 	{
 		console.group("CERTApps.WhereRoute model");

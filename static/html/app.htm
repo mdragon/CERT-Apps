@@ -1089,8 +1089,20 @@ Landing index
 
 		<div class="map-canvas"></div>
 
-		<div>
-			<label>Only most recent for each Name? {{input type="checkbox" checked=content.mostRecent}}</label>
+		<div style="float: none;">
+			<div style="float: left; clear: left;">
+				<h5>Recent Filter</h5>
+				<label>Only most recent for each Name? {{input type="checkbox" checked=content.mostRecent}}</label>
+			</div>
+			<div style="float: left;">
+				<h5>Names Filter</h5>
+				<ul>
+					{{#each person in content.nameList}}
+						<li><a {{action "toggleInclude" person}}>{{person.toggleText}}</a> {{person.name}}</li>
+					{{/each}}
+				</ul>
+			</div>
+			<div style="float: left; clear:both;"></div>
 		</div>
 
 		<table class="table table-striped table-condensed table-bordered table-responsive">
