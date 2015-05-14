@@ -444,6 +444,7 @@ func getMemberFromUser(c appengine.Context, u *user.User) (*Member, error) {
 			c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 			keys, err = memberQ.GetAll(c, &member)
 
+			err = checkCannotLoadField(err, c)
 			if noErrMsg(err, nil, c, "members for email") {
 				c.Infof("checking len(members)")
 				if len(member) == 0 {
@@ -454,6 +455,7 @@ func getMemberFromUser(c appengine.Context, u *user.User) (*Member, error) {
 					c.Infof("Got membersQ and members for Email: %v, calling GetAll", lowerEmail)
 					keys, err = memberQ.GetAll(c, &member)
 
+					err = checkCannotLoadField(err, c)
 					if noErrMsg(err, nil, c, "members for email2") {
 						if len(member) == 0 {
 							c.Infof("existing Member not found for user.Email2: %v, count:%d", lowerEmail, len(member))
@@ -2835,7 +2837,6 @@ type WhereAmI struct {
 	Entered  time.Time      `json:"entered"`
 	EventKey *datastore.Key `json:"eventKey"`
 	Error    string         `datastore:"-" json:"error"`
-
 	Audit
 }
 
