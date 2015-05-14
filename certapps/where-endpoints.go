@@ -14,7 +14,8 @@ type WhereAmIList struct {
 }
 
 type WhereAmIListReq struct {
-	Limit int `json:"limit" endpoints:"d=500"`
+	Limit int   `json:"limit" endpoints:"d=500"`
+	Event int64 `json:"eventKey endpoints:"d=0"`
 }
 
 // List responds with a list of all greetings ordered by Date field.
@@ -24,7 +25,13 @@ func (gs *WhereAmIService) List(c endpoints.Context, r *WhereAmIListReq) (*Where
 		r.Limit = 500
 	}
 
-	q := datastore.NewQuery("WhereAmI").Order("-Entered").Limit(r.Limit)
+	eventKey := datastore.NewKey(c, "WhereAmI", "", r.Event, nil)
+
+	q := datastore.NewQuery("WhereAmI").
+		Filter("EventKey =", eventKey).
+		Order("-Entered").
+		Limit(r.Limit)
+
 	wheres := make([]*WhereAmI, 0, r.Limit)
 	keys, err := q.GetAll(c, &wheres)
 	if err != nil {
