@@ -2120,34 +2120,46 @@ CERTApps.TeamIdRosterMapView = Ember.View.extend(
 {
 	didInsertElement: function()	
 	{
-		console.group('CERTApps.RosterMap didInsertElement');
+		console.group('CERTApps.TeamIdRosterMapView didInsertElement');
 		console.log('arguments', arguments);
 		console.log('this', this);
 
-        var myLatLng = new google.maps.LatLng(40.795, -74.28);
         var mapOptions = {
-          zoom: 13,
-          center: myLatLng,
-          minZoom: 13,
           mapTypeId: google.maps.MapTypeId.ROADMAP
         }
 
         var mapCanvas = $('#' + this.elementId).find('.map-canvas')[0];
         var map = new google.maps.Map(mapCanvas, mapOptions);
+		var maxLat = -300;
+		var minLat = 300;
+		var maxLong = -300;
+		var minLong = 300
 
-        this.get("controller.model.Members").forEach( function(item)
-        {
-        	if( item.publicLatitude != 0 )
-        	{
-        		if( item.Enabled )
-        		{
+        this.get("controller.model.Members").forEach( function(item) {
+        	if( item.publicLatitude != 0 ) {
+        		if( item.Enabled ) {
 		        	var pos = {lat: item.publicLatitude, lng: item.publicLongitude};
 					var title = item.KeyID.toString();
 
-		        	if( item.latitude != 0 )
-		        	{
+		        	if( item.latitude != 0 ) {
 			        	pos = {lat: item.latitude, lng: item.longitude};
 			        	title = item.get("officerShortName");
+		        	}
+
+		        	if( pos.lat > maxLat ) {
+		        		maxLat = pos.lat;
+		        	}
+
+		        	if( pos.lat < minLat ) {
+		        		minLat = pos.lat;
+		        	}
+
+		        	if( pos.lng > maxLong ) {
+		        		maxLong = pos.lng;
+		        	}
+
+		        	if( pos.lng < minLong ) {
+		        		minLong = pos.lng;
 		        	}
 
 		        	console.log('putting item on map', pos, item);
@@ -2167,6 +2179,14 @@ CERTApps.TeamIdRosterMapView = Ember.View.extend(
 				}
 			}
         });
+		console.log("sw", minLat, minLong);
+		console.log("ne", maxLat, maxLong);
+		var sw = new google.maps.LatLng(minLat, minLong);
+		var ne = new google.maps.LatLng(maxLat, maxLong);
+		var bounds = new google.maps.LatLngBounds(sw, ne);
+		
+		console.log("fitting bounds", bounds);
+		map.fitBounds(bounds);
 
         console.groupEnd();
     }
@@ -5406,6 +5426,8 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 	markers: null,
 	map: null,
 
+	latLngBounds: null,
+
 	init: function() {
 		this.set("entries", Ember.A([]));
 		this.set("nameList", Ember.A([]));
@@ -5528,6 +5550,38 @@ CERTApps.WhereResults = CERTApps.BaseObject.extend({
 			markers.pushObject(marker);
 		});
 
+		var maxLat = -300;
+		var minLat = 300;
+		var maxLong = -300;
+		var minLong = 300
+
+		markers.forEach(function(item){
+			console.log("included.forEach item", item);
+			var pos = item.position;
+
+			if( pos.lat() > maxLat ) {
+				maxLat = pos.lat();
+			}
+
+			if( pos.lat() < minLat ) {
+				minLat = pos.lat();
+			}
+
+			if( pos.lng() > maxLong ) {
+				maxLong = pos.lng();
+			}
+
+			if( pos.lng() < minLong ) {
+				minLong = pos.lng();
+			}
+		});
+
+		console.log("sw", minLat, minLong);
+		console.log("ne", maxLat, maxLong);
+		var sw = new google.maps.LatLng(minLat, minLong);
+		var ne = new google.maps.LatLng(maxLat, maxLong);
+		this.set("latLngBounds", new google.maps.LatLngBounds(sw, ne));
+
 		console.groupEnd();
 	}.observes("entriesFiltered.@each")
 });
@@ -5616,15 +5670,11 @@ CERTApps.WhereView = Ember.View.extend(
 {
 	didInsertElement: function()	
 	{
-		console.group('CERTApps.RosterMap didInsertElement');
+		console.group('CERTApps.WhereView didInsertElement');
 		console.log('arguments', arguments);
 		console.log('this', this);
 
-        var myLatLng = new google.maps.LatLng(40.795, -74.28);
         var mapOptions = {
-          zoom: 13,
-          center: myLatLng,
-          minZoom: 13,
           mapTypeId: google.maps.MapTypeId.ROADMAP
         }
 
@@ -5647,7 +5697,8 @@ CERTApps.WhereView = Ember.View.extend(
 	        	marker.setMap(map);
 	        });
         }
-        // });
+        
+        map.fitBounds(this.get("controller.model.latLngBounds"));
 
         console.groupEnd();
     }
