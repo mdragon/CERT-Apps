@@ -1119,6 +1119,28 @@ Landing index
 	</div>
 </script>
 
+<script type="text/x-handlebars" data-template-name="team/id/roster/call-distribution">
+	{{log "team/id/roster/call-distribution" content}}
+	<table class="table table-hover table-condensed">
+		<tbody>
+			{{#each content.memberCallBreakdown as |branch|}}
+				<tr>
+					<td>{{branch.caller.fullName}}</td>
+					<td>{{branch.calls.length}}</td>
+					<td>
+						<ul>
+							{{#each branch.calls as |member|}}
+								<li>{{member.fullName}}</li>
+							{{/each}}
+						</ul>
+					</td>
+				</tr>
+			{{/each}}
+		</tbody>
+	</table>
+
+</script>
+
 <script type="text/javascript" src="/static/js/jquery-1.11.x.js"></script>
 <script type="text/javascript" src="/static/js/ember-template-compiler.js"></script>
 <script type="text/javascript" src="/static/js/ember.debug.js"></script>
