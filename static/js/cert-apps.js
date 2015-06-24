@@ -47,6 +47,7 @@ CERTApps.Router.map(function()
 				this.route('import');
 				this.route('map');
 				this.route("calls");
+				this.route("call-distribution");
 			});
 
 			this.route('events');
@@ -867,6 +868,66 @@ CERTApps.TeamIdRosterCallsRoute = Ember.Route.extend(
 });
 
 
+CERTApps.TeamIdRosterCallDistributionRoute = Ember.Route.extend(
+{
+	actions:
+	{
+	},
+
+	model: function(params)
+	{
+		console.group('CERTApps TeamIdRosterCallsRoute model')
+		var rosterModel = this.modelFor("teamIdRoster");
+		var appModel = this.modelFor("application");
+
+		var membersToCall = rosterModel.Members;
+		var memberCallMap = {};
+		var memberCallBreakdown = Ember.A([]);
+		var membersByKey = {};
+
+		membersToCall.forEach( function (member) {
+			var calledByID = member.get("calledBy");
+			var item = memberCallMap[calledByID];
+			if( ! item ) {
+				item = [];
+				console.log("adding calledBy to map", calledByID, member);
+				memberCallMap[calledByID] = item;
+			}
+			item.pushObject(member);
+			console.log("adding member to map", member.get("keyID"), member)
+			membersByKey[member.get("keyID")] = member;
+		});
+
+		console.log("membersByKey", membersByKey);
+		console.log("memberCallMap", memberCallMap);
+
+		for( var caller in memberCallMap ) {
+			var callerObj = null;
+
+			if( caller === "0" ) {
+				callerObj = CERTApps.Member.create({firstName: "No Caller Set", LastName: ""});
+			} else {
+				callerObj = membersByKey[caller];
+			}
+			console.log("caller", caller, "callerObj", callerObj);
+
+			var obj = {caller: callerObj, calls: [], calledBy: caller};
+			memberCallMap[caller].forEach( function(item) {
+				obj.calls.push(item);
+			});
+			memberCallBreakdown.push(obj)
+		}
+
+		var model = { memberCallBreakdown: memberCallBreakdown, loggedInMember: appModel.Member };
+
+		console.log("model", model);
+		console.groupEnd();
+
+		return model;
+	},
+});
+
+
 // CERTApps.ApplicationController = Ember.Controller.create(
 // {
 // 	model: function(params)
@@ -1097,7 +1158,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 	}.property("firstName", "LastName"),
 
 	officerShortName: function() {
-		return this.get("firstName") + " " + this.get("LastName").substring(0,1)
+		return this.get("firstName") + " " + (this.get("LastName") || "").substring(0,1)
 	}.property("firstName", "LastName"),
 
 	calledByStatus: null,
