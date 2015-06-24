@@ -192,7 +192,7 @@
 	<h3>{{model.Team.Name}} Roster</h3>
 
 	{{#if content.loggedInMember.CanLookup}}
-		<button {{action "addMember" model.Team}}><i class="fa fa-user-plus"></i> Add Member</button><br/>
+		<button {{action "addMember" model.Team}}><i class="fa fa-user-plus"></i> Add Member</button> | {{#link-to "team.id.roster.call-distribution"}}Call Distribution{{/link-to}}<br/>
 
 		<h4>Active Members({{this.membersActive.length}})</h4>
 		{{roster-table memberList=this.membersActive content=content team=model.Team onMemberEdit="memberEdit"}}
