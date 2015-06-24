@@ -1121,7 +1121,13 @@ Landing index
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/call-distribution">
 	{{log "team/id/roster/call-distribution" content}}
+	Note: List does not show Inactive Members
 	<table class="table table-hover table-condensed">
+		<thead>
+			<th>Caller</th>
+			<th># of Calls</th>
+			<th>Members to Call</th>
+		</thead>
 		<tbody>
 			{{#each content.memberCallBreakdown as |branch|}}
 				<tr>

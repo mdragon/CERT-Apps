@@ -913,7 +913,9 @@ CERTApps.TeamIdRosterCallDistributionRoute = Ember.Route.extend(
 
 			var obj = {caller: callerObj, calls: [], calledBy: caller};
 			memberCallMap[caller].forEach( function(item) {
-				obj.calls.push(item);
+				if( item.get("Active") ) {
+					obj.calls.push(item);
+				}
 			});
 			memberCallBreakdown.push(obj)
 		}
