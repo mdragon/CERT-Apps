@@ -904,7 +904,7 @@ CERTApps.TeamIdRosterCallDistributionRoute = Ember.Route.extend(
 		for( var caller in memberCallMap ) {
 			var callerObj = null;
 
-			if( caller === "0" ) {
+			if( (caller || 0).toString() === "0" ) {
 				callerObj = CERTApps.Member.create({firstName: "No Caller Set", LastName: ""});
 			} else {
 				callerObj = membersByKey[caller];
