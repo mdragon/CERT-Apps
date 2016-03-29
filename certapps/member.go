@@ -58,9 +58,13 @@ func apiMemberCalledBy(c appengine.Context, w http.ResponseWriter, r *http.Reque
 					c.Debugf("Looking up TeamMember for request from Member: %d, Lookup Team: %d = %d ?, Lookup Member: %d", currentMem.KeyID, teamKey.IntID(), memberToChange.KeyID)
 					teamMember, teamMemberErr := getTeamMemberByTeamAndMember(c, teamKey, memberToChange.Key, currentMem)
 					if noErrMsg(teamMemberErr, w, c, "Looking up TeamMember for Team, Member") {
-						callerKey := datastore.NewKey(c, "Member", "", postData.CalledBy, nil)
+						if postData.CalledBy != 0 {
+							callerKey := datastore.NewKey(c, "Member", "", postData.CalledBy, nil)
 
-						teamMember.CalledBy = callerKey
+							teamMember.CalledBy = callerKey
+						} else {
+							teamMember.CalledBy = nil
+						}
 						teamMember.setAudits(currentMem)
 
 						c.Debugf("Put TeamMember %+v", teamMember)

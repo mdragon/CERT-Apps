@@ -270,6 +270,9 @@
        							value=mem.calledBy
        							prompt="--"
        						}}
+       						{{#if mem.calledBy}}
+       							<i class="fa fa-trash action" title="Remove Caller" {{action "removeCaller" mem parentController.team}}></i>
+   							{{/if}}
 
        						<span style="width: 16px; height: 16px; display: inline-block;"><i {{bind-attr class=mem.calledByIcon}}></i></span>
 						</td>
