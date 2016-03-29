@@ -378,6 +378,45 @@ CERTApps.RosterTableComponent = Ember.Component.extend({
 			this.sendAction("onMemberEdit", mem, team);
 
 			console.groupEnd();			
+		},
+
+		removeCaller: function teamIdRosterIndexRouteRemoveCaller(member, team) {
+			console.group("removeCaller");
+
+			var data = {
+				Member: member.get("KeyID"),
+				CalledBy: 0,
+				Team: team.get("KeyID")
+			};
+
+			var settings = {
+				url: "/api/member/calledBy",
+				method: "POST",
+				data: JSON.stringify(data)
+			};
+
+			console.log("settings", settings);
+			var p = $.ajax(settings);
+
+			var t = p.then( 
+				function removeCallerSuccess(data) {
+					member.set("calledBy",  null);
+					member.set("calledByStatus", "saved");
+
+					window.setTimeout(function clearStatusUpdateIcon() {
+						member.set("calledByStatus", "clear");
+					}.bind(this), 
+					5000
+					);
+				},
+				function removeCallerFailure(data) {
+					member.set("calledByStatus", "failed");
+				}
+			);
+
+			console.groupEnd();
+
+			return t;
 		}
 	}
 });
@@ -487,6 +526,7 @@ CERTApps.RosterEntryController = Ember.Controller.extend({
 
 		var member = controller.get("model");
 		var team = controller.get("parentController.team");
+		console.log("member.calledBy", member.get("calledBy"));
 		if( member.get("calledBy") !== null ) {
 			this.send("changedCalledBy", member, team);
 		}
@@ -781,6 +821,7 @@ CERTApps.TeamIdRosterIndexRoute = Ember.Route.extend(
 {
 	actions:
 	{
+		
 	},
 
 /*	model: function(params)
