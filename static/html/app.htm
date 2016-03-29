@@ -925,6 +925,16 @@ Landing index
 			</div>
 		</div>
 
+
+		<div class="panel panel-default">
+			<div class="panel-heading">
+				<h4><i class="fa fa-users"></i> Team Data</h4>
+			</div>
+			<div class="panel-body">
+				{{input name="radioid" placeholder="RadioID" value=member.RadioID size='5'}}
+			</div>
+		</div>
+
 		{{#unless member.hideSave }}
 			<button {{action 'saveContact' member team}}><i class="fa fa-save"></i> Save</button>
 			<i {{bind-attr class=":fa member.savingIcon"}}></i>
