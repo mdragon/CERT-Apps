@@ -1018,7 +1018,7 @@ CERTApps.Member = CERTApps.BaseObject.extend(
 			}.bind(this),
 			function() {
 				this.set("statuses.save", "failed");
-			}
+			}.bind(this)
 		);
 
 		console.groupEnd();
@@ -5361,6 +5361,8 @@ CERTApps.MemberEditRoute = Ember.Route.extend({
 
 	setupController: function(controller, model) {
 		console.group('CERTApps.MemberEditRoute setupController')
+
+		console.log("passed in model", model);
 
 		var appModel = this.modelFor("application");
 
