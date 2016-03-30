@@ -873,10 +873,15 @@ CERTApps.TeamIdRosterIndexController = Ember.Controller.extend({
 	}.property("model.Members.@each"),
 
 	membersEnabled: Ember.computed.filterBy("model.Members", "enabled", true),
-	membersDisabled: Ember.computed.filterBy("model.Members", "enabled", false),
+	membersDisabled: Ember.computed.sort("membersDisabledUnsorted", "memberSorting"),
 
-	membersActive: Ember.computed.filterBy("membersEnabled", "active", true),
-	membersInactive: Ember.computed.filterBy("membersEnabled", "active", false),
+	memberSorting: Ember.A(["FirstName","LastName"]),
+	membersActive: Ember.computed.sort("membersActiveUnsorted", "memberSorting"),
+	membersInactive: Ember.computed.sort("membersInactiveUnsorted", "memberSorting"),
+
+	membersDisabledUnsorted: Ember.computed.filterBy("model.Members", "enabled", false),
+	membersActiveUnsorted: Ember.computed.filterBy("membersEnabled", "active", true),
+	membersInactiveUnsorted: Ember.computed.filterBy("membersEnabled", "active", false),
 
 	membersInactive2: function() {
 		var members = this.get("model.Members");
