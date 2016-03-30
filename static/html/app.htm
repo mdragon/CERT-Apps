@@ -361,12 +361,13 @@
 	{{log "member/update"}}
 	{{log model.member}}
 	{{log model}}
+	{{log application}}
 	{{#if model.member.keyId}}
 		Update contact information
 	{{else}}
 		Create new member
 	{{/if}}
-	{{member-edit member=model.member team=model.team}}
+	{{member-edit member=model.member team=model.team loggedInMember=content.loggedInMember}}
 </script>
 
 <script type="text/x-handlebars" data-template-name="team/id/roster/calls">
@@ -877,6 +878,9 @@ Landing index
 <script type="text/x-handlebars" data-template-name="components/member-edit">
 	{{log "components/member-edit"}}
 	{{log member}}
+	{{log team}}
+	{{log context.loggedInMember}}
+	{{log context}}
 	<form>
 		<div class="panel panel-default">
 			<div class="panel-heading">
@@ -925,7 +929,9 @@ Landing index
 			</div>
 		</div>
 
-		{{#if context.member.CanLookup}}
+		{{log "context." context.loggedInMember.CanLookup}}
+		{{log "no context" loggedInMember.CanLookup}}
+		{{#if context.loggedInMember.CanLookup}}
 			<div class="panel panel-default">
 				<div class="panel-heading">
 					<h4><i class="fa fa-users"></i> Team Data</h4>
