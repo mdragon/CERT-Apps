@@ -5348,7 +5348,9 @@ CERTApps.MemberEditRoute = Ember.Route.extend({
 
 		var t = p.then( function(data) {
 			var memberData = data.Member;
-			var model = CERTApps.Member.create(memberData);
+			var model = {
+				member: CERTApps.Member.create(memberData)
+			};
 
 			return model;
 		});
@@ -5360,11 +5362,13 @@ CERTApps.MemberEditRoute = Ember.Route.extend({
 	setupController: function(controller, model) {
 		console.group('CERTApps.MemberEditRoute setupController')
 
-		var team = this.modelFor("application").Team;
+		var appModel = this.modelFor("application");
 
-		console.log("team", team);
-
-		model = { member: model, team: team };
+		model = { 
+			member: model,
+			team: appModel.get("Team"),
+			loggedInMember: appModel.get("Member")
+		};
 
 		console.log("model", model);
 
